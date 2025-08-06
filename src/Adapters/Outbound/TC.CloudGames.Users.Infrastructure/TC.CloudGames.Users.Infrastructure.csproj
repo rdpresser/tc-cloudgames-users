@@ -1,0 +1,8 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Core\TC.CloudGames.Users.Application\TC.CloudGames.Users.Application.csproj" />
+    <ProjectReference Include="..\..\..\Core\TC.CloudGames.Users.Domain\TC.CloudGames.Users.Domain.csproj" />
+  </ItemGroup>
+
+</Project>
