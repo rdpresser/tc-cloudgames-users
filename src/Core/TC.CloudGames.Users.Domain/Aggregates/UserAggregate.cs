@@ -33,18 +33,8 @@ public sealed class UserAggregate
     public static Result<UserAggregate> Create(Guid id, string name, Email email, string username, Password password, Role role)
     {
         var errors = new List<ValidationError>();
-        if (string.IsNullOrWhiteSpace(name))
-            errors.Add(new ValidationError("Name.Required", "Name is required"));
-        if (name != null && name.Length > 100)
-            errors.Add(new ValidationError("Name.TooLong", "Name must be at most 100 characters"));
-        if (string.IsNullOrWhiteSpace(username))
-            errors.Add(new ValidationError("Username.Required", "Username is required"));
-        else if (username.Length < 3)
-            errors.Add(new ValidationError("Username.TooShort", "Username must be at least 3 characters"));
-        else if (username.Length > 50)
-            errors.Add(new ValidationError("Username.TooLong", "Username must be at most 50 characters"));
-        else if (!Regex.IsMatch(username, "^[a-zA-Z0-9_-]+$"))
-            errors.Add(new ValidationError("Username.InvalidFormat", "Username contains invalid characters"));
+        ValidateName(name, errors);
+        ValidateUsername(username, errors);
         if (errors.Count > 0)
             return Result.Invalid(errors.ToArray());
 
@@ -160,14 +150,11 @@ public sealed class UserAggregate
     public Result UpdateInfo(string name, Email email, string username)
     {
         var errors = new List<ValidationError>();
-        if (string.IsNullOrWhiteSpace(name))
-            errors.Add(new ValidationError("Name.Required", "Name is required"));
-        if (string.IsNullOrWhiteSpace(username) || username.Length < 3)
-            errors.Add(new ValidationError("Username.TooShort", "Username must be at least 3 characters"));
+        ValidateName(name, errors);
+        ValidateUsername(username, errors);
         if (errors.Count > 0)
             return Result.Invalid(errors.ToArray());
 
-        // Email is already validated by the Value Object
         var @event = new UserUpdatedEvent(Id, name, email, username, DateTime.UtcNow);
         ApplyEvent(@event);
         return Result.Success();
@@ -312,6 +299,26 @@ public sealed class UserAggregate
     public void MarkEventsAsCommitted()
     {
         _uncommittedEvents.Clear();
+    }
+
+    private static void ValidateName(string name, List<ValidationError> errors)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            errors.Add(new ValidationError("Name.Required", "Name is required"));
+        else if (name.Length > 100)
+            errors.Add(new ValidationError("Name.TooLong", "Name must be at most 100 characters"));
+    }
+
+    private static void ValidateUsername(string username, List<ValidationError> errors)
+    {
+        if (string.IsNullOrWhiteSpace(username))
+            errors.Add(new ValidationError("Username.Required", "Username is required"));
+        else if (username.Length < 3)
+            errors.Add(new ValidationError("Username.TooShort", "Username must be at least 3 characters"));
+        else if (username.Length > 50)
+            errors.Add(new ValidationError("Username.TooLong", "Username must be at most 50 characters"));
+        else if (!Regex.IsMatch(username, "^[a-zA-Z0-9_-]+$"))
+            errors.Add(new ValidationError("Username.InvalidFormat", "Username contains invalid characters"));
     }
 }
 
