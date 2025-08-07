@@ -2,9 +2,11 @@
 
 public sealed record Email
 {
+    private const int MaxLength = 200;
+
     public static readonly ValidationError Required = new("Email.Required", "Email is required.");
     public static readonly ValidationError Invalid = new("Email.InvalidFormat", "Invalid email format.");
-    public static readonly ValidationError MaximumLength = new("Email.MaximumLength", "Email cannot exceed 200 characters.");
+    public static readonly ValidationError MaximumLength = new("Email.MaximumLength", $"Email cannot exceed {MaxLength} characters.");
 
     private static readonly Regex EmailRegex = new(
         @"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
@@ -24,7 +26,7 @@ public sealed record Email
             return Result.Invalid(Required);
         }
 
-        if (value.Length > 200)
+        if (value.Length > MaxLength)
         {
             return Result.Invalid(MaximumLength);
         }

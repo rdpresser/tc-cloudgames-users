@@ -1,5 +1,3 @@
-using TC.CloudGames.Users.Domain.Aggregates;
-using TC.CloudGames.Users.Domain.ValueObjects;
 using TC.CloudGames.Users.Unit.Tests.Common;
 
 namespace TC.CloudGames.Users.Unit.Tests.Domain.Aggregates;
@@ -22,7 +20,7 @@ public class UserAggregateCreationTests
         var email = Email.Create("valid@test.com").Value;
         var password = Password.Create("ValidPassword123!").Value;
         var role = Role.Create("User").Value;
-        
+
         // Ensure username meets validation rules
         username = username.Substring(0, Math.Min(10, username.Length));
         if (string.IsNullOrWhiteSpace(username) || username.Length < 3)
@@ -73,7 +71,7 @@ public class UserAggregateCreationTests
     {
         // Arrange
         var id = Guid.NewGuid();
-        var name = new string('a', 101); // Exceeds 100 character limit
+        var name = new string('a', 201); // Exceeds 200 character limit
         var email = Email.Create("valid@test.com").Value;
         var username = "validuser";
         var password = Password.Create("ValidPassword123!").Value;
@@ -206,7 +204,7 @@ public class UserAggregateCreationTests
         var emailValue = "primitives@test.com";
         var passwordValue = "PrimitivesPassword123!";
         var roleValue = "User";
-        
+
         // Ensure username meets validation rules
         username = username.Substring(0, Math.Min(10, username.Length));
         if (string.IsNullOrWhiteSpace(username) || username.Length < 3)

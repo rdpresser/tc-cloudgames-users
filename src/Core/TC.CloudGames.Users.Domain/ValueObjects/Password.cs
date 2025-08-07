@@ -47,7 +47,7 @@ public sealed record Password
         if (string.IsNullOrWhiteSpace(hash))
             return Result.Invalid(Required);
 
-        return new Password(hash);
+        return Result.Success(new Password(hash));
     }
 
     /// <summary>

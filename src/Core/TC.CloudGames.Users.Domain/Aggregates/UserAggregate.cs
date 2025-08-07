@@ -303,21 +303,27 @@ public sealed class UserAggregate
 
     private static void ValidateName(string name, List<ValidationError> errors)
     {
+        var maxLength = 200;
+
         if (string.IsNullOrWhiteSpace(name))
             errors.Add(new ValidationError("Name.Required", "Name is required"));
-        else if (name.Length > 100)
-            errors.Add(new ValidationError("Name.TooLong", "Name must be at most 100 characters"));
+        else if (name.Length > maxLength)
+            errors.Add(new ValidationError("Name.TooLong", $"Name must be at most {maxLength} characters"));
     }
 
     private static void ValidateUsername(string username, List<ValidationError> errors)
     {
+        var maxLength = 50;
+        var minLength = 3;
+        var regex = new Regex("^[a-zA-Z0-9_-]+$", RegexOptions.Compiled);
+
         if (string.IsNullOrWhiteSpace(username))
             errors.Add(new ValidationError("Username.Required", "Username is required"));
-        else if (username.Length < 3)
-            errors.Add(new ValidationError("Username.TooShort", "Username must be at least 3 characters"));
-        else if (username.Length > 50)
-            errors.Add(new ValidationError("Username.TooLong", "Username must be at most 50 characters"));
-        else if (!Regex.IsMatch(username, "^[a-zA-Z0-9_-]+$"))
+        else if (username.Length < minLength)
+            errors.Add(new ValidationError("Username.TooShort", $"Username must be at least {minLength} characters"));
+        else if (username.Length > maxLength)
+            errors.Add(new ValidationError("Username.TooLong", $"Username must be at most {maxLength} characters"));
+        else if (!regex.IsMatch(username))
             errors.Add(new ValidationError("Username.InvalidFormat", "Username contains invalid characters"));
     }
 }
