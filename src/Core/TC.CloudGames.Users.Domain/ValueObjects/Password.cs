@@ -34,7 +34,7 @@ public sealed record Password
             return Result.Invalid(WeakPassword);
 
         var hash = HashPassword(plainPassword);
-        return new Password(hash);
+        return Result.Success(new Password(hash));
     }
 
     /// <summary>

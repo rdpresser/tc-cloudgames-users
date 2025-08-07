@@ -186,7 +186,7 @@ public class EmailTests
     public void Create_WithMaximumValidLength_ShouldSucceed()
     {
         // Arrange - Create email with exactly 200 characters
-        var localPart = new string('a', 187); // 187 + '@' + 'example.com' (12) = 200
+        var localPart = new string('a', 188); // 188 + '@' + 'example.com' (12) = 200
         var maxLengthEmail = $"{localPart}@example.com";
 
         // Act

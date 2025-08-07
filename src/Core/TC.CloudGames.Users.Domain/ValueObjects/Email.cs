@@ -24,17 +24,17 @@ public sealed record Email
             return Result.Invalid(Required);
         }
 
-        if (!EmailRegex.IsMatch(value))
-        {
-            return Result.Invalid(Invalid);
-        }
-
         if (value.Length > 200)
         {
             return Result.Invalid(MaximumLength);
         }
 
-        return new Email(value.ToLowerInvariant());
+        if (!EmailRegex.IsMatch(value))
+        {
+            return Result.Invalid(Invalid);
+        }
+
+        return Result.Success(new Email(value.ToLowerInvariant()));
     }
 
     public static implicit operator string(Email email) => email.Value;

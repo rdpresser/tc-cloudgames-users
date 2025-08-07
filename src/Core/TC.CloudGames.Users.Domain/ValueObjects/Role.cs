@@ -1,11 +1,9 @@
-﻿using Ardalis.Result;
-
-namespace TC.CloudGames.Users.Domain.ValueObjects;
+﻿namespace TC.CloudGames.Users.Domain.ValueObjects;
 
 public sealed record Role
 {
     public static readonly ValidationError Invalid = new("Role.Invalid", "Invalid role value.");
-    
+
     // Predefined roles
     public static readonly Role User = new("User");
     public static readonly Role Admin = new("Admin");
@@ -30,13 +28,13 @@ public sealed record Role
         if (string.IsNullOrWhiteSpace(value))
             return Result.Invalid(Invalid);
 
-        var normalizedValue = ValidRoles.FirstOrDefault(r => 
+        var normalizedValue = ValidRoles.FirstOrDefault(r =>
             string.Equals(r, value, StringComparison.OrdinalIgnoreCase));
 
         if (normalizedValue == null)
             return Result.Invalid(Invalid);
 
-        return new Role(normalizedValue);
+        return Result.Success(new Role(normalizedValue));
     }
 
     /// <summary>

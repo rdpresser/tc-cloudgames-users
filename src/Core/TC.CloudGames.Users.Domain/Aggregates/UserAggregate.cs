@@ -35,8 +35,16 @@ public sealed class UserAggregate
         var errors = new List<ValidationError>();
         if (string.IsNullOrWhiteSpace(name))
             errors.Add(new ValidationError("Name.Required", "Name is required"));
-        if (string.IsNullOrWhiteSpace(username) || username.Length < 3)
+        if (name != null && name.Length > 100)
+            errors.Add(new ValidationError("Name.TooLong", "Name must be at most 100 characters"));
+        if (string.IsNullOrWhiteSpace(username))
+            errors.Add(new ValidationError("Username.Required", "Username is required"));
+        else if (username.Length < 3)
             errors.Add(new ValidationError("Username.TooShort", "Username must be at least 3 characters"));
+        else if (username.Length > 50)
+            errors.Add(new ValidationError("Username.TooLong", "Username must be at most 50 characters"));
+        else if (!Regex.IsMatch(username, "^[a-zA-Z0-9_-]+$"))
+            errors.Add(new ValidationError("Username.InvalidFormat", "Username contains invalid characters"));
         if (errors.Count > 0)
             return Result.Invalid(errors.ToArray());
 
