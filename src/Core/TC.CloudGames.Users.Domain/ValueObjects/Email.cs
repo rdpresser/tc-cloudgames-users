@@ -40,4 +40,7 @@ public sealed record Email
     }
 
     public static implicit operator string(Email email) => email.Value;
+
+    //TODO: Remove this implicit operator if not needed
+    public static implicit operator Email(string email) => Create(email).Value;
 }

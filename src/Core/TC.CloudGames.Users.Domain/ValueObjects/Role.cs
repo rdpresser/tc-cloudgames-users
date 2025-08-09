@@ -9,7 +9,7 @@ public sealed record Role
     public static readonly Role Admin = new("Admin");
     public static readonly Role Moderator = new("Moderator");
 
-    private static readonly string[] ValidRoles = { "User", "Admin", "Moderator" };
+    public static readonly string[] ValidRoles = { "User", "Admin", "Moderator" };
 
     public string Value { get; }
 
@@ -50,4 +50,5 @@ public sealed record Role
     public bool CanModerate() => IsAdmin() || Value.Equals("Moderator", StringComparison.OrdinalIgnoreCase);
 
     public static implicit operator string(Role role) => role.Value;
+    public static implicit operator Role(string role) => Create(role).Value;
 }

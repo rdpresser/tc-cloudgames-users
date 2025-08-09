@@ -6,8 +6,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Abstractions\" />
-    <Folder Include="Extensions\" />
+    <ProjectReference Include="..\..\..\..\..\shared\common\src\TC.CloudGames.SharedKernel\TC.CloudGames.SharedKernel.csproj" />
   </ItemGroup>
 
 </Project>

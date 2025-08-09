@@ -12,7 +12,6 @@ public class UserAggregateCreationTests
 
     [Theory, AutoFakeItEasyData]
     public void Create_WithValidData_ShouldSucceed(
-        Guid id,
         string name,
         string username)
     {
@@ -27,12 +26,11 @@ public class UserAggregateCreationTests
             username = "testuser";
 
         // Act
-        var result = UserAggregate.Create(id, name, email, username, password, role);
+        var result = UserAggregate.Create(name, email, username, password, role);
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldNotBeNull();
-        result.Value.Id.ShouldBe(id);
         result.Value.Name.ShouldBe(name);
         result.Value.Email.ShouldBe(email);
         result.Value.Username.ShouldBe(username);
@@ -52,14 +50,13 @@ public class UserAggregateCreationTests
     public void Create_WithInvalidName_ShouldFail(string invalidName)
     {
         // Arrange
-        var id = Guid.NewGuid();
         var email = Email.Create("valid@test.com").Value;
         var username = "validuser";
         var password = Password.Create("ValidPassword123!").Value;
         var role = Role.Create("User").Value;
 
         // Act
-        var result = UserAggregate.Create(id, invalidName, email, username, password, role);
+        var result = UserAggregate.Create(invalidName, email, username, password, role);
 
         // Assert
         result.IsSuccess.ShouldBeFalse();
@@ -70,7 +67,6 @@ public class UserAggregateCreationTests
     public void Create_WithNameTooLong_ShouldFail()
     {
         // Arrange
-        var id = Guid.NewGuid();
         var name = new string('a', 201); // Exceeds 200 character limit
         var email = Email.Create("valid@test.com").Value;
         var username = "validuser";
@@ -78,7 +74,7 @@ public class UserAggregateCreationTests
         var role = Role.Create("User").Value;
 
         // Act
-        var result = UserAggregate.Create(id, name, email, username, password, role);
+        var result = UserAggregate.Create(name, email, username, password, role);
 
         // Assert
         result.IsSuccess.ShouldBeFalse();
@@ -92,14 +88,13 @@ public class UserAggregateCreationTests
     public void Create_WithInvalidUsername_ShouldFail(string invalidUsername)
     {
         // Arrange
-        var id = Guid.NewGuid();
         var name = "Valid Name";
         var email = Email.Create("valid@test.com").Value;
         var password = Password.Create("ValidPassword123!").Value;
         var role = Role.Create("User").Value;
 
         // Act
-        var result = UserAggregate.Create(id, name, email, invalidUsername, password, role);
+        var result = UserAggregate.Create(name, email, invalidUsername, password, role);
 
         // Assert
         result.IsSuccess.ShouldBeFalse();
@@ -110,7 +105,6 @@ public class UserAggregateCreationTests
     public void Create_WithUsernameTooShort_ShouldFail()
     {
         // Arrange
-        var id = Guid.NewGuid();
         var name = "Valid Name";
         var email = Email.Create("valid@test.com").Value;
         var username = "ab"; // Less than 3 characters
@@ -118,7 +112,7 @@ public class UserAggregateCreationTests
         var role = Role.Create("User").Value;
 
         // Act
-        var result = UserAggregate.Create(id, name, email, username, password, role);
+        var result = UserAggregate.Create(name, email, username, password, role);
 
         // Assert
         result.IsSuccess.ShouldBeFalse();
@@ -129,7 +123,6 @@ public class UserAggregateCreationTests
     public void Create_WithUsernameTooLong_ShouldFail()
     {
         // Arrange
-        var id = Guid.NewGuid();
         var name = "Valid Name";
         var email = Email.Create("valid@test.com").Value;
         var password = Password.Create("ValidPassword123!").Value;
@@ -139,7 +132,7 @@ public class UserAggregateCreationTests
         System.Diagnostics.Debug.WriteLine($"Username: '{username}', Length: {username.Length}");
 
         // Act
-        var result = UserAggregate.Create(id, name, email, username, password, role);
+        var result = UserAggregate.Create(name, email, username, password, role);
 
         // Assert
         result.IsSuccess.ShouldBeFalse();
@@ -154,14 +147,13 @@ public class UserAggregateCreationTests
     public void Create_WithInvalidUsernameFormat_ShouldFail(string invalidUsername)
     {
         // Arrange
-        var id = Guid.NewGuid();
         var name = "Valid Name";
         var email = Email.Create("valid@test.com").Value;
         var password = Password.Create("ValidPassword123!").Value;
         var role = Role.Create("User").Value;
 
         // Act
-        var result = UserAggregate.Create(id, name, email, invalidUsername, password, role);
+        var result = UserAggregate.Create(name, email, invalidUsername, password, role);
 
         // Assert
         result.IsSuccess.ShouldBeFalse();
@@ -176,14 +168,13 @@ public class UserAggregateCreationTests
     public void Create_WithValidUsernameFormats_ShouldSucceed(string validUsername)
     {
         // Arrange
-        var id = Guid.NewGuid();
         var name = "Valid Name";
         var email = Email.Create("valid@test.com").Value;
         var password = Password.Create("ValidPassword123!").Value;
         var role = Role.Create("User").Value;
 
         // Act
-        var result = UserAggregate.Create(id, name, email, validUsername, password, role);
+        var result = UserAggregate.Create(name, email, validUsername, password, role);
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -196,7 +187,6 @@ public class UserAggregateCreationTests
 
     [Theory, AutoFakeItEasyData]
     public void CreateFromPrimitives_WithValidData_ShouldSucceed(
-        Guid id,
         string name,
         string username)
     {
@@ -211,12 +201,12 @@ public class UserAggregateCreationTests
             username = "testuser";
 
         // Act
-        var result = UserAggregate.CreateFromPrimitives(id, name, emailValue, username, passwordValue, roleValue);
+        var result = UserAggregate.CreateFromPrimitives(name, emailValue, username, passwordValue, roleValue);
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
         result.Value.ShouldNotBeNull();
-        result.Value.Id.ShouldBe(id);
+        result.Value.Id.ShouldNotBe(Guid.Empty);
         result.Value.Name.ShouldBe(name);
         result.Value.Email.Value.ShouldBe(emailValue);
         result.Value.Username.ShouldBe(username);
@@ -234,14 +224,13 @@ public class UserAggregateCreationTests
     public void CreateFromPrimitives_WithInvalidEmail_ShouldFail(string invalidEmail)
     {
         // Arrange
-        var id = Guid.NewGuid();
         var name = "Valid Name";
         var username = "validuser";
         var passwordValue = "ValidPassword123!";
         var roleValue = "User";
 
         // Act
-        var result = UserAggregate.CreateFromPrimitives(id, name, invalidEmail, username, passwordValue, roleValue);
+        var result = UserAggregate.CreateFromPrimitives(name, invalidEmail, username, passwordValue, roleValue);
 
         // Assert
         result.IsSuccess.ShouldBeFalse();
@@ -259,14 +248,13 @@ public class UserAggregateCreationTests
     public void CreateFromPrimitives_WithInvalidPassword_ShouldFail(string invalidPassword)
     {
         // Arrange
-        var id = Guid.NewGuid();
         var name = "Valid Name";
         var emailValue = "valid@test.com";
         var username = "validuser";
         var roleValue = "User";
 
         // Act
-        var result = UserAggregate.CreateFromPrimitives(id, name, emailValue, username, invalidPassword, roleValue);
+        var result = UserAggregate.CreateFromPrimitives(name, emailValue, username, invalidPassword, roleValue);
 
         // Assert
         result.IsSuccess.ShouldBeFalse();
@@ -281,14 +269,13 @@ public class UserAggregateCreationTests
     public void CreateFromPrimitives_WithInvalidRole_ShouldFail(string invalidRole)
     {
         // Arrange
-        var id = Guid.NewGuid();
         var name = "Valid Name";
         var emailValue = "valid@test.com";
         var username = "validuser";
         var passwordValue = "ValidPassword123!";
 
         // Act
-        var result = UserAggregate.CreateFromPrimitives(id, name, emailValue, username, passwordValue, invalidRole);
+        var result = UserAggregate.CreateFromPrimitives(name, emailValue, username, passwordValue, invalidRole);
 
         // Assert
         result.IsSuccess.ShouldBeFalse();
@@ -305,14 +292,13 @@ public class UserAggregateCreationTests
     public void CreateFromPrimitives_WithValidRoles_ShouldSucceed(string validRole)
     {
         // Arrange
-        var id = Guid.NewGuid();
         var name = "Valid Name";
         var emailValue = "valid@test.com";
         var username = "validuser";
         var passwordValue = "ValidPassword123!";
 
         // Act
-        var result = UserAggregate.CreateFromPrimitives(id, name, emailValue, username, passwordValue, validRole);
+        var result = UserAggregate.CreateFromPrimitives(name, emailValue, username, passwordValue, validRole);
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -340,7 +326,6 @@ public class UserAggregateCreationTests
     public void Builder_WithCustomValues_ShouldCreateUserWithSpecifiedValues()
     {
         // Arrange
-        var customId = Guid.NewGuid();
         var customName = "Custom User";
         var customEmail = "custom@test.com";
         var customUsername = "customuser";
@@ -348,7 +333,6 @@ public class UserAggregateCreationTests
 
         // Act
         var result = new UserAggregateBuilder()
-            .WithId(customId)
             .WithName(customName)
             .WithEmail(customEmail)
             .WithUsername(customUsername)
@@ -357,7 +341,7 @@ public class UserAggregateCreationTests
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
-        result.Value.Id.ShouldBe(customId);
+        result.Value.Id.ShouldNotBe(Guid.Empty);
         result.Value.Name.ShouldBe(customName);
         result.Value.Email.Value.ShouldBe(customEmail);
         result.Value.Username.ShouldBe(customUsername);

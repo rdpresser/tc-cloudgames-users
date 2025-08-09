@@ -1,5 +1,3 @@
-using TC.CloudGames.Users.Domain.Aggregates;
-using TC.CloudGames.Users.Domain.ValueObjects;
 using TC.CloudGames.Users.Unit.Tests.Common;
 
 namespace TC.CloudGames.Users.Unit.Tests.Domain.Aggregates;
@@ -15,7 +13,6 @@ public class UserAggregateEventTests
     public void Create_ShouldGenerateUserCreatedEvent()
     {
         // Arrange
-        var id = Guid.NewGuid();
         var name = "Test User";
         var email = Email.Create("test@example.com").Value;
         var username = "testuser";
@@ -23,15 +20,15 @@ public class UserAggregateEventTests
         var role = Role.Create("User").Value;
 
         // Act
-        var result = UserAggregate.Create(id, name, email, username, password, role);
+        var result = UserAggregate.Create(name, email, username, password, role);
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
         var user = result.Value;
         user.UncommittedEvents.ShouldHaveSingleItem();
-        
+
         var createdEvent = user.UncommittedEvents.First().ShouldBeOfType<UserCreatedEvent>();
-        createdEvent.Id.ShouldBe(id);
+        createdEvent.Id.ShouldNotBe(Guid.Empty);
         createdEvent.Name.ShouldBe(name);
         createdEvent.Email.ShouldBe(email);
         createdEvent.Username.ShouldBe(username);
@@ -55,7 +52,7 @@ public class UserAggregateEventTests
         // Assert
         result.IsSuccess.ShouldBeTrue();
         user.UncommittedEvents.Count.ShouldBe(2); // Create + Update events
-        
+
         var updatedEvent = user.UncommittedEvents.Last().ShouldBeOfType<UserUpdatedEvent>();
         updatedEvent.Id.ShouldBe(user.Id);
         updatedEvent.Name.ShouldBe(newName);
@@ -77,7 +74,7 @@ public class UserAggregateEventTests
         // Assert
         result.IsSuccess.ShouldBeTrue();
         user.UncommittedEvents.Count.ShouldBe(2); // Create + PasswordChanged events
-        
+
         var passwordChangedEvent = user.UncommittedEvents.Last().ShouldBeOfType<UserPasswordChangedEvent>();
         passwordChangedEvent.Id.ShouldBe(user.Id);
         passwordChangedEvent.NewPassword.ShouldBe(newPassword);
@@ -99,7 +96,7 @@ public class UserAggregateEventTests
         // Assert
         result.IsSuccess.ShouldBeTrue();
         user.UncommittedEvents.Count.ShouldBe(2); // Create + RoleChanged events
-        
+
         var roleChangedEvent = user.UncommittedEvents.Last().ShouldBeOfType<UserRoleChangedEvent>();
         roleChangedEvent.Id.ShouldBe(user.Id);
         roleChangedEvent.NewRole.ShouldBe(newRole);
@@ -120,7 +117,7 @@ public class UserAggregateEventTests
         // Assert
         result.IsSuccess.ShouldBeTrue();
         user.UncommittedEvents.Count.ShouldBe(3); // Create + Deactivated + Activated events
-        
+
         var activatedEvent = user.UncommittedEvents.Last().ShouldBeOfType<UserActivatedEvent>();
         activatedEvent.Id.ShouldBe(user.Id);
         activatedEvent.ActivatedAt.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
@@ -139,7 +136,7 @@ public class UserAggregateEventTests
         // Assert
         result.IsSuccess.ShouldBeTrue();
         user.UncommittedEvents.Count.ShouldBe(2); // Create + Deactivated events
-        
+
         var deactivatedEvent = user.UncommittedEvents.Last().ShouldBeOfType<UserDeactivatedEvent>();
         deactivatedEvent.Id.ShouldBe(user.Id);
         deactivatedEvent.DeactivatedAt.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
@@ -164,7 +161,7 @@ public class UserAggregateEventTests
         var createdEvent = new UserCreatedEvent(id, name, email, username, password, role, createdAt);
 
         // Create user using FromProjection to test Apply method in isolation
-        var user = UserAggregate.FromProjection(Guid.Empty, "", Email.Create("temp@temp.com").Value, 
+        var user = UserAggregate.FromProjection(Guid.Empty, "", Email.Create("temp@temp.com").Value,
             "", Password.Create("TempPass123!").Value, Role.Create("User").Value, DateTime.MinValue, null, false);
 
         // Act
@@ -315,7 +312,7 @@ public class UserAggregateEventTests
 
         // Assert
         user.UncommittedEvents.Count.ShouldBe(5); // Create + Update + PasswordChanged + RoleChanged + Deactivated
-        
+
         user.UncommittedEvents[0].ShouldBeOfType<UserCreatedEvent>();
         user.UncommittedEvents[1].ShouldBeOfType<UserUpdatedEvent>();
         user.UncommittedEvents[2].ShouldBeOfType<UserPasswordChangedEvent>();
@@ -337,7 +334,7 @@ public class UserAggregateEventTests
 
         // Assert
         user.UncommittedEvents.ShouldBeEmpty();
-        
+
         // Verify that subsequent operations still generate events
         user.Deactivate();
         user.UncommittedEvents.ShouldHaveSingleItem();

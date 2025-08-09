@@ -86,4 +86,5 @@ public sealed record Password
     }
 
     public static implicit operator string(Password password) => password.Hash;
+    public static implicit operator Password(string hash) => Create(hash).Value;
 }

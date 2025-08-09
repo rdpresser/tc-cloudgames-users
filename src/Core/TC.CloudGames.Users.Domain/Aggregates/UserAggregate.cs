@@ -1,36 +1,31 @@
 ﻿namespace TC.CloudGames.Users.Domain.Aggregates;
 
-public sealed class UserAggregate
+public sealed class UserAggregate : BaseAggregate
 {
-    private readonly List<object> _uncommittedEvents = new();
-
-    public Guid Id { get; private set; }
     public string Name { get; private set; } = string.Empty;
     public Email Email { get; private set; } = null!;
     public string Username { get; private set; } = string.Empty;
     public Password PasswordHash { get; private set; } = null!;
     public Role Role { get; private set; } = Role.User;
-    public DateTime CreatedAt { get; private set; }
-    public DateTime? UpdatedAt { get; private set; }
-    public bool IsActive { get; private set; }
-
-    public IReadOnlyList<object> UncommittedEvents => _uncommittedEvents.AsReadOnly();
 
     // Private constructor for aggregate reconstruction
-    private UserAggregate() { }
+    private UserAggregate(Guid id)
+        : base(id)
+    {
+
+    }
 
     /// <summary>
     /// Creates a new UserAggregate with proper validation using Value Objects.
     /// This ensures the aggregate is always created in a valid state.
     /// </summary>
-    /// <param name="id">Unique identifier for the user</param>
     /// <param name="name">User's display name</param>
     /// <param name="email">Pre-validated Email value object</param>
     /// <param name="username">User's unique username</param>
     /// <param name="password">Pre-validated Password value object</param>
     /// <param name="role">Pre-validated Role value object</param>
     /// <returns>Result containing the UserAggregate if valid, or validation errors if invalid</returns>
-    public static Result<UserAggregate> Create(Guid id, string name, Email email, string username, Password password, Role role)
+    public static Result<UserAggregate> Create(string name, Email email, string username, Password password, Role role)
     {
         var errors = new List<ValidationError>();
         ValidateName(name, errors);
@@ -38,8 +33,8 @@ public sealed class UserAggregate
         if (errors.Count > 0)
             return Result.Invalid(errors.ToArray());
 
-        var aggregate = new UserAggregate();
-        var @event = new UserCreatedEvent(id, name, email, username, password, role, DateTime.UtcNow);
+        var aggregate = new UserAggregate(Guid.NewGuid());
+        var @event = new UserCreatedEvent(aggregate.Id, name, email, username, password, role, aggregate.CreatedAt);
         aggregate.ApplyEvent(@event);
         return Result.Success(aggregate);
     }
@@ -48,7 +43,6 @@ public sealed class UserAggregate
     /// SAFE FACTORY METHOD: Creates UserAggregate from primitive values with automatic validation.
     /// This method prevents invalid objects from being passed to the aggregate.
     /// </summary>
-    /// <param name="id">Unique identifier for the user</param>
     /// <param name="name">User's display name</param>
     /// <param name="emailValue">Email string to validate</param>
     /// <param name="username">User's unique username</param>
@@ -56,12 +50,11 @@ public sealed class UserAggregate
     /// <param name="roleValue">Role string to validate</param>
     /// <returns>Result containing the UserAggregate if all validations pass</returns>
     public static Result<UserAggregate> CreateFromPrimitives(
-        Guid id,
-        string name,
-        string emailValue,
-        string username,
-        string passwordValue,
-        string roleValue)
+    string name,
+    string emailValue,
+    string username,
+    string passwordValue,
+    string roleValue)
     {
         var emailResult = Email.Create(emailValue);
         var passwordResult = Password.Create(passwordValue);
@@ -75,7 +68,7 @@ public sealed class UserAggregate
             errors.AddRange(roleResult.ValidationErrors);
         if (errors.Count > 0)
             return Result.Invalid(errors.ToArray());
-        return Create(id, name, emailResult.Value, username, passwordResult.Value, roleResult.Value);
+        return Create(name, emailResult.Value, username, passwordResult.Value, roleResult.Value);
     }
 
     /// <summary>
@@ -126,18 +119,19 @@ public sealed class UserAggregate
     public static UserAggregate FromProjection(Guid id, string name, Email email, string username,
         Password password, Role role, DateTime createdAt, DateTime? updatedAt, bool isActive)
     {
-        return new UserAggregate
+        var user = new UserAggregate(id)
         {
-            Id = id,
             Name = name,
             Email = email,
             Username = username,
             PasswordHash = password,
-            Role = role,
-            CreatedAt = createdAt,
-            UpdatedAt = updatedAt,
-            IsActive = isActive
+            Role = role
         };
+
+        user.SetActive(isActive);
+        user.SetCreatedAt(createdAt);
+        user.SetUpdatedAt(updatedAt);
+        return user;
     }
 
     /// <summary>
@@ -219,14 +213,14 @@ public sealed class UserAggregate
     // Event application methods
     public void Apply(UserCreatedEvent @event)
     {
-        Id = @event.Id;
+        SetId(@event.Id);
         Name = @event.Name;
         Email = @event.Email;
         Username = @event.Username;
         PasswordHash = @event.Password;
         Role = @event.Role;
-        CreatedAt = @event.CreatedAt;
-        IsActive = true;
+        SetCreatedAt(@event.CreatedAt);
+        SetActivate();
     }
 
     public void Apply(UserUpdatedEvent @event)
@@ -234,31 +228,31 @@ public sealed class UserAggregate
         Name = @event.Name;
         Email = @event.Email;
         Username = @event.Username;
-        UpdatedAt = @event.UpdatedAt;
+        SetUpdatedAt(@event.UpdatedAt);
     }
 
     public void Apply(UserPasswordChangedEvent @event)
     {
         PasswordHash = @event.NewPassword;
-        UpdatedAt = @event.ChangedAt;
+        SetUpdatedAt(@event.ChangedAt);
     }
 
     public void Apply(UserRoleChangedEvent @event)
     {
         Role = @event.NewRole;
-        UpdatedAt = @event.ChangedAt;
+        SetUpdatedAt(@event.ChangedAt);
     }
 
     public void Apply(UserActivatedEvent @event)
     {
-        IsActive = true;
-        UpdatedAt = @event.ActivatedAt;
+        SetActivate();
+        SetUpdatedAt(@event.ActivatedAt);
     }
 
     public void Apply(UserDeactivatedEvent @event)
     {
-        IsActive = false;
-        UpdatedAt = @event.DeactivatedAt;
+        SetDeactivate();
+        SetUpdatedAt(@event.DeactivatedAt);
     }
 
     /// <summary>
@@ -291,14 +285,6 @@ public sealed class UserAggregate
                 Apply(deactivatedEvent);
                 break;
         }
-    }
-
-    /// <summary>
-    /// Marks all uncommitted events as committed (called after persistence)
-    /// </summary>
-    public void MarkEventsAsCommitted()
-    {
-        _uncommittedEvents.Clear();
     }
 
     private static void ValidateName(string name, List<ValidationError> errors)

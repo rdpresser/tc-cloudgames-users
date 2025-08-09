@@ -1,7 +1,26 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\shared\common\src\TC.CloudGames.SharedKernel\TC.CloudGames.SharedKernel.csproj" />
     <ProjectReference Include="..\TC.CloudGames.Users.Domain\TC.CloudGames.Users.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="UseCases\GetUserById\" />
+    <Folder Include="UseCases\GetUserList\" />
+    <Folder Include="UseCases\LoginUser\" />
+    <Folder Include="UseCases\ChangeUserPassword\" />
+    <Folder Include="UseCases\ChangeUserRole\" />
+    <Folder Include="UseCases\ActivateUser\" />
+    <Folder Include="UseCases\DeactivateUser\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Ardalis.Result.FluentValidation" Version="10.1.0" />
+    <PackageReference Include="FastEndpoints" Version="7.0.1" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.8" />
+    <PackageReference Include="Serilog" Version="4.3.0" />
   </ItemGroup>
 
 </Project>

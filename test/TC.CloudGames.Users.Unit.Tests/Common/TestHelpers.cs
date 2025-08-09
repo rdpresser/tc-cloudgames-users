@@ -27,7 +27,6 @@ public class AutoFakeItEasyDataAttribute : AutoDataAttribute
 public class UserAggregateBuilder
 {
     private readonly Fixture _fixture;
-    private Guid _id;
     private string _name;
     private Email _email;
     private string _username;
@@ -40,18 +39,11 @@ public class UserAggregateBuilder
         _fixture.Customize(new AutoFakeItEasyCustomization());
 
         // Set sensible defaults
-        _id = _fixture.Create<Guid>();
         _name = GenerateValidName();
         _email = Email.Create("builder@test.com").Value;
         _username = GenerateValidUsername();
         _password = Password.Create("BuilderPassword123!").Value;
         _role = Role.Create("User").Value;
-    }
-
-    public UserAggregateBuilder WithId(Guid id)
-    {
-        _id = id;
-        return this;
     }
 
     public UserAggregateBuilder WithName(string name)
@@ -87,8 +79,6 @@ public class UserAggregateBuilder
     public Result<UserAggregate> Build()
     {
         // Defensive: ensure all required fields are non-null and valid
-        if (_id == Guid.Empty)
-            _id = Guid.NewGuid();
         if (string.IsNullOrWhiteSpace(_name))
             _name = "Test User";
         if (_email == null)
@@ -99,7 +89,7 @@ public class UserAggregateBuilder
             _password = Password.Create("BuilderPassword123!").Value;
         if (_role == null)
             _role = Role.Create("User").Value;
-        var result = UserAggregate.Create(_id, _name, _email, _username, _password, _role);
+        var result = UserAggregate.Create(_name, _email, _username, _password, _role);
         if (!result.IsSuccess && result.ValidationErrors != null)
         {
             foreach (var error in result.ValidationErrors)
@@ -116,7 +106,7 @@ public class UserAggregateBuilder
 
     public Result<UserAggregate> BuildFromPrimitives()
     {
-        return UserAggregate.CreateFromPrimitives(_id, _name, _email.Value, _username, "BuilderPassword123!", _role.Value);
+        return UserAggregate.CreateFromPrimitives(_name, _email.Value, _username, "BuilderPassword123!", _role.Value);
     }
 
     private string GenerateValidName()
