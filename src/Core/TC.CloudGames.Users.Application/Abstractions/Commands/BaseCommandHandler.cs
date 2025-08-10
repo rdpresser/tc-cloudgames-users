@@ -1,16 +1,18 @@
-﻿using TC.CloudGames.Users.Application.Abstractions.Ports;
+﻿using TC.CloudGames.SharedKernel.Domain.Aggregate;
 
 namespace TC.CloudGames.Users.Application.Abstractions.Commands
 {
-    internal abstract class BaseCommandHandler<TCommand, TResponse> : CommandHandler<TCommand, Result<TResponse>>
+    internal abstract class BaseCommandHandler<TCommand, TResponse, TAggregate, TRepository> : CommandHandler<TCommand, Result<TResponse>>
         where TCommand : IBaseCommand<TResponse>
         where TResponse : class
+        where TAggregate : BaseAggregateRoot
+        where TRepository : IBaseRepository<TAggregate>
     {
-        protected IUserRepository Repository { get; }
+        protected TRepository Repository { get; }
 
         private FastEndpoints.ValidationContext<TCommand> ValidationContext { get; } = Instance;
 
-        protected BaseCommandHandler(IUserRepository repository)
+        protected BaseCommandHandler(TRepository repository)
         {
             Repository = repository;
         }

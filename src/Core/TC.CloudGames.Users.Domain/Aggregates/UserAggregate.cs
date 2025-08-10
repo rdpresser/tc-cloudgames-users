@@ -1,6 +1,6 @@
 ﻿namespace TC.CloudGames.Users.Domain.Aggregates;
 
-public sealed class UserAggregate : BaseAggregate
+public sealed class UserAggregate : BaseAggregateRoot
 {
     public string Name { get; private set; } = string.Empty;
     public Email Email { get; private set; } = null!;
@@ -211,7 +211,7 @@ public sealed class UserAggregate : BaseAggregate
     }
 
     // Event application methods
-    public void Apply(UserCreatedEvent @event)
+    internal void Apply(UserCreatedEvent @event)
     {
         SetId(@event.Id);
         Name = @event.Name;
@@ -223,7 +223,7 @@ public sealed class UserAggregate : BaseAggregate
         SetActivate();
     }
 
-    public void Apply(UserUpdatedEvent @event)
+    internal void Apply(UserUpdatedEvent @event)
     {
         Name = @event.Name;
         Email = @event.Email;
@@ -231,25 +231,25 @@ public sealed class UserAggregate : BaseAggregate
         SetUpdatedAt(@event.UpdatedAt);
     }
 
-    public void Apply(UserPasswordChangedEvent @event)
+    internal void Apply(UserPasswordChangedEvent @event)
     {
         PasswordHash = @event.NewPassword;
         SetUpdatedAt(@event.ChangedAt);
     }
 
-    public void Apply(UserRoleChangedEvent @event)
+    internal void Apply(UserRoleChangedEvent @event)
     {
         Role = @event.NewRole;
         SetUpdatedAt(@event.ChangedAt);
     }
 
-    public void Apply(UserActivatedEvent @event)
+    internal void Apply(UserActivatedEvent @event)
     {
         SetActivate();
         SetUpdatedAt(@event.ActivatedAt);
     }
 
-    public void Apply(UserDeactivatedEvent @event)
+    internal void Apply(UserDeactivatedEvent @event)
     {
         SetDeactivate();
         SetUpdatedAt(@event.DeactivatedAt);
@@ -261,7 +261,7 @@ public sealed class UserAggregate : BaseAggregate
     /// <param name="event">Domain event to apply</param>
     private void ApplyEvent(object @event)
     {
-        _uncommittedEvents.Add(@event);
+        AddNewEvent(@event);
 
         // Apply the event to update the aggregate state
         switch (@event)

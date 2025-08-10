@@ -20,13 +20,11 @@
 
         public async Task SaveAsync(UserAggregate user, CancellationToken cancellationToken = default)
         {
-            // Check if this is a new aggregate by reusing GetByIdAsync
             if (user.UncommittedEvents.Any())
             {
                 await base.SaveChangesAsync<UserAggregate>(user.Id, cancellationToken, [.. user.UncommittedEvents]);
                 user.MarkEventsAsCommitted();
             }
-            user.MarkEventsAsCommitted();
         }
     }
 }

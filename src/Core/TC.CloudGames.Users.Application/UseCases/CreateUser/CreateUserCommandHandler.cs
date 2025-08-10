@@ -1,8 +1,6 @@
-﻿using TC.CloudGames.Users.Application.Abstractions.Ports;
-
-namespace TC.CloudGames.Users.Application.UseCases.CreateUser
+﻿namespace TC.CloudGames.Users.Application.UseCases.CreateUser
 {
-    internal sealed class CreateUserCommandHandler : BaseCommandHandler<CreateUserCommand, CreateUserResponse>
+    internal sealed class CreateUserCommandHandler : BaseCommandHandler<CreateUserCommand, CreateUserResponse, UserAggregate, IUserRepository>
     {
         public CreateUserCommandHandler(IUserRepository repository)
             : base(repository)

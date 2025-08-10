@@ -1,11 +1,7 @@
-﻿using TC.CloudGames.Users.Domain.Aggregates;
-
-namespace TC.CloudGames.Users.Application.Abstractions.Ports
+﻿namespace TC.CloudGames.Users.Application.Abstractions.Ports
 {
-    public interface IUserRepository
+    public interface IUserRepository : IBaseRepository<UserAggregate>
     {
-        Task<UserAggregate?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
-        Task SaveAsync(UserAggregate user, CancellationToken cancellationToken = default);
-        Task<IEnumerable<UserAggregate>> GetAllAsync(CancellationToken cancellationToken = default);
+
     }
 }
