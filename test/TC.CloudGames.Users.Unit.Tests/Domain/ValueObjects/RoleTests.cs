@@ -237,6 +237,21 @@ public class RoleTests
         moderatorRoleValue.ShouldBe("Moderator");
     }
 
+    [Fact]
+    public void ImplicitConversion_StringToRoleAndRoleToString_ShouldWork()
+    {
+        // Arrange
+        string roleStr = "Admin";
+
+        // Act
+        Role roleObj = roleStr;
+        string resultStr = roleObj;
+
+        // Assert
+        roleObj.Value.ShouldBe("Admin");
+        resultStr.ShouldBe("Admin");
+    }
+
     #endregion
 
     #region Equality Tests
@@ -367,6 +382,49 @@ public class RoleTests
         // Act & Assert
         userRole.IsAdmin().ShouldBeFalse();
         userRole.CanModerate().ShouldBeFalse();
+    }
+
+    #endregion
+
+    #region Additional Validation Tests
+
+    [Theory]
+    [InlineData("User", true)]
+    [InlineData("Admin", true)]
+    [InlineData("Moderator", true)]
+    [InlineData("InvalidRole", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void TryValidateValue_ShouldReturnExpectedResult(string? value, bool expected)
+    {
+        // Act
+        var result = Role.TryValidateValue(value, out var errors);
+
+        // Assert
+        result.ShouldBe(expected);
+        if (!expected)
+            errors.ShouldNotBeEmpty();
+        else
+            errors.ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData("User", true)]
+    [InlineData("Admin", true)]
+    [InlineData("Moderator", true)]
+    [InlineData("InvalidRole", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void IsValid_ShouldReturnExpectedResult(string? value, bool expected)
+    {
+        // Arrange
+        var role = value != null ? Role.Create(value).Value : null;
+
+        // Act
+        var result = Role.IsValid(role);
+
+        // Assert
+        result.ShouldBe(expected);
     }
 
     #endregion

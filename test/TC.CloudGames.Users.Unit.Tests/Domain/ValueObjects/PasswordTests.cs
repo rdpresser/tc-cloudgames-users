@@ -347,4 +347,58 @@ public class PasswordTests
     }
 
     #endregion
+
+    #region Additional Tests
+
+    [Theory]
+    [InlineData("ValidPass123!", true)]
+    [InlineData("invalid", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void TryValidateValue_ShouldReturnExpectedResult(string? value, bool expected)
+    {
+        // Act
+        var result = Password.TryValidateValue(value, out var errors);
+
+        // Assert
+        result.ShouldBe(expected);
+        if (!expected)
+            errors.ShouldNotBeEmpty();
+        else
+            errors.ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData("ValidPass123!", true)]
+    [InlineData("invalid", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void IsValid_ShouldReturnExpectedResult(string? value, bool expected)
+    {
+        // Arrange
+        var password = value != null ? Password.Create(value).Value : null;
+
+        // Act
+        var result = Password.IsValid(password);
+
+        // Assert
+        result.ShouldBe(expected);
+    }
+
+    [Fact]
+    public void ImplicitConversion_StringToPasswordAndPasswordToString_ShouldWork()
+    {
+        // Arrange
+        string passwordStr = "ValidPass123!";
+
+        // Act
+        Password passwordObj = passwordStr;
+        string resultStr = passwordObj;
+
+        // Assert
+        passwordObj.Verify(passwordStr).ShouldBeTrue();
+        resultStr.ShouldBe(passwordObj.Hash);
+    }
+
+    #endregion
 }

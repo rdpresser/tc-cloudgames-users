@@ -46,4 +46,14 @@
     <ProjectReference Include="..\..\src\Core\TC.CloudGames.Users.Application\TC.CloudGames.Users.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Application\UseCases\ActivateUser\" />
+    <Folder Include="Application\UseCases\ChangeUserPassword\" />
+    <Folder Include="Application\UseCases\ChangeUserRole\" />
+    <Folder Include="Application\UseCases\DeactivateUser\" />
+    <Folder Include="Application\UseCases\GetUserById\" />
+    <Folder Include="Application\UseCases\GetUserList\" />
+    <Folder Include="Application\UseCases\LoginUser\" />
+  </ItemGroup>
+
 </Project>

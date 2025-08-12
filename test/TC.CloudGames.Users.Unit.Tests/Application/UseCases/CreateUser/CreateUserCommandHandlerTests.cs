@@ -1,7 +1,7 @@
 using FastEndpoints;
 using TC.CloudGames.Users.Unit.Tests.Common;
 
-namespace TC.CloudGames.Users.Unit.Tests.Application;
+namespace TC.CloudGames.Users.Unit.Tests.Application.UseCases.CreateUser;
 
 public class CreateUserCommandHandlerTests : BaseTest
 {

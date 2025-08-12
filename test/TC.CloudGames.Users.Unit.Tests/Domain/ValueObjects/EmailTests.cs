@@ -118,6 +118,21 @@ public class EmailTests
         convertedValue.ShouldBe(emailValue);
     }
 
+    [Fact]
+    public void ImplicitConversion_StringToEmailAndEmailToString_ShouldWork()
+    {
+        // Arrange
+        string emailStr = "test@email.com";
+
+        // Act
+        Email emailObj = emailStr;
+        string resultStr = emailObj;
+
+        // Assert
+        emailObj.Value.ShouldBe(emailStr.ToLowerInvariant());
+        resultStr.ShouldBe(emailStr.ToLowerInvariant());
+    }
+
     #endregion
 
     #region Equality Tests
@@ -209,6 +224,41 @@ public class EmailTests
         // Assert
         result.IsSuccess.ShouldBeTrue();
         result.Value.Value.ShouldBe(email);
+    }
+
+    [Theory]
+    [InlineData("valid@email.com", true)]
+    [InlineData("invalid-email", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void TryValidateValue_ShouldReturnExpectedResult(string? value, bool expected)
+    {
+        // Act
+        var result = Email.TryValidateValue(value, out var errors);
+
+        // Assert
+        result.ShouldBe(expected);
+        if (!expected)
+            errors.ShouldNotBeEmpty();
+        else
+            errors.ShouldBeEmpty();
+    }
+
+    [Theory]
+    [InlineData("valid@email.com", true)]
+    [InlineData("invalid-email", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void IsValid_ShouldReturnExpectedResult(string? value, bool expected)
+    {
+        // Arrange
+        var email = value != null ? Email.Create(value).Value : null;
+
+        // Act
+        var result = Email.IsValid(email);
+
+        // Assert
+        result.ShouldBe(expected);
     }
 
     #endregion
