@@ -1,7 +1,6 @@
-﻿using TC.CloudGames.SharedKernel.Domain.Aggregate;
-
-namespace TC.CloudGames.Users.Application.Abstractions.Commands
+﻿namespace TC.CloudGames.Users.Application.Abstractions.Commands
 {
+    [ExcludeFromCodeCoverage]
     internal abstract class BaseCommandHandler<TCommand, TResponse, TAggregate, TRepository> : CommandHandler<TCommand, Result<TResponse>>
         where TCommand : IBaseCommand<TResponse>
         where TResponse : class

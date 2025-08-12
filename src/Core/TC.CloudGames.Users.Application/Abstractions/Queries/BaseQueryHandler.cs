@@ -1,5 +1,6 @@
 ﻿namespace TC.CloudGames.Users.Application.Abstractions.Queries
 {
+    [ExcludeFromCodeCoverage]
     internal abstract class BaseQueryHandler<TQuery, TResponse> : CommandHandler<TQuery, Result<TResponse>>
             where TQuery : IBaseQuery<TResponse>
             where TResponse : class

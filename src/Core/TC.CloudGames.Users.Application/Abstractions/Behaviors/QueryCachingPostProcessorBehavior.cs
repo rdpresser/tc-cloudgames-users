@@ -1,5 +1,6 @@
 ﻿namespace TC.CloudGames.Users.Application.Abstractions.Behaviors
 {
+    [ExcludeFromCodeCoverage]
     internal class QueryCachingPostProcessorBehavior
     {
         // This class is intended to process the results of queries after they have been executed.

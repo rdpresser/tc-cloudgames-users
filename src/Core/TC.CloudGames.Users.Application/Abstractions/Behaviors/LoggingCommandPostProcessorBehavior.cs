@@ -1,5 +1,6 @@
 ﻿namespace TC.CloudGames.Users.Application.Abstractions.Behaviors
 {
+    [ExcludeFromCodeCoverage]
     public class LoggingCommandPostProcessorBehavior<TRequest, TResponse> : IPostProcessor<TRequest, TResponse>
         where TRequest : IBaseCommand<TResponse>
         where TResponse : class

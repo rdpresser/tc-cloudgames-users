@@ -5,14 +5,15 @@ global using FluentValidation.Results;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Logging;
 global using Serilog.Context;
+global using System.Diagnostics.CodeAnalysis;
 global using System.Linq.Expressions;
 global using TC.CloudGames.SharedKernel.Application.Ports;
+global using TC.CloudGames.SharedKernel.Domain.Aggregate;
 global using TC.CloudGames.SharedKernel.Extensions;
 global using TC.CloudGames.SharedKernel.Infrastructure.Caching.Service;
 global using TC.CloudGames.Users.Application.Abstractions.Commands;
 global using TC.CloudGames.Users.Application.Abstractions.Ports;
 global using TC.CloudGames.Users.Domain.Aggregates;
 global using TC.CloudGames.Users.Domain.ValueObjects;
-
 using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("TC.CloudGames.Users.Unit.Tests")]

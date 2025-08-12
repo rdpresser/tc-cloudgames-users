@@ -230,9 +230,9 @@ public sealed class UserAggregate : BaseAggregateRoot
     public Result ChangeRole(Role newRole)
     {
         if (newRole == null)
-            return Result.Invalid(new ValidationError("Role.Invalid", "Invalid role value"));
+            return Result.Invalid(new ValidationError($"{nameof(Role)}.Invalid", "Invalid role value."));
         if (Role.Value == newRole.Value)
-            return Result.Invalid(new ValidationError("Role.SameRole", "User already has this role"));
+            return Result.Invalid(new ValidationError($"{nameof(Role)}.SameRole", "User already has this role."));
         var @event = new UserRoleChangedEvent(Id, newRole, DateTime.UtcNow);
         ApplyEvent(@event);
         return Result.Success();
@@ -245,7 +245,7 @@ public sealed class UserAggregate : BaseAggregateRoot
     public Result Activate()
     {
         if (IsActive)
-            return Result.Invalid(new ValidationError("User.AlreadyActive", "User is already active"));
+            return Result.Invalid(new ValidationError("User.AlreadyActive", "User is already active."));
         var @event = new UserActivatedEvent(Id, DateTime.UtcNow);
         ApplyEvent(@event);
         return Result.Success();
@@ -258,7 +258,7 @@ public sealed class UserAggregate : BaseAggregateRoot
     public Result Deactivate()
     {
         if (!IsActive)
-            return Result.Invalid(new ValidationError("User.AlreadyInactive", "User is already deactivated"));
+            return Result.Invalid(new ValidationError("User.AlreadyInactive", "User is already deactivated."));
         var @event = new UserDeactivatedEvent(Id, DateTime.UtcNow);
         ApplyEvent(@event);
         return Result.Success();
@@ -348,9 +348,9 @@ public sealed class UserAggregate : BaseAggregateRoot
     {
         var maxLength = 200;
         if (string.IsNullOrWhiteSpace(name))
-            errors.Add(new ValidationError("Name.Required", "Name is required"));
+            errors.Add(new ValidationError($"{nameof(Name)}.Required", "Name is required."));
         else if (name.Length > maxLength)
-            errors.Add(new ValidationError("Name.TooLong", $"Name must be at most {maxLength} characters"));
+            errors.Add(new ValidationError($"{nameof(Name)}.TooLong", $"Name must be at most {maxLength} characters."));
     }
 
     /// <summary>
@@ -364,13 +364,13 @@ public sealed class UserAggregate : BaseAggregateRoot
         var minLength = 3;
         var regex = new Regex("^[a-zA-Z0-9_-]+$", RegexOptions.Compiled);
         if (string.IsNullOrWhiteSpace(username))
-            errors.Add(new ValidationError("Username.Required", "Username is required"));
+            errors.Add(new ValidationError($"{nameof(Username)}.Required", "Username is required."));
         else if (username.Length < minLength)
-            errors.Add(new ValidationError("Username.TooShort", $"Username must be at least {minLength} characters"));
+            errors.Add(new ValidationError($"{nameof(Username)}.TooShort", $"Username must be at least {minLength} characters."));
         else if (username.Length > maxLength)
-            errors.Add(new ValidationError("Username.TooLong", $"Username must be at most {maxLength} characters"));
+            errors.Add(new ValidationError($"{nameof(Username)}.TooLong", $"Username must be at most {maxLength} characters."));
         else if (!regex.IsMatch(username))
-            errors.Add(new ValidationError("Username.InvalidFormat", "Username contains invalid characters"));
+            errors.Add(new ValidationError($"{nameof(Username)}.InvalidFormat", "Username contains invalid characters."));
     }
 }
 

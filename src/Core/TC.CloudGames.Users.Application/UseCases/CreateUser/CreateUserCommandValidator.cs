@@ -6,18 +6,19 @@
         {
             #region Name | Validation Rules
             RuleFor(x => x.Name)
-                .NotEmpty()
-                    .WithMessage("Name is required.")
-                    .WithErrorCode($"{nameof(CreateUserCommand.Name)}.Required")
-                .MaximumLength(3)
-                    .WithMessage("Name must be at least 3 characters long.")
-                    .WithErrorCode($"{nameof(CreateUserCommand.Name)}.MinimumLength")
-                .MaximumLength(100)
-                    .WithMessage("Name must not exceed 100 characters.")
-                    .WithErrorCode($"{nameof(CreateUserCommand.Name)}.MaximumLength")
-                .Matches(@"^[a-zA-Z]+$")
-                    .WithMessage("Name can only contain letters.")
-                    .WithErrorCode($"{nameof(CreateUserCommand.Name)}.InvalidCharacters");
+            .NotEmpty()
+                .WithMessage("Name is required.")
+                .WithErrorCode($"{nameof(CreateUserCommand.Name)}.Required")
+            .MinimumLength(3)
+                .WithMessage("Name must be at least 3 characters long.")
+                .WithErrorCode($"{nameof(CreateUserCommand.Name)}.MinimumLength")
+            .MaximumLength(100)
+                .WithMessage("Name must not exceed 100 characters.")
+                .WithErrorCode($"{nameof(CreateUserCommand.Name)}.MaximumLength")
+            .Matches(@"^[a-zA-Z ]+$")
+                .WithMessage("Name can only contain letters and spaces.")
+                .WithErrorCode($"{nameof(CreateUserCommand.Name)}.InvalidCharacters");
+
             #endregion
 
             #region Email | Validation Rules
@@ -41,11 +42,11 @@
                 .NotEmpty()
                     .WithMessage("Username is required.")
                     .WithErrorCode($"{nameof(CreateUserCommand.Username)}.Required")
-                .MaximumLength(3)
-                    .WithMessage("Name must be at least 3 characters long.")
+                .MinimumLength(3)
+                    .WithMessage("Username must be at least 3 characters long.")
                     .WithErrorCode($"{nameof(CreateUserCommand.Username)}.MinimumLength")
                 .MaximumLength(100)
-                    .WithMessage("Name must not exceed 100 characters.")
+                    .WithMessage("Username must not exceed 100 characters.")
                     .WithErrorCode($"{nameof(CreateUserCommand.Username)}.MaximumLength")
                 .Matches(@"^[a-zA-Z][a-zA-Z0-9]*$")
                     .WithMessage("Username must start with a letter and can contain only letters and numbers.")

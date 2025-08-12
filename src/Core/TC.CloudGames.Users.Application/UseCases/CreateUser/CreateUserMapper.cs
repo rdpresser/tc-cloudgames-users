@@ -17,7 +17,7 @@
             //    source: source ?? "UserRegistrationAPI"
             //);
 
-            return UserAggregate.Create(
+            return UserAggregate.CreateFromPrimitives(
                 r.Name,
                 r.Email,
                 r.Username,

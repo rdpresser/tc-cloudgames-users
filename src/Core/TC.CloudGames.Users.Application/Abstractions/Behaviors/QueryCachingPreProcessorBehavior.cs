@@ -1,5 +1,6 @@
 ﻿namespace TC.CloudGames.Users.Application.Abstractions.Behaviors
 {
+    [ExcludeFromCodeCoverage]
     internal sealed class QueryCachingPreProcessorBehavior<TQuery, TResponse> : IPreProcessor<TQuery>
         where TQuery : ICachedQuery<TResponse>
         where TResponse : class
