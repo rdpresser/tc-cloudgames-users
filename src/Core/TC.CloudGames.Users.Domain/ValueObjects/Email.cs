@@ -19,28 +19,65 @@ public sealed record Email
         Value = value;
     }
 
-    public static Result<Email> Create(string value)
+    private static Result ValidateValue(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
-        {
             return Result.Invalid(Required);
-        }
 
-        if (value.Length > MaxLength)
-        {
+        if (value!.Length > MaxLength)
             return Result.Invalid(MaximumLength);
-        }
 
         if (!EmailRegex.IsMatch(value))
-        {
             return Result.Invalid(Invalid);
-        }
+
+        return Result.Success();
+    }
+
+    public static Result<Email> Create(string value)
+    {
+        var validation = ValidateValue(value);
+        if (!validation.IsSuccess)
+            return Result.Invalid(validation.ValidationErrors);
 
         return Result.Success(new Email(value.ToLowerInvariant()));
     }
 
-    public static implicit operator string(Email email) => email.Value;
+    public static Result Validate(Email? email)
+    {
+        if (email == null)
+            return Result.Invalid(Required);
 
-    //TODO: Remove this implicit operator if not needed
+        return ValidateValue(email.Value);
+    }
+
+    /// <summary>
+    /// Validates an email value and returns a list of validation errors if any.
+    /// </summary>
+    public static bool TryValidate(Email? value, out List<ValidationError> errors)
+    {
+        var result = Validate(value);
+        errors = !result.IsSuccess ? [.. result.ValidationErrors] : [];
+        return result.IsSuccess;
+    }
+
+    /// <summary>
+    /// Validates the role text valiue
+    /// </summary>
+    /// <param name="value">The text role to validate</param>
+    /// <param name="errors">List of errors</param>
+    /// <returns>Result indicating success or validation errors.</returns>
+    public static bool TryValidateValue(string? value, out List<ValidationError> errors)
+    {
+        var result = ValidateValue(value);
+        errors = !result.IsSuccess ? [.. result.ValidationErrors] : [];
+        return result.IsSuccess;
+    }
+
+    /// <summary>
+    /// Validates an email value.
+    /// </summary>
+    public static bool IsValid(Email? value) => Validate(value).IsSuccess;
+
+    public static implicit operator string(Email email) => email.Value;
     public static implicit operator Email(string email) => Create(email).Value;
 }

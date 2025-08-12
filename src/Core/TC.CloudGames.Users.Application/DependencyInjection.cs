@@ -4,9 +4,6 @@
     {
         public static IServiceCollection AddApplication(this IServiceCollection services)
         {
-            //TODO: Register application services here
-            //services.AddScoped<IUserRepository, UserRepository>();
-
             services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
 
             return services;

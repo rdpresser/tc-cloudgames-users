@@ -1,32 +1,40 @@
+using TC.CloudGames.Users.Api.Extensions;
+using TC.CloudGames.Users.Application;
+using TC.CloudGames.Users.Application.Abstractions.Ports;
+using TC.CloudGames.Users.Application.UseCases.CreateUser;
+using TC.CloudGames.Users.Domain.Aggregates;
+using TC.CloudGames.Users.Infrastructure;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.AddUserServices(builder.Configuration);
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure();
+// Adicionar serviços para API
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
 
-app.MapGet("/weatherforecast", () =>
+// Endpoints da API de usuários usando APIs mínimas
+app.MapPost("/api/users", async (CreateUserCommand request, IUserRepository userRepository) =>
 {
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-});
+    var user = UserAggregate.CreateFromPrimitives(request.Name, request.Email, request.Username, request.Password, request.Role);
 
-app.Run();
+    if (!user.IsSuccess)
+    {
+        return Results.BadRequest(new { Errors = user.ValidationErrors.Select(e => new { e.Identifier, e.ErrorMessage }) });
+    }
 
-internal record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+    await userRepository.SaveAsync(user);
+
+    return Results.Created($"/api/users/{user.Value.Id}", new { Id = user.Value.Id });
+})
+.WithName("CreateUser")
+.WithOpenApi();
+
+await app.RunAsync();

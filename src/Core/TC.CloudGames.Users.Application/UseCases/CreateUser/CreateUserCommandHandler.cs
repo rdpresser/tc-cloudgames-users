@@ -11,6 +11,16 @@
         public override async Task<Result<CreateUserResponse>> ExecuteAsync(CreateUserCommand command,
             CancellationToken ct = default)
         {
+
+            //var httpContext = _httpContextAccessor.HttpContext;
+
+            //var entity = CreateUserMapper.ToEntity(
+            //    command,
+            //    userId: httpContext?.User?.FindFirst("sub")?.Value,
+            //    correlationId: httpContext?.TraceIdentifier,
+            //    source: "UserRegistrationAPI"
+            //);
+
             var entity = CreateUserMapper.ToEntity(command);
 
             if (!entity.IsSuccess)

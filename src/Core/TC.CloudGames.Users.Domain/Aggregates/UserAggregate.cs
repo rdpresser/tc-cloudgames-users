@@ -1,4 +1,7 @@
-﻿namespace TC.CloudGames.Users.Domain.Aggregates;
+﻿using TC.CloudGames.SharedKernel.Domain.Events;
+using TC.CloudGames.SharedKernel.Domain.ValueObjects;
+
+namespace TC.CloudGames.Users.Domain.Aggregates;
 
 public sealed class UserAggregate : BaseAggregateRoot
 {
@@ -12,12 +15,11 @@ public sealed class UserAggregate : BaseAggregateRoot
     private UserAggregate(Guid id)
         : base(id)
     {
-
     }
 
     /// <summary>
-    /// Creates a new UserAggregate with proper validation using Value Objects.
-    /// This ensures the aggregate is always created in a valid state.
+    /// Creates a new UserAggregate with proper validation using Value Objects and primitive values.
+    /// This ensures the aggregate is always created in a valid state and avoids double validation.
     /// </summary>
     /// <param name="name">User's display name</param>
     /// <param name="email">Pre-validated Email value object</param>
@@ -28,20 +30,46 @@ public sealed class UserAggregate : BaseAggregateRoot
     public static Result<UserAggregate> Create(string name, Email email, string username, Password password, Role role)
     {
         var errors = new List<ValidationError>();
-        ValidateName(name, errors);
-        ValidateUsername(username, errors);
+
+        if (!Email.TryValidate(email, out var emailErrors))
+            errors.AddRange(emailErrors);
+        if (!Password.TryValidate(password, out var passwordErrors))
+            errors.AddRange(passwordErrors);
+        if (!Role.TryValidate(role, out var roleErrors))
+            errors.AddRange(roleErrors);
+
+        errors.AddRange(ValidateNameAndUsername(name, username));
         if (errors.Count > 0)
             return Result.Invalid(errors.ToArray());
 
-        var aggregate = new UserAggregate(Guid.NewGuid());
-        var @event = new UserCreatedEvent(aggregate.Id, name, email, username, password, role, aggregate.CreatedAt);
-        aggregate.ApplyEvent(@event);
-        return Result.Success(aggregate);
+        return CreateAggregate(name, email, username, password, role);
     }
 
     /// <summary>
-    /// SAFE FACTORY METHOD: Creates UserAggregate from primitive values with automatic validation.
-    /// This method prevents invalid objects from being passed to the aggregate.
+    /// Creates a new UserAggregate from validated value object results.
+    /// This method prevents invalid objects from being passed to the aggregate and avoids double validation.
+    /// </summary>
+    /// <param name="name">User's display name</param>
+    /// <param name="email">Result of Email value object creation</param>
+    /// <param name="username">User's unique username</param>
+    /// <param name="password">Result of Password value object creation</param>
+    /// <param name="role">Result of Role value object creation</param>
+    /// <returns>Result containing the UserAggregate if all validations pass</returns>
+    public static Result<UserAggregate> CreateFromResult(string name, Result<Email> email, string username, Result<Password> password, Result<Role> role)
+    {
+        var errors = new List<ValidationError>();
+        errors.AddErrorsIfFailure(email);
+        errors.AddErrorsIfFailure(password);
+        errors.AddErrorsIfFailure(role);
+        errors.AddRange(ValidateNameAndUsername(name, username));
+        if (errors.Count > 0)
+            return Result.Invalid(errors.ToArray());
+        return CreateAggregate(name, email.Value, username, password.Value, role.Value);
+    }
+
+    /// <summary>
+    /// Creates a new UserAggregate from primitive values with automatic validation.
+    /// This method prevents invalid objects from being passed to the aggregate and avoids double validation.
     /// </summary>
     /// <param name="name">User's display name</param>
     /// <param name="emailValue">Email string to validate</param>
@@ -50,25 +78,54 @@ public sealed class UserAggregate : BaseAggregateRoot
     /// <param name="roleValue">Role string to validate</param>
     /// <returns>Result containing the UserAggregate if all validations pass</returns>
     public static Result<UserAggregate> CreateFromPrimitives(
-    string name,
-    string emailValue,
-    string username,
-    string passwordValue,
-    string roleValue)
+        string name,
+        string emailValue,
+        string username,
+        string passwordValue,
+        string roleValue)
     {
         var emailResult = Email.Create(emailValue);
         var passwordResult = Password.Create(passwordValue);
         var roleResult = Role.Create(roleValue);
         var errors = new List<ValidationError>();
-        if (!emailResult.IsSuccess)
-            errors.AddRange(emailResult.ValidationErrors);
-        if (!passwordResult.IsSuccess)
-            errors.AddRange(passwordResult.ValidationErrors);
-        if (!roleResult.IsSuccess)
-            errors.AddRange(roleResult.ValidationErrors);
+        errors.AddErrorsIfFailure(emailResult);
+        errors.AddErrorsIfFailure(passwordResult);
+        errors.AddErrorsIfFailure(roleResult);
+        errors.AddRange(ValidateNameAndUsername(name, username));
         if (errors.Count > 0)
             return Result.Invalid(errors.ToArray());
-        return Create(name, emailResult.Value, username, passwordResult.Value, roleResult.Value);
+        return CreateAggregate(name, emailResult.Value, username, passwordResult.Value, roleResult.Value);
+    }
+
+    /// <summary>
+    /// Creates and returns a new UserAggregate instance and applies the UserCreatedEvent.
+    /// </summary>
+    /// <param name="name">User's display name</param>
+    /// <param name="email">Validated Email value object</param>
+    /// <param name="username">User's unique username</param>
+    /// <param name="password">Validated Password value object</param>
+    /// <param name="role">Validated Role value object</param>
+    /// <returns>Result containing the UserAggregate</returns>
+    private static Result<UserAggregate> CreateAggregate(string name, Email email, string username, Password password, Role role)
+    {
+        var aggregate = new UserAggregate(Guid.NewGuid());
+        var @event = new UserCreatedEvent(aggregate.Id, name, email.Value, username, password, role, aggregate.CreatedAt);
+        aggregate.ApplyEvent(@event);
+        return Result.Success(aggregate);
+    }
+
+    /// <summary>
+    /// Validates name and username and returns a list of validation errors.
+    /// </summary>
+    /// <param name="name">User's display name</param>
+    /// <param name="username">User's unique username</param>
+    /// <returns>List of validation errors</returns>
+    private static List<ValidationError> ValidateNameAndUsername(string name, string username)
+    {
+        var errors = new List<ValidationError>();
+        ValidateName(name, errors);
+        ValidateUsername(username, errors);
+        return errors;
     }
 
     /// <summary>
@@ -143,9 +200,7 @@ public sealed class UserAggregate : BaseAggregateRoot
     /// <returns>Result indicating success or validation errors</returns>
     public Result UpdateInfo(string name, Email email, string username)
     {
-        var errors = new List<ValidationError>();
-        ValidateName(name, errors);
-        ValidateUsername(username, errors);
+        var errors = ValidateNameAndUsername(name, username);
         if (errors.Count > 0)
             return Result.Invalid(errors.ToArray());
 
@@ -164,7 +219,6 @@ public sealed class UserAggregate : BaseAggregateRoot
         // Password is already validated by the Value Object
         var @event = new UserPasswordChangedEvent(Id, newPassword, DateTime.UtcNow);
         ApplyEvent(@event);
-
         return Result.Success();
     }
 
@@ -262,8 +316,6 @@ public sealed class UserAggregate : BaseAggregateRoot
     private void ApplyEvent(object @event)
     {
         AddNewEvent(@event);
-
-        // Apply the event to update the aggregate state
         switch (@event)
         {
             case UserCreatedEvent createdEvent:
@@ -287,22 +339,30 @@ public sealed class UserAggregate : BaseAggregateRoot
         }
     }
 
+    /// <summary>
+    /// Validates the user's display name and adds any errors to the provided list.
+    /// </summary>
+    /// <param name="name">User's display name</param>
+    /// <param name="errors">List to add validation errors to</param>
     private static void ValidateName(string name, List<ValidationError> errors)
     {
         var maxLength = 200;
-
         if (string.IsNullOrWhiteSpace(name))
             errors.Add(new ValidationError("Name.Required", "Name is required"));
         else if (name.Length > maxLength)
             errors.Add(new ValidationError("Name.TooLong", $"Name must be at most {maxLength} characters"));
     }
 
+    /// <summary>
+    /// Validates the user's username and adds any errors to the provided list.
+    /// </summary>
+    /// <param name="username">User's unique username</param>
+    /// <param name="errors">List to add validation errors to</param>
     private static void ValidateUsername(string username, List<ValidationError> errors)
     {
         var maxLength = 50;
         var minLength = 3;
         var regex = new Regex("^[a-zA-Z0-9_-]+$", RegexOptions.Compiled);
-
         if (string.IsNullOrWhiteSpace(username))
             errors.Add(new ValidationError("Username.Required", "Username is required"));
         else if (username.Length < minLength)
@@ -315,9 +375,9 @@ public sealed class UserAggregate : BaseAggregateRoot
 }
 
 // Domain Events - using Value Objects for type safety
-public record UserCreatedEvent(Guid Id, string Name, Email Email, string Username, Password Password, Role Role, DateTime CreatedAt);
-public record UserUpdatedEvent(Guid Id, string Name, Email Email, string Username, DateTime UpdatedAt);
-public record UserPasswordChangedEvent(Guid Id, Password NewPassword, DateTime ChangedAt);
-public record UserRoleChangedEvent(Guid Id, Role NewRole, DateTime ChangedAt);
-public record UserActivatedEvent(Guid Id, DateTime ActivatedAt);
-public record UserDeactivatedEvent(Guid Id, DateTime DeactivatedAt);
+public record UserCreatedEvent(Guid Id, string Name, Email Email, string Username, Password Password, Role Role, DateTime CreatedAt) : BaseEvent(Id);
+public record UserUpdatedEvent(Guid Id, string Name, Email Email, string Username, DateTime UpdatedAt) : BaseEvent(Id);
+public record UserPasswordChangedEvent(Guid Id, Password NewPassword, DateTime ChangedAt) : BaseEvent(Id);
+public record UserRoleChangedEvent(Guid Id, Role NewRole, DateTime ChangedAt) : BaseEvent(Id);
+public record UserActivatedEvent(Guid Id, DateTime ActivatedAt) : BaseEvent(Id);
+public record UserDeactivatedEvent(Guid Id, DateTime DeactivatedAt) : BaseEvent(Id);

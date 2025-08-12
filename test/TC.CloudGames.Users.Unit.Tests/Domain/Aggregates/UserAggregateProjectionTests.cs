@@ -1,20 +1,14 @@
 using TC.CloudGames.Users.Domain.Aggregates;
 using TC.CloudGames.Users.Domain.ValueObjects;
 using TC.CloudGames.Users.Unit.Tests.Common;
+using Xunit;
 
 namespace TC.CloudGames.Users.Unit.Tests.Domain.Aggregates;
 
-/// <summary>
-/// Unit tests for UserAggregate FromProjection factory method
-/// This method is used for reconstructing aggregates from persisted data
-/// </summary>
 public class UserAggregateProjectionTests
 {
     [Theory, AutoFakeItEasyData]
-    public void FromProjection_WithCompleteData_ShouldCreateUserWithAllProperties(
-        Guid id,
-        string name,
-        string username)
+    public void FromProjection_WithCompleteData_ShouldCreateUserWithAllProperties(Guid id, string name, string username)
     {
         // Arrange
         var email = Email.Create("projection@test.com").Value;
@@ -25,9 +19,7 @@ public class UserAggregateProjectionTests
         var isActive = true;
 
         // Ensure username meets validation rules
-        username = username.Substring(0, Math.Min(10, username.Length));
-        if (string.IsNullOrWhiteSpace(username) || username.Length < 3)
-            username = "projuser";
+        username = string.IsNullOrWhiteSpace(username) || username.Length < 3 ? "projuser" : username[..Math.Min(10, username.Length)];
 
         // Act
         var user = UserAggregate.FromProjection(id, name, email, username, password, role, createdAt, updatedAt, isActive);
@@ -47,10 +39,7 @@ public class UserAggregateProjectionTests
     }
 
     [Theory, AutoFakeItEasyData]
-    public void FromProjection_WithNullUpdatedAt_ShouldCreateUserWithNullUpdatedAt(
-        Guid id,
-        string name,
-        string username)
+    public void FromProjection_WithNullUpdatedAt_ShouldCreateUserWithNullUpdatedAt(Guid id, string name, string username)
     {
         // Arrange
         var email = Email.Create("projection2@test.com").Value;
@@ -61,9 +50,7 @@ public class UserAggregateProjectionTests
         var isActive = false;
 
         // Ensure username meets validation rules
-        username = username.Substring(0, Math.Min(10, username.Length));
-        if (string.IsNullOrWhiteSpace(username) || username.Length < 3)
-            username = "projuser";
+        username = string.IsNullOrWhiteSpace(username) || username.Length < 3 ? "projuser" : username[..Math.Min(10, username.Length)];
 
         // Act
         var user = UserAggregate.FromProjection(id, name, email, username, password, role, createdAt, updatedAt, isActive);

@@ -1,14 +1,10 @@
 using TC.CloudGames.Users.Unit.Tests.Common;
+using Xunit;
 
 namespace TC.CloudGames.Users.Unit.Tests.Domain.Aggregates;
 
-/// <summary>
-/// Unit tests for UserAggregate behavior methods (Update, Change, Activate/Deactivate)
-/// </summary>
 public class UserAggregateBehaviorTests
 {
-    #region UpdateInfo Tests
-
     [Theory, AutoFakeItEasyData]
     public void UpdateInfo_WithValidData_ShouldSucceed(string newName, string newUsername)
     {
@@ -17,9 +13,7 @@ public class UserAggregateBehaviorTests
         var newEmail = Email.Create("updated@test.com").Value;
 
         // Ensure username meets validation rules
-        newUsername = newUsername.Substring(0, Math.Min(10, newUsername.Length));
-        if (string.IsNullOrWhiteSpace(newUsername) || newUsername.Length < 3)
-            newUsername = "newuser";
+        newUsername = string.IsNullOrWhiteSpace(newUsername) || newUsername.Length < 3 ? "newuser" : newUsername[..Math.Min(10, newUsername.Length)];
 
         var originalCreatedAt = user.CreatedAt;
         var originalId = user.Id;
@@ -76,10 +70,6 @@ public class UserAggregateBehaviorTests
         user.UncommittedEvents.Count.ShouldBe(1); // Only Create event, no Update event
     }
 
-    #endregion
-
-    #region UpdateInfoFromPrimitives Tests
-
     [Theory, AutoFakeItEasyData]
     public void UpdateInfoFromPrimitives_WithValidData_ShouldSucceed(string newName, string newUsername)
     {
@@ -88,9 +78,7 @@ public class UserAggregateBehaviorTests
         var newEmailValue = "primitiveupdate@test.com";
 
         // Ensure username meets validation rules
-        newUsername = newUsername.Substring(0, Math.Min(10, newUsername.Length));
-        if (string.IsNullOrWhiteSpace(newUsername) || newUsername.Length < 3)
-            newUsername = "newuser";
+        newUsername = string.IsNullOrWhiteSpace(newUsername) || newUsername.Length < 3 ? "newuser" : newUsername[..Math.Min(10, newUsername.Length)];
 
         // Act
         var result = user.UpdateInfoFromPrimitives(newName, newEmailValue, newUsername);
@@ -121,10 +109,6 @@ public class UserAggregateBehaviorTests
         result.ValidationErrors.ShouldContain(e => e.Identifier.StartsWith("Email."));
         user.UncommittedEvents.Count.ShouldBe(1); // Only Create event, no Update event
     }
-
-    #endregion
-
-    #region ChangePassword Tests
 
     [Fact]
     public void ChangePassword_WithValidPassword_ShouldSucceed()
@@ -186,10 +170,6 @@ public class UserAggregateBehaviorTests
         user.PasswordHash.ShouldBe(originalPasswordHash); // Should not change
         user.UncommittedEvents.Count.ShouldBe(1); // Only Create event, no PasswordChanged event
     }
-
-    #endregion
-
-    #region ChangeRole Tests
 
     [Theory]
     [InlineData("Admin")]
@@ -270,10 +250,6 @@ public class UserAggregateBehaviorTests
         user.UncommittedEvents.Count.ShouldBe(1); // Only Create event, no RoleChanged event
     }
 
-    #endregion
-
-    #region Activate/Deactivate Tests
-
     [Fact]
     public void Activate_WhenUserIsInactive_ShouldSucceed()
     {
@@ -299,33 +275,11 @@ public class UserAggregateBehaviorTests
     public void Activate_WhenUserIsAlreadyActive_ShouldFail()
     {
         // Arrange
-        var userResult = new UserAggregateBuilder().Build();
-        Assert.NotNull(userResult); // xUnit assertion for null
-        Console.WriteLine($"userResult.IsSuccess: {userResult.IsSuccess}");
-        if (userResult.ValidationErrors != null)
-        {
-            foreach (var error in userResult.ValidationErrors)
-            {
-                Console.WriteLine($"ValidationError: {error.Identifier} - {error.ErrorMessage}");
-            }
-        }
-        Assert.True(userResult.IsSuccess, "UserAggregateBuilder.Build() failed");
-        Assert.NotNull(userResult.Value);
-        var user = userResult.Value;
-        Console.WriteLine($"user.IsActive: {user.IsActive}");
+        var user = new UserAggregateBuilder().Build().Value;
         user.IsActive.ShouldBeTrue(); // User is active by default
 
         // Act
         var result = user.Activate();
-        Assert.NotNull(result);
-        Console.WriteLine($"result.IsSuccess: {result.IsSuccess}");
-        if (result.ValidationErrors != null)
-        {
-            foreach (var error in result.ValidationErrors)
-            {
-                Console.WriteLine($"Activate ValidationError: {error.Identifier} - {error.ErrorMessage}");
-            }
-        }
 
         // Assert
         result.IsSuccess.ShouldBeFalse();
@@ -370,10 +324,6 @@ public class UserAggregateBehaviorTests
         user.UncommittedEvents.Count.ShouldBe(2); // Create + Deactivated events, no second Deactivated event
     }
 
-    #endregion
-
-    #region Event Management Tests
-
     [Fact]
     public void MarkEventsAsCommitted_ShouldClearUncommittedEvents()
     {
@@ -398,8 +348,5 @@ public class UserAggregateBehaviorTests
         // Act & Assert
         (user.UncommittedEvents is List<object>).ShouldBeFalse();
         user.UncommittedEvents.ShouldBeAssignableTo<IReadOnlyList<object>>();
-        user.UncommittedEvents.ShouldBeAssignableTo<IReadOnlyList<object>>();
     }
-
-    #endregion
 }
