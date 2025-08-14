@@ -1,7 +1,9 @@
-﻿namespace TC.CloudGames.Users.Application.Abstractions.Ports
+﻿using TC.CloudGames.Users.Application.UseCases.GetUserByEmail;
+
+namespace TC.CloudGames.Users.Application.Abstractions.Ports
 {
     public interface IUserRepository : IBaseRepository<UserAggregate>
     {
-
+        Task<UserByEmailResponse?> GetByEmailAsync(string email, CancellationToken cancellationToken = default);
     }
 }

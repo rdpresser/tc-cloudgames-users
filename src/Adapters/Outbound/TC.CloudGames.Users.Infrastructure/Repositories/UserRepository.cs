@@ -1,4 +1,5 @@
-﻿using TC.CloudGames.Users.Infrastructure.Projections;
+﻿using TC.CloudGames.Users.Application.UseCases.GetUserByEmail;
+using TC.CloudGames.Users.Infrastructure.Projections;
 
 namespace TC.CloudGames.Users.Infrastructure.Repositories
 {
@@ -29,6 +30,26 @@ namespace TC.CloudGames.Users.Infrastructure.Repositories
                     projection.CreatedAt,
                     projection.UpdatedAt,
                     projection.IsActive));
+        }
+
+        public async Task<UserByEmailResponse?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
+        {
+            var projection = await Session.Query<UserProjection>()
+                .Where(u => u.IsActive)
+                .Where(u => u.Email.Equals(email, StringComparison.InvariantCultureIgnoreCase))
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (projection == null)
+                return null;
+
+            return new UserByEmailResponse
+            {
+                Id = projection.Id,
+                Name = projection.Name,
+                Username = projection.Username,
+                Email = projection.Email,
+                Role = projection.Role
+            };
         }
 
         public async Task SaveAsync(UserAggregate user, CancellationToken cancellationToken = default)

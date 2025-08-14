@@ -37,4 +37,17 @@ app.MapPost("/api/users", async (CreateUserCommand request, IUserRepository user
 .WithName("CreateUser")
 .WithOpenApi();
 
+
+app.MapGet("/api/users/{email}", async (string email, IUserRepository userRepository) =>
+{
+    var user = await userRepository.GetByEmailAsync(email);
+    if (user is null)
+    {
+        return Results.NotFound(new { Error = $"User with email '{email}' not found." });
+    }
+    return Results.Ok(user);
+})
+.WithName("GetUserByEmail")
+.WithOpenApi();
+
 await app.RunAsync();
