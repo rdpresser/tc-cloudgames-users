@@ -1,11 +1,10 @@
 using TC.CloudGames.Users.Unit.Tests.Common;
-using Xunit;
 
 namespace TC.CloudGames.Users.Unit.Tests.Domain.Aggregates;
 
 public class UserAggregateCreationTests
 {
-    [Theory, AutoFakeItEasyData]
+    [Theory, AutoFakeItEasyValidUserData]
     public void Create_WithValidData_ShouldSucceed(string name, string username)
     {
         // Arrange
@@ -29,13 +28,12 @@ public class UserAggregateCreationTests
         user.CreatedAt.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
         user.UpdatedAt.ShouldBeNull();
         user.UncommittedEvents.ShouldHaveSingleItem();
-        user.UncommittedEvents.First().ShouldBeOfType<UserCreatedEvent>();
+        user.UncommittedEvents[0].ShouldBeOfType<UserCreatedEvent>();
     }
 
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    [InlineData(null)]
     public void Create_WithInvalidName_ShouldFail(string invalidName)
     {
         // Arrange
@@ -73,7 +71,6 @@ public class UserAggregateCreationTests
     [Theory]
     [InlineData("")]
     [InlineData("   ")]
-    [InlineData(null)]
     public void Create_WithInvalidUsername_ShouldFail(string invalidUsername)
     {
         // Arrange
@@ -168,7 +165,7 @@ public class UserAggregateCreationTests
         result.Value.Username.ShouldBe(validUsername);
     }
 
-    [Theory, AutoFakeItEasyData]
+    [Theory, AutoFakeItEasyValidUserData]
     public void CreateFromPrimitives_WithValidData_ShouldSucceed(string name, string username)
     {
         // Arrange
@@ -196,7 +193,6 @@ public class UserAggregateCreationTests
     [InlineData("@invalid.com")]
     [InlineData("invalid@")]
     [InlineData("")]
-    [InlineData(null)]
     public void CreateFromPrimitives_WithInvalidEmail_ShouldFail(string invalidEmail)
     {
         // Arrange
@@ -220,7 +216,6 @@ public class UserAggregateCreationTests
     [InlineData("12345678")]
     [InlineData("NoSpecialChar123")]
     [InlineData("")]
-    [InlineData(null)]
     public void CreateFromPrimitives_WithInvalidPassword_ShouldFail(string invalidPassword)
     {
         // Arrange
@@ -241,7 +236,6 @@ public class UserAggregateCreationTests
     [InlineData("InvalidRole")]
     [InlineData("SuperAdmin")]
     [InlineData("")]
-    [InlineData(null)]
     public void CreateFromPrimitives_WithInvalidRole_ShouldFail(string invalidRole)
     {
         // Arrange

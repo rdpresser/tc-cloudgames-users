@@ -5,19 +5,20 @@ namespace TC.CloudGames.Users.Unit.Tests.Application.UseCases.CreateUser;
 
 public class CreateUserCommandHandlerTests : BaseTest
 {
-    [Theory, AutoFakeItEasyData]
-    public async Task ExecuteAsync_WithValidCommand_ShouldReturnSuccessResponse()
+    [Theory, AutoFakeItEasyValidUserData]
+    public async Task ExecuteAsync_WithValidCommand_ShouldReturnSuccessResponse(CreateUserCommand command)
     {
         // Arrange
         LogTestStart(nameof(ExecuteAsync_WithValidCommand_ShouldReturnSuccessResponse));
         Factory.RegisterTestServices(_ => { });
+
         var repo = A.Fake<IUserRepository>();
-        var command = new CreateUserCommand("Test User", "test@example.com", "testuser", "TestPassword123!", "User");
+        command = new CreateUserCommand("Test User", "test@example.com", "testuser", "TestPassword123!", "User");
         var handler = new CreateUserCommandHandler(repo);
         A.CallTo(() => repo.SaveAsync(A<UserAggregate>.Ignored, A<CancellationToken>.Ignored)).Returns(Task.CompletedTask);
 
         // Act
-        var result = await handler.ExecuteAsync(command);
+        var result = await handler.ExecuteAsync(command, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -50,7 +51,7 @@ public class CreateUserCommandHandlerTests : BaseTest
         var handler = new CreateUserCommandHandler(repo);
 
         // Act
-        var result = await handler.ExecuteAsync(command);
+        var result = await handler.ExecuteAsync(command, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsSuccess.ShouldBeFalse();

@@ -7,7 +7,7 @@ namespace TC.CloudGames.Users.Unit.Tests.Domain.Aggregates;
 
 public class UserAggregateProjectionTests
 {
-    [Theory, AutoFakeItEasyData]
+    [Theory, AutoFakeItEasyValidUserData]
     public void FromProjection_WithCompleteData_ShouldCreateUserWithAllProperties(Guid id, string name, string username)
     {
         // Arrange
@@ -38,7 +38,7 @@ public class UserAggregateProjectionTests
         user.UncommittedEvents.ShouldBeEmpty(); // No events should be generated for projection
     }
 
-    [Theory, AutoFakeItEasyData]
+    [Theory, AutoFakeItEasyValidUserData]
     public void FromProjection_WithNullUpdatedAt_ShouldCreateUserWithNullUpdatedAt(Guid id, string name, string username)
     {
         // Arrange

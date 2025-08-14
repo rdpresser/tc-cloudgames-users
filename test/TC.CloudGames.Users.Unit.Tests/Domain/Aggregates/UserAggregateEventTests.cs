@@ -1,5 +1,4 @@
 using TC.CloudGames.Users.Unit.Tests.Common;
-using Xunit;
 
 namespace TC.CloudGames.Users.Unit.Tests.Domain.Aggregates;
 
@@ -22,7 +21,7 @@ public class UserAggregateEventTests
         result.IsSuccess.ShouldBeTrue();
         var user = result.Value;
         user.UncommittedEvents.ShouldHaveSingleItem();
-        var createdEvent = user.UncommittedEvents.First().ShouldBeOfType<UserCreatedEvent>();
+        var createdEvent = user.UncommittedEvents[0].ShouldBeOfType<UserCreatedEvent>();
         createdEvent.Id.ShouldNotBe(Guid.Empty);
         createdEvent.Name.ShouldBe(name);
         createdEvent.Email.ShouldBe(email);
@@ -47,7 +46,7 @@ public class UserAggregateEventTests
         // Assert
         result.IsSuccess.ShouldBeTrue();
         user.UncommittedEvents.Count.ShouldBe(2);
-        var updatedEvent = user.UncommittedEvents.Last().ShouldBeOfType<UserUpdatedEvent>();
+        var updatedEvent = user.UncommittedEvents[user.UncommittedEvents.Count - 1].ShouldBeOfType<UserUpdatedEvent>();
         updatedEvent.Id.ShouldBe(user.Id);
         updatedEvent.Name.ShouldBe(newName);
         updatedEvent.Email.ShouldBe(newEmail);
@@ -68,7 +67,7 @@ public class UserAggregateEventTests
         // Assert
         result.IsSuccess.ShouldBeTrue();
         user.UncommittedEvents.Count.ShouldBe(2);
-        var passwordChangedEvent = user.UncommittedEvents.Last().ShouldBeOfType<UserPasswordChangedEvent>();
+        var passwordChangedEvent = user.UncommittedEvents[user.UncommittedEvents.Count - 1].ShouldBeOfType<UserPasswordChangedEvent>();
         passwordChangedEvent.Id.ShouldBe(user.Id);
         passwordChangedEvent.NewPassword.ShouldBe(newPassword);
         passwordChangedEvent.ChangedAt.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
@@ -87,7 +86,7 @@ public class UserAggregateEventTests
         // Assert
         result.IsSuccess.ShouldBeTrue();
         user.UncommittedEvents.Count.ShouldBe(2);
-        var roleChangedEvent = user.UncommittedEvents.Last().ShouldBeOfType<UserRoleChangedEvent>();
+        var roleChangedEvent = user.UncommittedEvents[user.UncommittedEvents.Count - 1].ShouldBeOfType<UserRoleChangedEvent>();
         roleChangedEvent.Id.ShouldBe(user.Id);
         roleChangedEvent.NewRole.ShouldBe(newRole);
         roleChangedEvent.ChangedAt.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
@@ -107,7 +106,7 @@ public class UserAggregateEventTests
         // Assert
         result.IsSuccess.ShouldBeTrue();
         user.UncommittedEvents.Count.ShouldBe(3);
-        var activatedEvent = user.UncommittedEvents.Last().ShouldBeOfType<UserActivatedEvent>();
+        var activatedEvent = user.UncommittedEvents[user.UncommittedEvents.Count - 1].ShouldBeOfType<UserActivatedEvent>();
         activatedEvent.Id.ShouldBe(user.Id);
         activatedEvent.ActivatedAt.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
     }
@@ -125,7 +124,7 @@ public class UserAggregateEventTests
         // Assert
         result.IsSuccess.ShouldBeTrue();
         user.UncommittedEvents.Count.ShouldBe(2);
-        var deactivatedEvent = user.UncommittedEvents.Last().ShouldBeOfType<UserDeactivatedEvent>();
+        var deactivatedEvent = user.UncommittedEvents[user.UncommittedEvents.Count - 1].ShouldBeOfType<UserDeactivatedEvent>();
         deactivatedEvent.Id.ShouldBe(user.Id);
         deactivatedEvent.DeactivatedAt.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
     }
@@ -300,6 +299,6 @@ public class UserAggregateEventTests
         user.UncommittedEvents.ShouldBeEmpty();
         user.Deactivate();
         user.UncommittedEvents.ShouldHaveSingleItem();
-        user.UncommittedEvents.First().ShouldBeOfType<UserDeactivatedEvent>();
+        user.UncommittedEvents[0].ShouldBeOfType<UserDeactivatedEvent>();
     }
 }

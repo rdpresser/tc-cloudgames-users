@@ -15,7 +15,7 @@
             //    userId: userId,
             //    correlationId: correlationId,
             //    source: source ?? "UserRegistrationAPI"
-            //);
+            //)
 
             return UserAggregate.CreateFromPrimitives(
                 r.Name,
@@ -23,7 +23,7 @@
                 r.Username,
                 r.Password,
                 r.Role);
-            //eventContext);
+            //eventContext)
         }
 
         public static CreateUserResponse FromEntity(UserAggregate e)

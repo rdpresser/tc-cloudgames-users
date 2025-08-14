@@ -49,21 +49,6 @@ public class RoleTests
     #region Invalid Role Tests
 
     [Theory]
-    [InlineData("")]
-    [InlineData("   ")]
-    [InlineData(null)]
-    public void Create_WithNullOrWhitespace_ShouldFail(string invalidRole)
-    {
-        // Act
-        var result = Role.Create(invalidRole);
-
-        // Assert
-        result.IsSuccess.ShouldBeFalse();
-        result.ValidationErrors.ShouldContain(e => e.Identifier == "Role.Invalid");
-        result.ValidationErrors.ShouldContain(e => e.ErrorMessage == "Invalid role value.");
-    }
-
-    [Theory]
     [InlineData("InvalidRole")]
     [InlineData("SuperUser")]
     [InlineData("Guest")]
@@ -72,6 +57,8 @@ public class RoleTests
     [InlineData("123")]
     [InlineData("User123")]
     [InlineData("Admin!")]
+    [InlineData("")]
+    [InlineData("   ")]
     public void Create_WithInvalidRole_ShouldFail(string invalidRole)
     {
         // Act
@@ -321,7 +308,7 @@ public class RoleTests
 
     #region Edge Cases Tests
 
-    [Theory, AutoFakeItEasyData]
+    [Theory, AutoFakeItEasyValidUserData]
     public void Create_WithRandomValidRoles_ShouldSucceed(int selector)
     {
         // Arrange

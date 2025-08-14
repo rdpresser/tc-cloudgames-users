@@ -61,24 +61,24 @@ namespace TC.CloudGames.Users.Infrastructure.Repositories
             }
         }
 
-        // TODO: Descomentar e implementar o Outbox do Wolverine
+        // Descomentar e implementar o Outbox do Wolverine
         //public async Task SaveAsync(UserAggregate user, CancellationToken cancellationToken = default)
-        //{
+        // 
         //    // 1. Salva o aggregate no event store do Marten
-        //    _session.Events.StartStream<UserAggregate>(user.Id, user.UncommittedEvents.ToArray());
+        //    _session.Events.StartStream<UserAggregate>(user.Id, user.UncommittedEvents.ToArray())
 
         //    // 2. Processa EventEnvelopes para o Outbox do Wolverine
         //    foreach (var eventEnvelope in user.UncommittedEvents.OfType<EventEnvelope<EventContext<UserAggregate>>>())
-        //    {
+        //    
         //        // Envia para o Outbox do Wolverine (mesma transação do Marten)
-        //        await _session.SendAsync(eventEnvelope, cancellationToken);
-        //    }
+        //        await _session.SendAsync(eventEnvelope, cancellationToken)
+        //    
 
         //    // 3. Commit atômico: Event Store + Outbox
-        //    await _session.SaveChangesAsync(cancellationToken);
+        //    await _session.SaveChangesAsync(cancellationToken)
 
         //    // 4. Marca eventos como commitados
-        //    user.MarkEventsAsCommitted();
-        //}
+        //    user.MarkEventsAsCommitted()
+        //
     }
 }

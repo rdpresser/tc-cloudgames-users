@@ -1,28 +1,6 @@
 namespace TC.CloudGames.Users.Unit.Tests.Common;
 
 /// <summary>
-/// Custom AutoFakeItEasy data attribute for xUnit theories with domain-specific customizations
-/// </summary>
-public class AutoFakeItEasyDataAttribute : AutoDataAttribute
-{
-    public AutoFakeItEasyDataAttribute() : base(() =>
-    {
-        var fixture = new Fixture();
-        fixture.Customize(new AutoFakeItEasyCustomization());
-
-        // Customize Value Objects creation
-        fixture.Register(() => Email.Create($"test{fixture.Create<int>()}@example.com").Value);
-        fixture.Register(() => Password.Create("TestPassword123!").Value);
-        fixture.Register(() => Role.Create("User").Value);
-
-        return fixture;
-    })
-    {
-
-    }
-}
-
-/// <summary>
 /// Domain-specific test data builder for UserAggregate tests
 /// </summary>
 public class UserAggregateBuilder
@@ -100,7 +78,8 @@ public class UserAggregateBuilder
         }
         if (!result.IsSuccess)
         {
-            throw new Exception($"UserAggregateBuilder.Build() failed: {string.Join(", ", result.ValidationErrors.Select(e => e.Identifier + ": " + e.ErrorMessage))}");
+            var errors = result.ValidationErrors ?? Enumerable.Empty<ValidationError>();
+            throw new Exception($"UserAggregateBuilder.Build() failed: {string.Join(", ", errors.Select(e => e.Identifier + ": " + e.ErrorMessage))}");
         }
         return result;
     }
@@ -110,13 +89,13 @@ public class UserAggregateBuilder
         return UserAggregate.CreateFromPrimitives(_name, _email.Value, _username, "BuilderPassword123!", _role.Value);
     }
 
-    private string GenerateValidName()
+    private static string GenerateValidName()
     {
         // Always return a valid, non-null, non-empty name within 1-100 chars
         return "Test User";
     }
 
-    private string GenerateValidUsername()
+    private static string GenerateValidUsername()
     {
         // Always return a valid username within 3-50 chars, only allowed chars
         return "testuser";
@@ -144,5 +123,35 @@ public static class TestExtensions
     public static void ShouldBeCloseTo(this DateTime actual, DateTime expected, TimeSpan tolerance)
     {
         Math.Abs((actual - expected).TotalMilliseconds).ShouldBeLessThan(tolerance.TotalMilliseconds);
+    }
+}
+
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
+public class AutoFakeItEasyValidUserDataAttribute : AutoDataAttribute
+{
+    public AutoFakeItEasyValidUserDataAttribute() : base(() =>
+    {
+        var fixture = new Fixture();
+        fixture.Customize(new AutoFakeItEasyCustomization());
+
+        // Value Objects always valid
+        fixture.Register(() => Email.Create($"test{fixture.Create<int>()}@example.com").Value);
+        fixture.Register(() => Password.Create("TestPassword123!").Value);
+        fixture.Register(() => Role.Create("User").Value);
+
+        // Always valid CreateUserCommand
+        fixture.Customize<CreateUserCommand>(composer => composer
+            .FromFactory(() => new CreateUserCommand(
+                "Test User",
+                "test@example.com",
+                "testuser",
+                "TestPassword123!",
+                "User"
+            ))
+        );
+
+        return fixture;
+    })
+    {
     }
 }

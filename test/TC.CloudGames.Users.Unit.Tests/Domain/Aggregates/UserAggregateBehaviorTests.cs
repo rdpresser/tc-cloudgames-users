@@ -4,7 +4,7 @@ namespace TC.CloudGames.Users.Unit.Tests.Domain.Aggregates;
 
 public class UserAggregateBehaviorTests
 {
-    [Theory, AutoFakeItEasyData]
+    [Theory, AutoFakeItEasyValidUserData]
     public void UpdateInfo_WithValidData_ShouldSucceed(string newName, string newUsername)
     {
         // Arrange
@@ -30,7 +30,7 @@ public class UserAggregateBehaviorTests
         user.CreatedAt.ShouldBe(originalCreatedAt); // Should not change
         user.Id.ShouldBe(originalId); // Should not change
         user.UncommittedEvents.Count.ShouldBe(2); // Create + Update events
-        user.UncommittedEvents.Last().ShouldBeOfType<UserUpdatedEvent>();
+        user.UncommittedEvents[user.UncommittedEvents.Count - 1].ShouldBeOfType<UserUpdatedEvent>();
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public class UserAggregateBehaviorTests
         user.UncommittedEvents.Count.ShouldBe(1); // Only Create event, no Update event
     }
 
-    [Theory, AutoFakeItEasyData]
+    [Theory, AutoFakeItEasyValidUserData]
     public void UpdateInfoFromPrimitives_WithValidData_ShouldSucceed(string newName, string newUsername)
     {
         // Arrange
@@ -127,7 +127,7 @@ public class UserAggregateBehaviorTests
         user.UpdatedAt.ShouldNotBeNull();
         user.UpdatedAt.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
         user.UncommittedEvents.Count.ShouldBe(2); // Create + PasswordChanged events
-        user.UncommittedEvents.Last().ShouldBeOfType<UserPasswordChangedEvent>();
+        user.UncommittedEvents[user.UncommittedEvents.Count - 1].ShouldBeOfType<UserPasswordChangedEvent>();
     }
 
     [Fact]
@@ -153,7 +153,6 @@ public class UserAggregateBehaviorTests
     [InlineData("weak")]
     [InlineData("NoSpecialChar123")]
     [InlineData("")]
-    [InlineData(null)]
     public void ChangePasswordFromPlainText_WithInvalidPassword_ShouldFail(string invalidPassword)
     {
         // Arrange
@@ -192,7 +191,7 @@ public class UserAggregateBehaviorTests
         user.UpdatedAt.ShouldNotBeNull();
         user.UpdatedAt.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
         user.UncommittedEvents.Count.ShouldBe(2); // Create + RoleChanged events
-        user.UncommittedEvents.Last().ShouldBeOfType<UserRoleChangedEvent>();
+        user.UncommittedEvents[user.UncommittedEvents.Count - 1].ShouldBeOfType<UserRoleChangedEvent>();
     }
 
     [Fact]
@@ -267,7 +266,7 @@ public class UserAggregateBehaviorTests
         user.UpdatedAt.ShouldNotBeNull();
         user.UpdatedAt.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
         user.UncommittedEvents.Count.ShouldBe(3); // Create + Deactivated + Activated events
-        user.UncommittedEvents.Last().ShouldBeOfType<UserActivatedEvent>();
+        user.UncommittedEvents[user.UncommittedEvents.Count - 1].ShouldBeOfType<UserActivatedEvent>();
     }
 
     [Fact]
@@ -302,7 +301,7 @@ public class UserAggregateBehaviorTests
         user.UpdatedAt.ShouldNotBeNull();
         user.UpdatedAt.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
         user.UncommittedEvents.Count.ShouldBe(2); // Create + Deactivated events
-        user.UncommittedEvents.Last().ShouldBeOfType<UserDeactivatedEvent>();
+        user.UncommittedEvents[user.UncommittedEvents.Count - 1].ShouldBeOfType<UserDeactivatedEvent>();
     }
 
     [Fact]

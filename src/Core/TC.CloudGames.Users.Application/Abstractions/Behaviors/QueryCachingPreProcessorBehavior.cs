@@ -19,11 +19,11 @@
             ArgumentNullException.ThrowIfNull(context);
             var name = context.Request!.GetType().Name;
 
-            /*
-             Buscar usuário logado com interface IUserContext
-            setar cachekey com o id do usuario
-             context.Request.CacheKey = $"{_userContext.UserId}-{context.Request.CacheKey}";
-             */
+
+            // Buscar usuário logado com interface IUserContext
+            // setar cachekey com o id do usuario
+            // context.Request.CacheKey = $"{_userContext.UserId}-{context.Request.CacheKey}"
+
 
             var cachedResult = await _cacheService.GetAsync<TResponse>(
                 context.Request.CacheKey,

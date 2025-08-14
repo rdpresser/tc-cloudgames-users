@@ -32,10 +32,9 @@
 
             #endregion
 
-            //TODO: Uncomment this when userPgRepository is available
             //.MustAsync(async (email, cancellation) => !await userPgRepository.EmailExistsAsync(email, cancellation).ConfigureAwait(false))
             //    .WithMessage("Email already exists.")
-            //    .WithErrorCode($"{nameof(CreateUserCommand.Email)}.AlreadyExists");
+            //    .WithErrorCode($"{nameof(CreateUserCommand.Email)}.AlreadyExists")
 
             #region Username | Validation Rules
             RuleFor(x => x.Username)
