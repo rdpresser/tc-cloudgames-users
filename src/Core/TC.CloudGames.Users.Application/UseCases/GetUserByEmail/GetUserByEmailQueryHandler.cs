@@ -1,4 +1,4 @@
-﻿using TC.CloudGames.Users.Application.Abstractions.Queries;
+﻿using TC.CloudGames.SharedKernel.Application.Queries;
 
 namespace TC.CloudGames.Users.Application.UseCases.GetUserByEmail
 {

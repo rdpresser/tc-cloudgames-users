@@ -1,7 +1,4 @@
 using TC.CloudGames.Users.Application.UseCases.GetUserByEmail;
-using Shouldly;
-using Xunit;
-using System;
 
 namespace TC.CloudGames.Users.Unit.Tests.Application.UseCases.GetUserByEmail;
 

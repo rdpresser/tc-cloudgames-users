@@ -112,7 +112,7 @@ public sealed class UserAggregate : BaseAggregateRoot
     private static Result<UserAggregate> CreateAggregate(string name, Email email, string username, Password password, Role role)
     {
         var aggregate = new UserAggregate(Guid.NewGuid());
-        var @event = new UserCreatedEvent(aggregate.Id, name, email.Value, username, password, role, aggregate.CreatedAt);
+        var @event = new UserCreatedEvent(aggregate.Id, name, email, username, password, role, aggregate.CreatedAt);
         aggregate.ApplyEvent(@event);
         return Result.Success(aggregate);
     }

@@ -1,4 +1,6 @@
-﻿namespace TC.CloudGames.Users.Application.UseCases.CreateUser
+﻿using TC.CloudGames.SharedKernel.Application.Commands;
+
+namespace TC.CloudGames.Users.Application.UseCases.CreateUser
 {
     internal sealed class CreateUserCommandHandler : BaseCommandHandler<CreateUserCommand, CreateUserResponse, UserAggregate, IUserRepository>
     {

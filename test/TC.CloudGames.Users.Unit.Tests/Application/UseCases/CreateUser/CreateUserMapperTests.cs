@@ -1,6 +1,3 @@
-using Shouldly;
-using Xunit;
-
 namespace TC.CloudGames.Users.Unit.Tests.Application.UseCases.CreateUser;
 
 public class CreateUserMapperTests

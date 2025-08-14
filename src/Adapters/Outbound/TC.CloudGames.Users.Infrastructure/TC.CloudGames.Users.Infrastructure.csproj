@@ -3,6 +3,7 @@
   <ItemGroup>
     <PackageReference Include="Marten" Version="8.7.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.8" />
+    <PackageReference Include="FastEndpoints.Security" Version="7.0.1" />
   </ItemGroup>
 
   <ItemGroup>
