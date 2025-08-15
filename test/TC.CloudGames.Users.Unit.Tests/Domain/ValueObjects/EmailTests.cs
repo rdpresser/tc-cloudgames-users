@@ -117,20 +117,20 @@ public class EmailTests
         convertedValue.ShouldBe(emailValue);
     }
 
-    ////[Fact]
-    ////public void ImplicitConversion_StringToEmailAndEmailToString_ShouldWork()
-    ////{
-    ////    // Arrange
-    ////    string emailStr = "test@email.com";
+    [Fact]
+    public void ImplicitConversion_StringToEmailAndEmailToString_ShouldWork()
+    {
+        // Arrange
+        string emailStr = "test@email.com";
 
-    ////    // Act
-    ////    Email emailObj = emailStr;
-    ////    string resultStr = emailObj;
+        // Act
+        var emailObj = Email.Create(emailStr).Value;
+        string resultStr = emailObj;
 
-    ////    // Assert
-    ////    emailObj.Value.ShouldBe(emailStr.ToLowerInvariant());
-    ////    resultStr.ShouldBe(emailStr.ToLowerInvariant());
-    ////}
+        // Assert
+        emailObj.Value.ShouldBe(emailStr.ToLowerInvariant());
+        resultStr.ShouldBe(emailStr.ToLowerInvariant());
+    }
 
     #endregion
 
@@ -258,6 +258,32 @@ public class EmailTests
 
         // Assert
         result.ShouldBe(expected);
+    }
+
+    #endregion
+
+    #region Exception Handling Tests
+
+    [Fact]
+    public void Create_WithNull_ShouldReturnInvalidResult()
+    {
+        // Act
+        var result = Email.Create(null!);
+
+        // Assert
+        result.IsSuccess.ShouldBeFalse();
+        result.ValidationErrors.ShouldContain(e => e.Identifier == "Email.Required");
+    }
+
+    [Fact]
+    public void FromDb_WithNull_ShouldReturnInvalidResult()
+    {
+        // Act
+        var result = Email.FromDb(null!);
+
+        // Assert
+        result.IsSuccess.ShouldBeFalse();
+        result.ValidationErrors.ShouldContain(e => e.Identifier == "Email.Required");
     }
 
     #endregion

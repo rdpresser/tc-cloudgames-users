@@ -334,4 +334,66 @@ public class UserAggregateCreationTests
         user.Email.Value.ShouldBe("primitive@test.com");
         user.Username.ShouldBe("primitiveuser");
     }
+
+    [Fact]
+    public void Create_WithNullEmail_ShouldReturnInvalidResult()
+    {
+        // Arrange
+        var name = "Valid Name";
+        var username = "validuser";
+        var password = Password.Create("ValidPassword123!").Value;
+        var role = Role.Create("User").Value;
+
+        // Act
+        var result = UserAggregate.Create(name, null!, username, password, role);
+
+        // Assert
+        result.IsSuccess.ShouldBeFalse();
+        result.ValidationErrors.ShouldContain(e => e.Identifier.StartsWith("Email."));
+    }
+
+    [Fact]
+    public void Create_WithNullPassword_ShouldReturnInvalidResult()
+    {
+        // Arrange
+        var name = "Valid Name";
+        var email = Email.Create("valid@test.com").Value;
+        var username = "validuser";
+        var role = Role.Create("User").Value;
+
+        // Act
+        var result = UserAggregate.Create(name, email, username, null!, role);
+
+        // Assert
+        result.IsSuccess.ShouldBeFalse();
+        result.ValidationErrors.ShouldContain(e => e.Identifier.StartsWith("Password."));
+    }
+
+    [Fact]
+    public void Create_WithNullRole_ShouldReturnInvalidResult()
+    {
+        // Arrange
+        var name = "Valid Name";
+        var email = Email.Create("valid@test.com").Value;
+        var username = "validuser";
+        var password = Password.Create("ValidPassword123!").Value;
+
+        // Act
+        var result = UserAggregate.Create(name, email, username, password, null!);
+
+        // Assert
+        result.IsSuccess.ShouldBeFalse();
+        result.ValidationErrors.ShouldContain(e => e.Identifier == "Role.Invalid");
+    }
+
+    [Fact]
+    public void CreateFromPrimitives_WithNullValues_ShouldReturnInvalidResult()
+    {
+        // Act
+        var result = UserAggregate.CreateFromPrimitives(null!, null!, null!, null!, null!);
+
+        // Assert
+        result.IsSuccess.ShouldBeFalse();
+        result.ValidationErrors.ShouldNotBeEmpty();
+    }
 }

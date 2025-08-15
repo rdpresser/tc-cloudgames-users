@@ -301,4 +301,24 @@ public class UserAggregateEventTests
         user.UncommittedEvents.ShouldHaveSingleItem();
         user.UncommittedEvents[0].ShouldBeOfType<UserDeactivatedEvent>();
     }
+
+    [Fact]
+    public void DomainErrors_ShouldHaveCorrectProperties()
+    {
+        UserDomainErrors.NotFound.Property.ShouldBe("User.NotFound");
+        UserDomainErrors.NotFound.ErrorMessage.ShouldBe("The user with the specified identifier was not found");
+        UserDomainErrors.NotFound.ErrorCode.ShouldBe("User.NotFound");
+        UserDomainErrors.InvalidCredentials.Property.ShouldBe("User|Password");
+        UserDomainErrors.InvalidCredentials.ErrorMessage.ShouldBe("Email or password provided are invalid.");
+        UserDomainErrors.InvalidCredentials.ErrorCode.ShouldBe("User.InvalidCredentials");
+        UserDomainErrors.CreateUser.Property.ShouldBe("User.CreateUser");
+        UserDomainErrors.CreateUser.ErrorMessage.ShouldBe("An error occurred while creating the user.");
+        UserDomainErrors.CreateUser.ErrorCode.ShouldBe("User.CreateUser");
+        UserDomainErrors.EmailAlreadyExists.Property.ShouldBe("Email");
+        UserDomainErrors.EmailAlreadyExists.ErrorMessage.ShouldBe("The email address already exists.");
+        UserDomainErrors.EmailAlreadyExists.ErrorCode.ShouldBe("User.EmailAlreadyExists");
+        UserDomainErrors.JwtSecretKeyNotConfigured.Property.ShouldBe("JWTSecretKey");
+        UserDomainErrors.JwtSecretKeyNotConfigured.ErrorMessage.ShouldBe("JWT secret key is not configured.");
+        UserDomainErrors.JwtSecretKeyNotConfigured.ErrorCode.ShouldBe("JWT.SecretKeyNotConfigured");
+    }
 }

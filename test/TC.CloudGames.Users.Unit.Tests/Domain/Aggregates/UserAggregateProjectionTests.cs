@@ -165,4 +165,12 @@ public class UserAggregateProjectionTests
         user.IsActive.ShouldBeFalse();
         user.UncommittedEvents.ShouldBeEmpty();
     }
+
+    [Fact]
+    public void FromProjection_WithNullValues_ShouldNotThrow()
+    {
+        // Act & Assert
+        var user = UserAggregate.FromProjection(Guid.Empty, null!, null!, null!, null!, null!, DateTime.MinValue, null, false);
+        user.ShouldNotBeNull();
+    }
 }

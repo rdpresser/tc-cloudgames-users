@@ -347,4 +347,63 @@ public class UserAggregateBehaviorTests
         (user.UncommittedEvents is List<object>).ShouldBeFalse();
         user.UncommittedEvents.ShouldBeAssignableTo<IReadOnlyList<object>>();
     }
+
+    [Fact]
+    public void ApplyEvent_WithUnknownEventType_ShouldNotThrow()
+    {
+        // Arrange
+        var user = new UserAggregateBuilder().Build().Value;
+        var unknownEvent = new { Type = "UnknownEvent", Data = "SomeData" };
+
+        // Act & Assert
+        Should.NotThrow(() =>
+        {
+            var method = user.GetType().GetMethod("ApplyEvent", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            method!.Invoke(user, new[] { unknownEvent });
+        });
+    }
+
+    [Fact]
+    public void UpdateInfo_WithNullEmail_ShouldReturnInvalidResult()
+    {
+        // Arrange
+        var user = new UserAggregateBuilder().Build().Value;
+        var newName = "Valid Name";
+        var newUsername = "validuser";
+
+        // Act
+        var result = user.UpdateInfo(newName, null!, newUsername);
+
+        // Assert
+        result.IsSuccess.ShouldBeFalse();
+        result.ValidationErrors.ShouldContain(e => e.Identifier.StartsWith("Email."));
+    }
+
+    [Fact]
+    public void ChangePassword_WithNullPassword_ShouldReturnInvalidResult()
+    {
+        // Arrange
+        var user = new UserAggregateBuilder().Build().Value;
+
+        // Act
+        var result = user.ChangePassword(null!);
+
+        // Assert
+        result.IsSuccess.ShouldBeFalse();
+        result.ValidationErrors.ShouldContain(e => e.Identifier.StartsWith("Password."));
+    }
+
+    [Fact]
+    public void ChangeRole_WithNullRole_ShouldReturnInvalidResult()
+    {
+        // Arrange
+        var user = new UserAggregateBuilder().Build().Value;
+
+        // Act
+        var result = user.ChangeRole(null!);
+
+        // Assert
+        result.IsSuccess.ShouldBeFalse();
+        result.ValidationErrors.ShouldContain(e => e.Identifier == "Role.Invalid");
+    }
 }

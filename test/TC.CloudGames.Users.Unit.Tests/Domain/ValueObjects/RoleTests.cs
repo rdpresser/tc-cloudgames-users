@@ -224,20 +224,20 @@ public class RoleTests
         moderatorRoleValue.ShouldBe("Moderator");
     }
 
-    ////[Fact]
-    ////public void ImplicitConversion_StringToRoleAndRoleToString_ShouldWork()
-    ////{
-    ////    // Arrange
-    ////    string roleStr = "Admin";
+    [Fact]
+    public void ImplicitConversion_StringToRoleAndRoleToString_ShouldWork()
+    {
+        // Arrange
+        string roleStr = "Admin";
 
-    ////    // Act
-    ////    Role roleObj = roleStr;
-    ////    string resultStr = roleObj;
+        // Act
+        var roleObj = Role.Create(roleStr).Value;
+        string resultStr = roleObj;
 
-    ////    // Assert
-    ////    roleObj.Value.ShouldBe("Admin");
-    ////    resultStr.ShouldBe("Admin");
-    ////}
+        // Assert
+        roleObj.Value.ShouldBe("Admin");
+        resultStr.ShouldBe("Admin");
+    }
 
     #endregion
 
@@ -412,6 +412,32 @@ public class RoleTests
 
         // Assert
         result.ShouldBe(expected);
+    }
+
+    #endregion
+
+    #region Exception Handling Tests
+
+    [Fact]
+    public void Create_WithNull_ShouldReturnInvalidResult()
+    {
+        // Act
+        var result = Role.Create(null!);
+
+        // Assert
+        result.IsSuccess.ShouldBeFalse();
+        result.ValidationErrors.ShouldContain(e => e.Identifier == "Role.Invalid");
+    }
+
+    [Fact]
+    public void FromDb_WithNull_ShouldReturnInvalidResult()
+    {
+        // Act
+        var result = Role.FromDb(null!);
+
+        // Assert
+        result.IsSuccess.ShouldBeFalse();
+        result.ValidationErrors.ShouldContain(e => e.Identifier == "Role.Invalid");
     }
 
     #endregion

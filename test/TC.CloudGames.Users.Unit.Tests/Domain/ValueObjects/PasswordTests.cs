@@ -228,6 +228,21 @@ public class PasswordTests
         convertedValue.ShouldNotBe("TestPassword123!"); // Should not return plain text
     }
 
+    [Fact]
+    public void ImplicitConversion_StringToPasswordAndPasswordToString_ShouldWork()
+    {
+        // Arrange
+        string passwordStr = "ValidPass123!";
+
+        // Act
+        var passwordObj = Password.Create(passwordStr).Value;
+        string resultStr = passwordObj;
+
+        // Assert
+        passwordObj.Verify(passwordStr).ShouldBeTrue();
+        resultStr.ShouldBe(passwordObj.Hash);
+    }
+
     #endregion
 
     #region Equality Tests
@@ -381,20 +396,27 @@ public class PasswordTests
         result.ShouldBe(expected);
     }
 
-    ////[Fact]
-    ////public void ImplicitConversion_StringToPasswordAndPasswordToString_ShouldWork()
-    ////{
-    ////    // Arrange
-    ////    string passwordStr = "ValidPass123!";
+    [Fact]
+    public void Create_WithNull_ShouldReturnInvalidResult()
+    {
+        // Act
+        var result = Password.Create(null!);
 
-    ////    // Act
-    ////    Password passwordObj = passwordStr;
-    ////    string resultStr = passwordObj;
+        // Assert
+        result.IsSuccess.ShouldBeFalse();
+        result.ValidationErrors.ShouldContain(e => e.Identifier == "Password.Required");
+    }
 
-    ////    // Assert
-    ////    passwordObj.Verify(passwordStr).ShouldBeTrue();
-    ////    resultStr.ShouldBe(passwordObj.Hash);
-    ////}
+    [Fact]
+    public void FromHash_WithNull_ShouldReturnInvalidResult()
+    {
+        // Act
+        var result = Password.FromHash(null!);
+
+        // Assert
+        result.IsSuccess.ShouldBeFalse();
+        result.ValidationErrors.ShouldContain(e => e.Identifier == "Password.Required");
+    }
 
     #endregion
 }

@@ -222,6 +222,8 @@ public sealed class UserAggregate : BaseAggregateRoot
     /// <returns>Result indicating success or validation errors</returns>
     public Result UpdateInfo(string name, Email email, string username)
     {
+        if (email == null)
+            return Result.Invalid(new ValidationError($"Email.Required", "Email is required."));
         var errors = ValidateNameAndUsername(name, username);
         if (errors.Count > 0)
             return Result.Invalid(errors.ToArray());
@@ -238,7 +240,8 @@ public sealed class UserAggregate : BaseAggregateRoot
     /// <returns>Result indicating success or business rule violations</returns>
     public Result ChangePassword(Password newPassword)
     {
-        // Password is already validated by the Value Object
+        if (newPassword == null)
+            return Result.Invalid(new ValidationError($"Password.Required", "Password is required."));
         var @event = new UserPasswordChangedEvent(Id, newPassword, DateTime.UtcNow);
         ApplyEvent(@event);
         return Result.Success();
