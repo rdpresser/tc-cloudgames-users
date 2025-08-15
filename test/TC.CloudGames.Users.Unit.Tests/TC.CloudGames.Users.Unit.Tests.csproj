@@ -53,7 +53,7 @@
     <Folder Include="Application\UseCases\DeactivateUser\" />
     <Folder Include="Application\UseCases\GetUserById\" />
     <Folder Include="Application\UseCases\GetUserList\" />
-    <Folder Include="Application\UseCases\LoginUser\" />
+    <Folder Include="Api\" />
   </ItemGroup>
 
 </Project>
