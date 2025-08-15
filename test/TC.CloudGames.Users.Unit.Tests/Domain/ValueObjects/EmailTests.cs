@@ -117,20 +117,20 @@ public class EmailTests
         convertedValue.ShouldBe(emailValue);
     }
 
-    //[Fact]
-    //public void ImplicitConversion_StringToEmailAndEmailToString_ShouldWork()
-    //{
-    //    // Arrange
-    //    string emailStr = "test@email.com";
+    ////[Fact]
+    ////public void ImplicitConversion_StringToEmailAndEmailToString_ShouldWork()
+    ////{
+    ////    // Arrange
+    ////    string emailStr = "test@email.com";
 
-    //    // Act
-    //    Email emailObj = emailStr;
-    //    string resultStr = emailObj;
+    ////    // Act
+    ////    Email emailObj = emailStr;
+    ////    string resultStr = emailObj;
 
-    //    // Assert
-    //    emailObj.Value.ShouldBe(emailStr.ToLowerInvariant());
-    //    resultStr.ShouldBe(emailStr.ToLowerInvariant());
-    //}
+    ////    // Assert
+    ////    emailObj.Value.ShouldBe(emailStr.ToLowerInvariant());
+    ////    resultStr.ShouldBe(emailStr.ToLowerInvariant());
+    ////}
 
     #endregion
 

@@ -9,7 +9,7 @@ public class CreateUserCommandValidatorTests
     [InlineData("Test User", "test@example.com", "testuser", "weak", "User", false)]
     [InlineData("Test User", "test@example.com", "testuser", "TestPassword123!", "InvalidRole", false)]
     [InlineData("Test User", "test@example.com", "testuser", "TestPassword123!", "User", true)]
-    public void Validate_ShouldReturnExpectedResult(string name, string email, string username, string password, string role, bool expectedIsValid)
+    public async Task Validate_ShouldReturnExpectedResult(string name, string email, string username, string password, string role, bool expectedIsValid)
     {
         var repo = A.Fake<IUserRepository>();
         var _validator = new CreateUserCommandValidator(repo);
@@ -18,7 +18,7 @@ public class CreateUserCommandValidatorTests
         var command = new CreateUserCommand(name, email, username, password, role);
 
         // Act
-        var result = _validator.Validate(command);
+        var result = await _validator.ValidateAsync(command, TestContext.Current.CancellationToken);
 
         // Assert
         result.IsValid.ShouldBe(expectedIsValid);

@@ -224,20 +224,20 @@ public class RoleTests
         moderatorRoleValue.ShouldBe("Moderator");
     }
 
-    //[Fact]
-    //public void ImplicitConversion_StringToRoleAndRoleToString_ShouldWork()
-    //{
-    //    // Arrange
-    //    string roleStr = "Admin";
+    ////[Fact]
+    ////public void ImplicitConversion_StringToRoleAndRoleToString_ShouldWork()
+    ////{
+    ////    // Arrange
+    ////    string roleStr = "Admin";
 
-    //    // Act
-    //    Role roleObj = roleStr;
-    //    string resultStr = roleObj;
+    ////    // Act
+    ////    Role roleObj = roleStr;
+    ////    string resultStr = roleObj;
 
-    //    // Assert
-    //    roleObj.Value.ShouldBe("Admin");
-    //    resultStr.ShouldBe("Admin");
-    //}
+    ////    // Assert
+    ////    roleObj.Value.ShouldBe("Admin");
+    ////    resultStr.ShouldBe("Admin");
+    ////}
 
     #endregion
 
