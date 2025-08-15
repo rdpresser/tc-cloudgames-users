@@ -1,6 +1,4 @@
-﻿using Marten.Events.Projections;
-
-namespace TC.CloudGames.Users.Infrastructure.Projections
+﻿namespace TC.CloudGames.Users.Infrastructure.Projections
 {
     public class UserProjectionHandler : EventProjection
     {

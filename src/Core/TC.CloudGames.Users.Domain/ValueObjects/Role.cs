@@ -75,6 +75,19 @@ public sealed record Role
     public static bool IsValid(Role? value) => Validate(value).IsSuccess;
 
     /// <summary>
+    /// Create a Role value object from a database string.
+    /// </summary>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    public static Result<Role> FromDb(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return Result.Invalid(Invalid);
+
+        return Result.Success(new Role(value));
+    }
+
+    /// <summary>
     /// Tries to validate a Role instance and returns validation errors if any.
     /// </summary>
     public static bool TryValidate(Role? value, out List<ValidationError> errors)
@@ -119,5 +132,5 @@ public sealed record Role
     /// Implicit conversion from string to Role.
     /// </summary>
     /// <param name="role">The role name.</param>
-    public static implicit operator Role(string role) => Create(role).Value;
+    ///public static implicit operator Role(string role) => Create(role).Value;
 }

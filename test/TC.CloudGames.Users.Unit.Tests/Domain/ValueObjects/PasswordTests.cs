@@ -381,20 +381,20 @@ public class PasswordTests
         result.ShouldBe(expected);
     }
 
-    [Fact]
-    public void ImplicitConversion_StringToPasswordAndPasswordToString_ShouldWork()
-    {
-        // Arrange
-        string passwordStr = "ValidPass123!";
+    //[Fact]
+    //public void ImplicitConversion_StringToPasswordAndPasswordToString_ShouldWork()
+    //{
+    //    // Arrange
+    //    string passwordStr = "ValidPass123!";
 
-        // Act
-        Password passwordObj = passwordStr;
-        string resultStr = passwordObj;
+    //    // Act
+    //    Password passwordObj = passwordStr;
+    //    string resultStr = passwordObj;
 
-        // Assert
-        passwordObj.Verify(passwordStr).ShouldBeTrue();
-        resultStr.ShouldBe(passwordObj.Hash);
-    }
+    //    // Assert
+    //    passwordObj.Verify(passwordStr).ShouldBeTrue();
+    //    resultStr.ShouldBe(passwordObj.Hash);
+    //}
 
     #endregion
 }

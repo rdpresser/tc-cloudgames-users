@@ -1,10 +1,4 @@
-﻿using Serilog.Enrichers.Sensitive;
-using Serilog.Enrichers.Span;
-using Serilog.Sinks.Grafana.Loki;
-using System.Diagnostics.CodeAnalysis;
-using TC.CloudGames.Users.Api.Telemetry;
-
-namespace TC.CloudGames.Users.Api.Extensions
+﻿namespace TC.CloudGames.Users.Api.Extensions
 {
     [ExcludeFromCodeCoverage]
     public static class SerilogExtensions

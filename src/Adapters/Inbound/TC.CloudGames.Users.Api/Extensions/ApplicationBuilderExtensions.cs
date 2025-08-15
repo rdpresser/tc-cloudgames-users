@@ -1,10 +1,4 @@
-﻿using HealthChecks.UI.Client;
-using System.Diagnostics.CodeAnalysis;
-using TC.CloudGames.SharedKernel.Extensions;
-using TC.CloudGames.SharedKernel.Infrastructure.Middleware;
-using TC.CloudGames.Users.Api.Middleware;
-
-namespace TC.CloudGames.Users.Api.Extensions
+﻿namespace TC.CloudGames.Users.Api.Extensions
 {
     [ExcludeFromCodeCoverage]
     internal static class ApplicationBuilderExtensions

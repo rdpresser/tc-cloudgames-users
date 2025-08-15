@@ -1,7 +1,4 @@
-﻿using TC.CloudGames.Users.Application.UseCases.GetUserByEmail;
-using TC.CloudGames.Users.Infrastructure.Projections;
-
-namespace TC.CloudGames.Users.Infrastructure.Repositories
+﻿namespace TC.CloudGames.Users.Infrastructure.Repositories
 {
     public class UserRepository : BaseRepository<UserAggregate>, IUserRepository
     {
@@ -35,9 +32,18 @@ namespace TC.CloudGames.Users.Infrastructure.Repositories
         public async Task<UserByEmailResponse?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
         {
             var projection = await Session.Query<UserProjection>()
+                .Select(x => new
+                {
+                    x.Id,
+                    x.Name,
+                    x.Username,
+                    x.Email,
+                    x.Role,
+                    x.IsActive
+                })
                 .Where(u => u.IsActive)
-                .Where(u => u.Email.Equals(email, StringComparison.InvariantCultureIgnoreCase))
-                .FirstOrDefaultAsync(cancellationToken);
+                .FirstOrDefaultAsync(u =>
+                    u.Email.Equals(email, StringComparison.InvariantCultureIgnoreCase), cancellationToken);
 
             if (projection == null)
                 return null;
@@ -67,6 +73,37 @@ namespace TC.CloudGames.Users.Infrastructure.Repositories
                 await base.SaveChangesAsync(user.Id, cancellationToken, [.. user.UncommittedEvents]);
                 user.MarkEventsAsCommitted();
             }
+        }
+
+        public async Task<UserTokenProvider?> GetUserTokenInfoAsync(string email, string password, CancellationToken cancellationToken = default)
+        {
+            var projection = await Session.Query<UserProjection>()
+                .Select(x => new
+                {
+                    x.Id,
+                    x.Name,
+                    x.Email,
+                    x.Username,
+                    x.PasswordHash,
+                    x.Role,
+                    x.IsActive
+                })
+                .Where(u => u.IsActive)
+                .FirstOrDefaultAsync(u =>
+                    u.Email.Equals(email, StringComparison.InvariantCultureIgnoreCase), cancellationToken);
+
+            if (projection == null)
+                return null;
+
+            if (!Password.FromHash(projection.PasswordHash).Value.Verify(password))
+                return null;
+
+            return new UserTokenProvider(
+                projection.Id,
+                projection.Name,
+                projection.Email,
+                projection.Username,
+                projection.Role);
         }
 
         // Descomentar e implementar o Outbox do Wolverine

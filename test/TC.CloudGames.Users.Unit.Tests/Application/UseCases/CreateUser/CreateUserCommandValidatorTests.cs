@@ -2,8 +2,6 @@ namespace TC.CloudGames.Users.Unit.Tests.Application.UseCases.CreateUser;
 
 public class CreateUserCommandValidatorTests
 {
-    private readonly CreateUserCommandValidator _validator = new();
-
     [Theory]
     [InlineData("", "test@example.com", "testuser", "TestPassword123!", "User", false)]
     [InlineData("Test User", "invalid-email", "testuser", "TestPassword123!", "User", false)]
@@ -13,6 +11,9 @@ public class CreateUserCommandValidatorTests
     [InlineData("Test User", "test@example.com", "testuser", "TestPassword123!", "User", true)]
     public void Validate_ShouldReturnExpectedResult(string name, string email, string username, string password, string role, bool expectedIsValid)
     {
+        var repo = A.Fake<IUserRepository>();
+        var _validator = new CreateUserCommandValidator(repo);
+
         // Arrange
         var command = new CreateUserCommand(name, email, username, password, role);
 

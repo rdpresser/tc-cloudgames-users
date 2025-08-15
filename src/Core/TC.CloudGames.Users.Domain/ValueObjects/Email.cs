@@ -51,6 +51,19 @@ public sealed record Email
     }
 
     /// <summary>
+    /// Create an Email value object from a database string.
+    /// </summary>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    public static Result<Email> FromDb(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return Result.Invalid(Required);
+
+        return Result.Success(new Email(value));
+    }
+
+    /// <summary>
     /// Validates an email value and returns a list of validation errors if any.
     /// </summary>
     public static bool TryValidate(Email? value, out List<ValidationError> errors)
@@ -79,5 +92,5 @@ public sealed record Email
     public static bool IsValid(Email? value) => Validate(value).IsSuccess;
 
     public static implicit operator string(Email email) => email.Value;
-    public static implicit operator Email(string email) => Create(email).Value;
+    ///public static implicit operator Email(string email) => Create(email).Value;
 }

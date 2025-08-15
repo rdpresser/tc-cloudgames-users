@@ -1,6 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-
-namespace TC.CloudGames.Users.Api.Exceptions
+﻿namespace TC.CloudGames.Users.Api.Exceptions
 {
     [ExcludeFromCodeCoverage]
     public sealed class ValidationException : Exception

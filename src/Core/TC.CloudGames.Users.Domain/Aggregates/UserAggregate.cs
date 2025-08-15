@@ -178,22 +178,39 @@ public sealed class UserAggregate : BaseAggregateRoot
     /// Factory method to reconstruct aggregate from projection data (for read operations)
     /// No validation needed as data comes from a trusted source (database)
     /// </summary>
-    public static UserAggregate FromProjection(Guid id, string name, Email email, string username,
-        Password password, Role role, DateTime createdAt, DateTime? updatedAt, bool isActive)
+    public static UserAggregate FromProjection(Guid id, string name, string email, string username,
+        string passwordHash, string role, DateTime createdAt, DateTime? updatedAt, bool isActive)
     {
         var user = new UserAggregate(id)
         {
             Name = name,
-            Email = email,
+            Email = Email.FromDb(email),
             Username = username,
-            PasswordHash = password,
-            Role = role
+            PasswordHash = Password.FromHash(passwordHash),
+            Role = Role.FromDb(role)
         };
 
         user.SetActive(isActive);
         user.SetCreatedAt(createdAt);
         user.SetUpdatedAt(updatedAt);
         return user;
+    }
+
+    /// <summary>
+    /// Factory method to reconstruct aggregate from projection data (for read operations)
+    /// No validation needed as data comes from a trusted source (database)
+    /// </summary>
+    public static UserAggregate FromProjection(Guid id, string name, string email, string username,
+        string passwordHash, string role)
+    {
+        return new UserAggregate(id)
+        {
+            Name = name,
+            Email = Email.FromDb(email),
+            Username = username,
+            PasswordHash = Password.FromHash(passwordHash),
+            Role = Role.FromDb(role)
+        };
     }
 
     /// <summary>

@@ -1,9 +1,4 @@
-﻿using TC.CloudGames.SharedKernel.Api.EndPoints;
-using TC.CloudGames.SharedKernel.Application.Behaviors;
-using TC.CloudGames.Users.Application.UseCases.CreateUser;
-using TC.CloudGames.Users.Domain.ValueObjects;
-
-namespace TC.CloudGames.Users.Api.Endpoints.Auth
+﻿namespace TC.CloudGames.Users.Api.Endpoints.Auth
 {
     public sealed class CreateUserEndpoint : BaseApiEndpoint<CreateUserCommand, CreateUserResponse>
     {

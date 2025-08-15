@@ -1,7 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using TC.CloudGames.Users.Api.Exceptions;
-
-namespace TC.CloudGames.Users.Api.Middleware
+﻿namespace TC.CloudGames.Users.Api.Middleware
 {
     [ExcludeFromCodeCoverage]
     public class ExceptionHandlerMiddleware

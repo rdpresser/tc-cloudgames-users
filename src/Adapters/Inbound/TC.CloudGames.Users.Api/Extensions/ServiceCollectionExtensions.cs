@@ -1,20 +1,4 @@
-﻿using FluentValidation;
-using FluentValidation.Resources;
-using JasperFx.Events.Projections;
-using Marten;
-using Microsoft.Extensions.Caching.StackExchangeRedis;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Newtonsoft.Json.Converters;
-using TC.CloudGames.SharedKernel.Extensions;
-using TC.CloudGames.SharedKernel.Infrastructure.Caching.HealthCheck;
-using TC.CloudGames.SharedKernel.Infrastructure.Caching.Provider;
-using TC.CloudGames.SharedKernel.Infrastructure.Database;
-using TC.CloudGames.Users.Infrastructure.Authentication;
-using TC.CloudGames.Users.Infrastructure.Projections;
-using ZiggyCreatures.Caching.Fusion;
-using ZiggyCreatures.Caching.Fusion.Serialization.SystemTextJson;
-
-namespace TC.CloudGames.Users.Api.Extensions
+﻿namespace TC.CloudGames.Users.Api.Extensions
 {
     public static class ServiceCollectionExtensions
     {

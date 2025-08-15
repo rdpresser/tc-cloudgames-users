@@ -1,8 +1,4 @@
-﻿using Serilog.Core;
-using Serilog.Events;
-using System.Diagnostics.CodeAnalysis;
-
-namespace TC.CloudGames.Users.Api.Extensions
+﻿namespace TC.CloudGames.Users.Api.Extensions
 {
     [ExcludeFromCodeCoverage]
     internal class UtcToLocalTimeEnricher : ILogEventEnricher

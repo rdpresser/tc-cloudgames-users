@@ -1,9 +1,4 @@
-﻿using System.Net;
-using TC.CloudGames.SharedKernel.Api.EndPoints;
-using TC.CloudGames.SharedKernel.Application.Behaviors;
-using TC.CloudGames.Users.Application.UseCases.GetUserByEmail;
-
-namespace TC.CloudGames.Users.Api.Endpoints.User;
+﻿namespace TC.CloudGames.Users.Api.Endpoints.User;
 
 public sealed class GetUserByEmailEndpoint : BaseApiEndpoint<GetUserByEmailQuery, UserByEmailResponse>
 {
