@@ -12,10 +12,8 @@ public class GetUserByEmailQueryTests
         var cacheKey = "user-cache-key";
 
         // Act
-        var query = new GetUserByEmailQuery(email)
-        {
-            CacheKey = cacheKey
-        };
+        var query = new GetUserByEmailQuery(email);
+        query.SetCacheKey(cacheKey);
 
         // Assert
         query.Email.ShouldBe(email);

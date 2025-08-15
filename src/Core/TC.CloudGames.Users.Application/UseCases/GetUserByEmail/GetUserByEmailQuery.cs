@@ -6,10 +6,15 @@
         public string CacheKey
         {
             get => _cacheKey ?? $"GetUserByEmailQuery-{Email}";
-            set => _cacheKey = value;
         }
 
         public TimeSpan? Duration => null;
         public TimeSpan? DistributedCacheDuration => null;
+
+        public string SetCacheKey(string cacheKey)
+        {
+            _cacheKey = $"GetUserByEmailQuery-{Email}-{cacheKey}";
+            return _cacheKey;
+        }
     }
 }
