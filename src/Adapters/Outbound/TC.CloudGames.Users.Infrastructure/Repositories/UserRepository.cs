@@ -52,6 +52,14 @@ namespace TC.CloudGames.Users.Infrastructure.Repositories
             };
         }
 
+        public async Task<bool> EmailExistsAsync(string email, CancellationToken cancellationToken = default)
+        {
+            return await Session.Query<UserProjection>()
+                .AnyAsync(u => u.IsActive &&
+                    u.Email.Equals(email, StringComparison.InvariantCultureIgnoreCase), cancellationToken)
+                .ConfigureAwait(false);
+        }
+
         public async Task SaveAsync(UserAggregate user, CancellationToken cancellationToken = default)
         {
             if (user.UncommittedEvents.Any())

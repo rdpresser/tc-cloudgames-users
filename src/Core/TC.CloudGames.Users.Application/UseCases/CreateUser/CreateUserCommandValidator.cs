@@ -2,7 +2,7 @@
 {
     public sealed class CreateUserCommandValidator : Validator<CreateUserCommand>
     {
-        public CreateUserCommandValidator()
+        public CreateUserCommandValidator(IUserRepository userRepository)
         {
             #region Name | Validation Rules
             RuleFor(x => x.Name)
@@ -28,13 +28,12 @@
                     .WithErrorCode($"{nameof(CreateUserCommand.Email)}.Required")
                 .EmailAddress()
                     .WithMessage("Invalid email format.")
-                    .WithErrorCode($"{nameof(CreateUserCommand.Email)}.InvalidFormat");
+                    .WithErrorCode($"{nameof(CreateUserCommand.Email)}.InvalidFormat")
+                .MustAsync(async (email, cancellation) => !await userRepository.EmailExistsAsync(email, cancellation).ConfigureAwait(false))
+                    .WithMessage("Email already exists.")
+                    .WithErrorCode($"{nameof(CreateUserCommand.Email)}.AlreadyExists");
 
             #endregion
-
-            //.MustAsync(async (email, cancellation) => !await userPgRepository.EmailExistsAsync(email, cancellation).ConfigureAwait(false))
-            //    .WithMessage("Email already exists.")
-            //    .WithErrorCode($"{nameof(CreateUserCommand.Email)}.AlreadyExists")
 
             #region Username | Validation Rules
             RuleFor(x => x.Username)

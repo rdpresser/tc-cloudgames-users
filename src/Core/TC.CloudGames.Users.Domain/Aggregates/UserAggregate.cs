@@ -62,8 +62,10 @@ public sealed class UserAggregate : BaseAggregateRoot
         errors.AddErrorsIfFailure(password);
         errors.AddErrorsIfFailure(role);
         errors.AddRange(ValidateNameAndUsername(name, username));
+
         if (errors.Count > 0)
             return Result.Invalid(errors.ToArray());
+
         return CreateAggregate(name, email.Value, username, password.Value, role.Value);
     }
 

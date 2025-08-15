@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using System.Diagnostics.CodeAnalysis;
 using TC.CloudGames.SharedKernel.Infrastructure.Authentication;
 using TC.CloudGames.SharedKernel.Infrastructure.Caching.Provider;
 using TC.CloudGames.SharedKernel.Infrastructure.Clock;
@@ -8,6 +9,7 @@ using TC.CloudGames.Users.Infrastructure.Repositories;
 
 namespace TC.CloudGames.Users.Infrastructure
 {
+    [ExcludeFromCodeCoverage]
     public static class DependencyInjection
     {
         public static IServiceCollection AddInfrastructure(this IServiceCollection services)
