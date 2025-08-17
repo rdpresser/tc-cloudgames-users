@@ -1,4 +1,3 @@
-using FastEndpoints;
 using TC.CloudGames.Users.Application.UseCases.GetUserByEmail;
 
 namespace TC.CloudGames.Users.Unit.Tests.Application.UseCases.GetUserByEmail;
@@ -11,6 +10,7 @@ public class GetUserByEmailQueryHandlerTests : BaseTest
         // Arrange
         LogTestStart(nameof(ExecuteAsync_WithExistingUser_ShouldReturnUserResponse));
         Factory.RegisterTestServices(_ => { });
+        var userContext = A.Fake<IUserContext>();
         var repo = A.Fake<IUserRepository>();
         var email = "test@example.com";
         var userResponse = new UserByEmailResponse
@@ -22,7 +22,7 @@ public class GetUserByEmailQueryHandlerTests : BaseTest
             Role = "User"
         };
         var query = new GetUserByEmailQuery(email);
-        var handler = new GetUserByEmailQueryHandler(repo);
+        var handler = new GetUserByEmailQueryHandler(repo, userContext);
         A.CallTo(() => repo.GetByEmailAsync(email, A<CancellationToken>.Ignored)).Returns(userResponse);
 
         // Act
@@ -44,11 +44,12 @@ public class GetUserByEmailQueryHandlerTests : BaseTest
         LogTestStart(nameof(ExecuteAsync_WithNonExistingUser_ShouldReturnNotFoundError));
         Factory.RegisterTestServices(_ => { });
 
+        var userContext = A.Fake<IUserContext>();
         var repo = A.Fake<IUserRepository>();
 
         var email = "notfound@example.com";
         var query = new GetUserByEmailQuery(email);
-        var handler = new GetUserByEmailQueryHandler(repo);
+        var handler = new GetUserByEmailQueryHandler(repo, userContext);
         A.CallTo(() => repo.GetByEmailAsync(email, A<CancellationToken>.Ignored)).Returns((UserByEmailResponse?)null);
 
         // Act
