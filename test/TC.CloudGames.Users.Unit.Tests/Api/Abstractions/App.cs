@@ -1,5 +1,7 @@
 using Marten;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.IdentityModel.JsonWebTokens;
+using TC.CloudGames.SharedKernel.Infrastructure.Caching.Service;
 
 namespace TC.CloudGames.Users.Unit.Tests.Api.Abstractions;
 
@@ -37,6 +39,10 @@ public class App : AppFixture<Users.Api.Program>
         s.AddSingleton(sp => A.Fake<IConfigureMarten>());
         s.AddSingleton(sp => A.Fake<StoreOptions>());
 
+        // Register fake CacheService
+        s.RemoveAll<ICacheService>();
+        s.AddSingleton(sp => A.Fake<ICacheService>());
+
         // Register fake repository
         s.RemoveAll<IUserRepository>();
         s.AddSingleton(sp => A.Fake<IUserRepository>());
@@ -55,8 +61,10 @@ public class App : AppFixture<Users.Api.Program>
     {
         var identity = new ClaimsIdentity(new[]
         {
-            new Claim(ClaimTypes.Name, userRole == "Admin" ? "Admin User" : "Regular User"),
-            new Claim(ClaimTypes.Email, userRole == "Admin" ? "admin@admin.com" : "user@user.com"),
+            new Claim(JwtRegisteredClaimNames.Sub, Guid.NewGuid().ToString()),
+            new Claim(JwtRegisteredClaimNames.Name, userRole == "Admin" ? "Admin User" : "Regular User"),
+            new Claim(JwtRegisteredClaimNames.Email, userRole == "Admin" ? "admin@admin.com" : "user@user.com"),
+            new Claim(JwtRegisteredClaimNames.UniqueName, userRole == "Admin" ? "adminuser" : "regularuser"),
             new Claim("role", userRole)
         }, "TestAuthType");
         var claimsPrincipal = new ClaimsPrincipal(identity);
