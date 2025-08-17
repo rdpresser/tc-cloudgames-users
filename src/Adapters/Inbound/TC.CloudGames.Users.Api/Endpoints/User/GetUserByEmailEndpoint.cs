@@ -42,7 +42,6 @@ public sealed class GetUserByEmailEndpoint : BaseApiEndpoint<GetUserByEmailQuery
     public override async Task HandleAsync(GetUserByEmailQuery req, CancellationToken ct)
     {
         var response = await req.ExecuteAsync(ct: ct).ConfigureAwait(false);
-
         await MatchResultAsync(response, ct).ConfigureAwait(false);
     }
 }
