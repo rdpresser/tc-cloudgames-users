@@ -8,5 +8,7 @@ global using TC.CloudGames.SharedKernel.Extensions;
 global using TC.CloudGames.Users.Application.Abstractions.Ports;
 global using TC.CloudGames.Users.Domain.Aggregates;
 global using TC.CloudGames.Users.Domain.ValueObjects;
+//**//
 using System.Runtime.CompilerServices;
+[assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]
 [assembly: InternalsVisibleTo("TC.CloudGames.Users.Unit.Tests")]

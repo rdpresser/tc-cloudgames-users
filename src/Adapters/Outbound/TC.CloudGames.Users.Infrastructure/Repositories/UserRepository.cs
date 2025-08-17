@@ -32,6 +32,7 @@
         public async Task<UserByEmailResponse?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
         {
             var projection = await Session.Query<UserProjection>()
+                .Where(u => u.IsActive && u.Email.ToLower() == email.ToLower())
                 .Select(x => new
                 {
                     x.Id,
@@ -41,9 +42,7 @@
                     x.Role,
                     x.IsActive
                 })
-                .Where(u => u.IsActive)
-                .FirstOrDefaultAsync(u =>
-                    u.Email.Equals(email, StringComparison.InvariantCultureIgnoreCase), cancellationToken);
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (projection == null)
                 return null;
@@ -61,8 +60,7 @@
         public async Task<bool> EmailExistsAsync(string email, CancellationToken cancellationToken = default)
         {
             return await Session.Query<UserProjection>()
-                .AnyAsync(u => u.IsActive &&
-                    u.Email.Equals(email, StringComparison.InvariantCultureIgnoreCase), cancellationToken)
+                .AnyAsync(u => u.IsActive && u.Email.ToLower() == email.ToLower(), cancellationToken)
                 .ConfigureAwait(false);
         }
 
@@ -78,6 +76,7 @@
         public async Task<UserTokenProvider?> GetUserTokenInfoAsync(string email, string password, CancellationToken cancellationToken = default)
         {
             var projection = await Session.Query<UserProjection>()
+                .Where(u => u.IsActive && u.Email.ToLower() == email.ToLower())
                 .Select(x => new
                 {
                     x.Id,
@@ -88,9 +87,7 @@
                     x.Role,
                     x.IsActive
                 })
-                .Where(u => u.IsActive)
-                .FirstOrDefaultAsync(u =>
-                    u.Email.Equals(email, StringComparison.InvariantCultureIgnoreCase), cancellationToken);
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (projection == null)
                 return null;

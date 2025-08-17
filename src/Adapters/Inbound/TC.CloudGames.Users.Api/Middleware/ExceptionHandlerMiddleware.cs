@@ -1,6 +1,5 @@
 ﻿namespace TC.CloudGames.Users.Api.Middleware
 {
-    [ExcludeFromCodeCoverage]
     public class ExceptionHandlerMiddleware
     {
         private readonly RequestDelegate _next;

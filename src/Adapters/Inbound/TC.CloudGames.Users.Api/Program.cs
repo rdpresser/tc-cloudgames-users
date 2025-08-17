@@ -13,7 +13,7 @@ builder.Host.UseCustomSerilog(builder.Configuration);
 //builder.AddCustomLoggingTelemetry()
 //********************************************************************************/
 
-builder.Services.AddUserServices(builder.Configuration);
+builder.Services.AddUserServices(builder.Configuration, builder.Environment);
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure();
 

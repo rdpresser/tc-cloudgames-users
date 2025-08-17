@@ -2,13 +2,16 @@
 {
     public static class ServiceCollectionExtensions
     {
-        public static IServiceCollection AddUserServices(this IServiceCollection services, IConfiguration configuration)
+        public static IServiceCollection AddUserServices(this IServiceCollection services, IConfiguration configuration, IWebHostEnvironment env)
         {
             // Configure FluentValidation globally
             ConfigureFluentValidationGlobals();
 
-            // Add Marten configuration
-            services.AddMartenEventSourcing();
+            // Add Marten configuration only if not testing
+            if (!env.IsEnvironment("Testing"))
+            {
+                services.AddMartenEventSourcing();
+            }
 
             services.AddHttpClient()
                 .AddCorrelationIdGenerator();
@@ -128,6 +131,7 @@
 
                 var options = new StoreOptions();
                 options.Connection(connProvider.ConnectionString);
+                options.Logger(new ConsoleMartenLogger());
 
                 // Event Store configuration
                 options.Events.DatabaseSchemaName = "events";

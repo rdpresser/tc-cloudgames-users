@@ -44,6 +44,7 @@
     <!-- Referência aos projetos principais -->
     <ProjectReference Include="..\..\src\Core\TC.CloudGames.Users.Domain\TC.CloudGames.Users.Domain.csproj" />
     <ProjectReference Include="..\..\src\Core\TC.CloudGames.Users.Application\TC.CloudGames.Users.Application.csproj" />
+    <ProjectReference Include="..\..\src\Adapters\Inbound\TC.CloudGames.Users.Api\TC.CloudGames.Users.Api.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -53,7 +54,6 @@
     <Folder Include="Application\UseCases\DeactivateUser\" />
     <Folder Include="Application\UseCases\GetUserById\" />
     <Folder Include="Application\UseCases\GetUserList\" />
-    <Folder Include="Api\" />
   </ItemGroup>
 
 </Project>

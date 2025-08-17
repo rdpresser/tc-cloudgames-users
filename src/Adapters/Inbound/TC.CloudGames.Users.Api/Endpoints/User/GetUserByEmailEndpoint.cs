@@ -1,14 +1,13 @@
-﻿namespace TC.CloudGames.Users.Api.Endpoints.User;
+﻿using TC.CloudGames.Users.Application.Abstractions;
+
+namespace TC.CloudGames.Users.Api.Endpoints.User;
 
 public sealed class GetUserByEmailEndpoint : BaseApiEndpoint<GetUserByEmailQuery, UserByEmailResponse>
 {
     public override void Configure()
     {
         Get("user/by-email/{Email}");
-        /*
         Roles(AppConstants.UserRole, AppConstants.AdminRole);
-        */
-        AllowAnonymous();
         PreProcessor<QueryCachingPreProcessorBehavior<GetUserByEmailQuery, UserByEmailResponse>>();
         PostProcessor<QueryCachingPostProcessorBehavior<GetUserByEmailQuery, UserByEmailResponse>>();
 
