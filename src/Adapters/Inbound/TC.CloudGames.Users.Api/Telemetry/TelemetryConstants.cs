@@ -3,7 +3,7 @@ namespace TC.CloudGames.Users.Api.Telemetry;
 /// <summary>
 /// Constants for telemetry across the application
 /// </summary>
-public static class TelemetryConstants
+internal static class TelemetryConstants
 {
     // Versions
     public const string Version = "1.0.0";

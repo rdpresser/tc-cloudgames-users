@@ -1,6 +1,6 @@
 ﻿namespace TC.CloudGames.Users.Api.Endpoints.Auth
 {
-    public sealed class CreateUserEndpoint : BaseApiEndpoint<CreateUserCommand, CreateUserResponse>
+    internal sealed class CreateUserEndpoint : BaseApiEndpoint<CreateUserCommand, CreateUserResponse>
     {
         public override void Configure()
         {

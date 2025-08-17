@@ -2,7 +2,7 @@
 {
     public class UserProjectionHandler : EventProjection
     {
-        public void Project(UserCreatedEvent @event, IDocumentOperations operations)
+        public static void Project(UserCreatedEvent @event, IDocumentOperations operations)
         {
             var projection = new UserProjection
             {
@@ -18,7 +18,7 @@
             operations.Store(projection);
         }
 
-        public void Project(UserUpdatedEvent @event, IDocumentOperations operations)
+        public static void Project(UserUpdatedEvent @event, IDocumentOperations operations)
         {
             var projection = new UserProjection
             {
@@ -32,7 +32,7 @@
             operations.Store(projection);
         }
 
-        public void Project(UserPasswordChangedEvent @event, IDocumentOperations operations)
+        public static void Project(UserPasswordChangedEvent @event, IDocumentOperations operations)
         {
             var projection = new UserProjection
             {
@@ -44,7 +44,7 @@
             operations.Store(projection);
         }
 
-        public void Project(UserRoleChangedEvent @event, IDocumentOperations operations)
+        public static void Project(UserRoleChangedEvent @event, IDocumentOperations operations)
         {
             var projection = new UserProjection
             {
@@ -56,7 +56,7 @@
             operations.Store(projection);
         }
 
-        public void Project(UserActivatedEvent @event, IDocumentOperations operations)
+        public static void Project(UserActivatedEvent @event, IDocumentOperations operations)
         {
             var projection = new UserProjection
             {
@@ -67,7 +67,7 @@
             operations.Store(projection);
         }
 
-        public void Project(UserDeactivatedEvent @event, IDocumentOperations operations)
+        public static void Project(UserDeactivatedEvent @event, IDocumentOperations operations)
         {
             var projection = new UserProjection
             {

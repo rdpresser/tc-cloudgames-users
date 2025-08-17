@@ -119,7 +119,7 @@ public sealed record Password
     /// <summary>
     /// Validates a Password value.
     /// </summary>
-    public static bool TryValidate(Password? value, out List<ValidationError> errors)
+    public static bool TryValidate(Password? value, out IReadOnlyCollection<ValidationError> errors)
     {
         var result = Validate(value);
         errors = !result.IsSuccess ? [.. result.ValidationErrors] : [];
@@ -149,7 +149,7 @@ public sealed record Password
     /// <param name="plainPassword">The plain text password to validate.</param>
     /// <param name="errors">List of validation errors.</param>
     /// <returns>True if valid, false otherwise.</returns>
-    public static bool TryValidateValue(string? plainPassword, out List<ValidationError> errors)
+    public static bool TryValidateValue(string? plainPassword, out IReadOnlyCollection<ValidationError> errors)
     {
         var result = ValidateValue(plainPassword);
         errors = !result.IsSuccess ? [.. result.ValidationErrors] : [];

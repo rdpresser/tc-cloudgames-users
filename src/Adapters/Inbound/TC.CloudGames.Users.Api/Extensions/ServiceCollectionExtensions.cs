@@ -1,6 +1,6 @@
 ﻿namespace TC.CloudGames.Users.Api.Extensions
 {
-    public static class ServiceCollectionExtensions
+    internal static class ServiceCollectionExtensions
     {
         public static IServiceCollection AddUserServices(this IServiceCollection services, IConfiguration configuration, IWebHostEnvironment env)
         {

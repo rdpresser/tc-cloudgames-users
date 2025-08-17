@@ -1,7 +1,7 @@
 ﻿namespace TC.CloudGames.Users.Api.Extensions
 {
     [ExcludeFromCodeCoverage]
-    public static class SerilogExtensions
+    internal static class SerilogExtensions
     {
         public static IHostBuilder UseCustomSerilog(this IHostBuilder hostBuilder, IConfiguration configuration)
         {

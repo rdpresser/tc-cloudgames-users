@@ -31,7 +31,6 @@ global using TC.CloudGames.Users.Api.Middleware;
 global using TC.CloudGames.Users.Api.Telemetry;
 global using TC.CloudGames.Users.Application.UseCases.CreateUser;
 global using TC.CloudGames.Users.Application.UseCases.GetUserByEmail;
-global using TC.CloudGames.Users.Domain.ValueObjects;
 global using TC.CloudGames.Users.Infrastructure.Projections;
 global using ZiggyCreatures.Caching.Fusion;
 global using ZiggyCreatures.Caching.Fusion.Serialization.SystemTextJson;

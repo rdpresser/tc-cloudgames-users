@@ -2,7 +2,7 @@
 
 namespace TC.CloudGames.Users.Api.Endpoints.Auth
 {
-    public sealed class LoginEndpoint : BaseApiEndpoint<LoginUserCommand, LoginUserResponse>
+    internal sealed class LoginEndpoint : BaseApiEndpoint<LoginUserCommand, LoginUserResponse>
     {
         public override void Configure()
         {

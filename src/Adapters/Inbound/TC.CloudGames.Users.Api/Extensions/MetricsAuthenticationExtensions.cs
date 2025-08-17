@@ -1,6 +1,6 @@
 ﻿namespace TC.CloudGames.Users.Api.Extensions
 {
-    public static class MetricsAuthenticationExtensions
+    internal static class MetricsAuthenticationExtensions
     {
         public static IApplicationBuilder UseMetricsAuthentication(this IApplicationBuilder app)
         {
@@ -16,17 +16,17 @@
 
                         if (token == expectedToken)
                         {
-                            await next();
+                            await next().ConfigureAwait(false);
                             return;
                         }
                     }
 
                     context.Response.StatusCode = 401;
-                    await context.Response.WriteAsync("Unauthorized");
+                    await context.Response.WriteAsync("Unauthorized").ConfigureAwait(false);
                     return;
                 }
 
-                await next();
+                await next().ConfigureAwait(false);
             });
         }
     }

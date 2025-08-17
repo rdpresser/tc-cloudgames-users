@@ -2,7 +2,7 @@
 
 namespace TC.CloudGames.Users.Api.Endpoints.User;
 
-public sealed class GetUserByEmailEndpoint : BaseApiEndpoint<GetUserByEmailQuery, UserByEmailResponse>
+internal sealed class GetUserByEmailEndpoint : BaseApiEndpoint<GetUserByEmailQuery, UserByEmailResponse>
 {
     public override void Configure()
     {

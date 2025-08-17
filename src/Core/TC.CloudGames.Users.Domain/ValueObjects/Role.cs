@@ -90,7 +90,7 @@ public sealed record Role
     /// <summary>
     /// Tries to validate a Role instance and returns validation errors if any.
     /// </summary>
-    public static bool TryValidate(Role? value, out List<ValidationError> errors)
+    public static bool TryValidate(Role? value, out IReadOnlyCollection<ValidationError> errors)
     {
         var result = Validate(value);
         errors = !result.IsSuccess ? [.. result.ValidationErrors] : [];
@@ -103,7 +103,7 @@ public sealed record Role
     /// <param name="value">The text role to validate</param>
     /// <param name="errors">List of errors</param>
     /// <returns>Result indicating success or validation errors.</returns>
-    public static bool TryValidateValue(string? value, out List<ValidationError> errors)
+    public static bool TryValidateValue(string? value, out IReadOnlyCollection<ValidationError> errors)
     {
         var result = ValidateValue(value);
         errors = !result.IsSuccess ? [.. result.ValidationErrors] : [];

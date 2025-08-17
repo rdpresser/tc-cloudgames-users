@@ -3,7 +3,7 @@ namespace TC.CloudGames.Users.Unit.Tests.Common;
 /// <summary>
 /// Domain-specific test data builder for UserAggregate tests
 /// </summary>
-public class UserAggregateBuilder
+internal class UserAggregateBuilder
 {
     private readonly Fixture _fixture;
     private string _name;
@@ -106,7 +106,7 @@ public class UserAggregateBuilder
 /// Extension methods for tests to handle common test scenarios
 /// </summary>
 [ExcludeFromCodeCoverage]
-public static class TestExtensions
+internal static class TestExtensions
 {
     /// <summary>
     /// Extension to handle nullable DateTime comparison
@@ -127,7 +127,7 @@ public static class TestExtensions
 }
 
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
-public class AutoFakeItEasyValidUserDataAttribute : AutoDataAttribute
+internal sealed class AutoFakeItEasyValidUserDataAttribute : AutoDataAttribute
 {
     public AutoFakeItEasyValidUserDataAttribute() : base(() =>
     {

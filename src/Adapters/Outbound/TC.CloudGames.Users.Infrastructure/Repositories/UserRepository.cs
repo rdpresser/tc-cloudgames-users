@@ -14,7 +14,7 @@
             // Since projections are always up-to-date, this avoids N+1 queries and unnecessary event replay
             var userProjections = await Session.Query<UserProjection>()
                 .Where(u => u.IsActive)
-                .ToListAsync(cancellationToken);
+                .ToListAsync(cancellationToken).ConfigureAwait(false);
 
             return userProjections.Select(projection =>
                 UserAggregate.FromProjection(
@@ -42,7 +42,7 @@
                     x.Role,
                     x.IsActive
                 })
-                .FirstOrDefaultAsync(cancellationToken);
+                .FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
 
             if (projection == null)
                 return null;
@@ -68,7 +68,7 @@
         {
             if (user.UncommittedEvents.Any())
             {
-                await base.SaveChangesAsync(user.Id, cancellationToken, [.. user.UncommittedEvents]);
+                await base.SaveChangesAsync(user.Id, cancellationToken, [.. user.UncommittedEvents]).ConfigureAwait(false);
                 user.MarkEventsAsCommitted();
             }
         }
@@ -87,7 +87,7 @@
                     x.Role,
                     x.IsActive
                 })
-                .FirstOrDefaultAsync(cancellationToken);
+                .FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
 
             if (projection == null)
                 return null;

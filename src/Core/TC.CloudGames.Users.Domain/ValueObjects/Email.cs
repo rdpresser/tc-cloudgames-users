@@ -66,7 +66,7 @@ public sealed record Email
     /// <summary>
     /// Validates an email value and returns a list of validation errors if any.
     /// </summary>
-    public static bool TryValidate(Email? value, out List<ValidationError> errors)
+    public static bool TryValidate(Email? value, out IReadOnlyCollection<ValidationError> errors)
     {
         var result = Validate(value);
         errors = !result.IsSuccess ? [.. result.ValidationErrors] : [];
@@ -79,7 +79,7 @@ public sealed record Email
     /// <param name="value">The text role to validate</param>
     /// <param name="errors">List of errors</param>
     /// <returns>Result indicating success or validation errors.</returns>
-    public static bool TryValidateValue(string? value, out List<ValidationError> errors)
+    public static bool TryValidateValue(string? value, out IReadOnlyCollection<ValidationError> errors)
     {
         var result = ValidateValue(value);
         errors = !result.IsSuccess ? [.. result.ValidationErrors] : [];
