@@ -14,11 +14,11 @@ public class GetUserByEmailQueryTests
         // Act
         var query = new GetUserByEmailQuery(email);
         query.SetCacheKey(cacheKey);
-        cacheKey = query.CacheKey;
+        cacheKey = query.GetCacheKey;
 
         // Assert
         query.Email.ShouldBe(email);
-        query.CacheKey.ShouldBe(cacheKey);
+        query.GetCacheKey.ShouldBe(cacheKey);
     }
 
     // Duration and DistributedCacheDuration are read-only and always null, so test only the getter

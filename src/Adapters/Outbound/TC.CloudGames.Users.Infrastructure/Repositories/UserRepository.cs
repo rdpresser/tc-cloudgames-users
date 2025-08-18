@@ -1,4 +1,6 @@
-﻿namespace TC.CloudGames.Users.Infrastructure.Repositories
+﻿using TC.CloudGames.Application.Users.GetUserList;
+
+namespace TC.CloudGames.Users.Infrastructure.Repositories
 {
     public class UserRepository : BaseRepository<UserAggregate>, IUserRepository
     {
@@ -101,6 +103,65 @@
                 projection.Email,
                 projection.Username,
                 projection.Role);
+        }
+
+        public async Task<IReadOnlyList<UserListResponse>> GetUserListAsync(GetUserListQuery query, CancellationToken cancellationToken = default)
+        {
+            // Start with active users
+            var usersQuery = Session.Query<UserProjection>()
+                .Where(u => u.IsActive);
+
+            // Dynamic filtering (search across multiple fields)
+            if (!string.IsNullOrWhiteSpace(query.Filter))
+            {
+                var filter = query.Filter.ToLower();
+                usersQuery = usersQuery.Where(u =>
+                    u.Name.ToLower().Contains(filter) ||
+                    u.Username.ToLower().Contains(filter) ||
+                    u.Email.ToLower().Contains(filter) ||
+                    u.Role.ToLower().Contains(filter)
+                );
+            }
+
+            // Dynamic sorting
+            usersQuery = query.SortBy.ToLower() switch
+            {
+                "name" => query.SortDirection.ToLower() == "desc"
+                    ? usersQuery.OrderByDescending(u => u.Name)
+                    : usersQuery.OrderBy(u => u.Name),
+                "username" => query.SortDirection.ToLower() == "desc"
+                    ? usersQuery.OrderByDescending(u => u.Username)
+                    : usersQuery.OrderBy(u => u.Username),
+                "email" => query.SortDirection.ToLower() == "desc"
+                    ? usersQuery.OrderByDescending(u => u.Email)
+                    : usersQuery.OrderBy(u => u.Email),
+                "role" => query.SortDirection.ToLower() == "desc"
+                    ? usersQuery.OrderByDescending(u => u.Role)
+                    : usersQuery.OrderBy(u => u.Role),
+                _ => query.SortDirection.ToLower() == "desc"
+                    ? usersQuery.OrderByDescending(u => u.Id)
+                    : usersQuery.OrderBy(u => u.Id)
+            };
+
+            // Pagination
+            usersQuery = usersQuery
+                .Skip((query.PageNumber - 1) * query.PageSize)
+                .Take(query.PageSize);
+
+            // Project to UserListResponse
+            var userList = await usersQuery
+                .Select(u => new UserListResponse
+                {
+                    Id = u.Id,
+                    Name = u.Name,
+                    Username = u.Username,
+                    Email = u.Email,
+                    Role = u.Role
+                })
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            return userList;
         }
 
         // Descomentar e implementar o Outbox do Wolverine

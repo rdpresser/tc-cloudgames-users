@@ -7,7 +7,6 @@
 
   <ItemGroup>
     <Folder Include="UseCases\GetUserById\" />
-    <Folder Include="UseCases\GetUserList\" />
     <Folder Include="UseCases\ChangeUserPassword\" />
     <Folder Include="UseCases\ChangeUserRole\" />
     <Folder Include="UseCases\ActivateUser\" />

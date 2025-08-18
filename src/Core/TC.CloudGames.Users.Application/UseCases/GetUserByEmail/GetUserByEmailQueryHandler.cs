@@ -1,8 +1,4 @@
-﻿using TC.CloudGames.SharedKernel.Application.Queries;
-using TC.CloudGames.SharedKernel.Infrastructure.UserClaims;
-using TC.CloudGames.Users.Application.Abstractions;
-
-namespace TC.CloudGames.Users.Application.UseCases.GetUserByEmail
+﻿namespace TC.CloudGames.Users.Application.UseCases.GetUserByEmail
 {
     internal sealed class GetUserByEmailQueryHandler : BaseQueryHandler<GetUserByEmailQuery, UserByEmailResponse>
     {

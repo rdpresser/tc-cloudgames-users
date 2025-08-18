@@ -3,7 +3,7 @@
     public sealed record GetUserByEmailQuery(string Email) : ICachedQuery<UserByEmailResponse>
     {
         private string? _cacheKey;
-        public string CacheKey
+        public string GetCacheKey
         {
             get => _cacheKey ?? $"GetUserByEmailQuery-{Email}";
         }
@@ -11,10 +11,9 @@
         public TimeSpan? Duration => null;
         public TimeSpan? DistributedCacheDuration => null;
 
-        public string SetCacheKey(string cacheKey)
+        public void SetCacheKey(string cacheKey)
         {
             _cacheKey = $"GetUserByEmailQuery-{Email}-{cacheKey}";
-            return _cacheKey;
         }
     }
 }

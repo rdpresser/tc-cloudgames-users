@@ -1,6 +1,4 @@
-﻿using TC.CloudGames.Users.Application.Abstractions;
-
-namespace TC.CloudGames.Users.Api.Endpoints.User;
+﻿namespace TC.CloudGames.Users.Api.Endpoints.User;
 
 internal sealed class GetUserByEmailEndpoint : BaseApiEndpoint<GetUserByEmailQuery, UserByEmailResponse>
 {
@@ -42,6 +40,8 @@ internal sealed class GetUserByEmailEndpoint : BaseApiEndpoint<GetUserByEmailQue
     public override async Task HandleAsync(GetUserByEmailQuery req, CancellationToken ct)
     {
         var response = await req.ExecuteAsync(ct: ct).ConfigureAwait(false);
+
+        // Use the MatchResultAsync method from the base class
         await MatchResultAsync(response, ct).ConfigureAwait(false);
     }
 }

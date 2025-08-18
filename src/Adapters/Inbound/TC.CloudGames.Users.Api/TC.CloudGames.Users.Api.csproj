@@ -27,8 +27,4 @@
     <ProjectReference Include="..\..\Outbound\TC.CloudGames.Users.Infrastructure\TC.CloudGames.Users.Infrastructure.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Endpoints\User\" />
-  </ItemGroup>
-
 </Project>
