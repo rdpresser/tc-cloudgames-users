@@ -1,9 +1,3 @@
-using FastEndpoints;
-using TC.CloudGames.SharedKernel.Application.Queries;
-using TC.CloudGames.Users.Api.Endpoints.User;
-using TC.CloudGames.Users.Application.UseCases.GetUserByEmail;
-using TC.CloudGames.Users.Unit.Tests.Api.Abstractions;
-
 namespace TC.CloudGames.Users.Unit.Tests.Api.Endpoints.User
 {
     public class GetUserByEmailEndpointTests(App App) : TestBase<App>

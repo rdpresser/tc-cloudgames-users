@@ -1,5 +1,3 @@
-using TC.CloudGames.Users.Application.UseCases.GetUserByEmail;
-
 namespace TC.CloudGames.Users.Unit.Tests.Application.UseCases.GetUserByEmail;
 
 public class GetUserByEmailQueryHandlerTests : BaseTest

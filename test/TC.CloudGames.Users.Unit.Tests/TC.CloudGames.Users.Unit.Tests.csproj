@@ -53,7 +53,6 @@
     <Folder Include="Application\UseCases\ChangeUserRole\" />
     <Folder Include="Application\UseCases\DeactivateUser\" />
     <Folder Include="Application\UseCases\GetUserById\" />
-    <Folder Include="Application\UseCases\GetUserList\" />
   </ItemGroup>
 
 </Project>
