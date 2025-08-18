@@ -1,8 +1,3 @@
-using Marten;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.IdentityModel.JsonWebTokens;
-using TC.CloudGames.SharedKernel.Infrastructure.Caching.Service;
-
 namespace TC.CloudGames.Users.Unit.Tests.Api.Abstractions;
 
 public class App : AppFixture<Users.Api.Program>

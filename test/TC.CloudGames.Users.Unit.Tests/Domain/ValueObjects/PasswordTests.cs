@@ -1,5 +1,3 @@
-using TC.CloudGames.Users.Unit.Tests.Common;
-
 namespace TC.CloudGames.Users.Unit.Tests.Domain.ValueObjects;
 
 /// <summary>

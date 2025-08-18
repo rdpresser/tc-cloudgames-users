@@ -1,5 +1,3 @@
-using TC.CloudGames.Users.Application.UseCases.LoginUser;
-
 namespace TC.CloudGames.Users.Unit.Tests.Application.UseCases.LoginUser;
 
 public class LoginUserCommandValidatorTests

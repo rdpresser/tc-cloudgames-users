@@ -1,62 +1,85 @@
-namespace TC.CloudGames.Users.Unit.Tests.Application.UseCases.GetUserByEmail;
-
-public class GetUserByEmailQueryHandlerTests : BaseTest
+namespace TC.CloudGames.Users.Unit.Tests.Application.UseCases.GetUserByEmail
 {
-    [Fact]
-    public async Task ExecuteAsync_WithExistingUser_ShouldReturnUserResponse()
+    public class GetUserByEmailQueryHandlerTests : BaseTest
     {
-        // Arrange
-        LogTestStart(nameof(ExecuteAsync_WithExistingUser_ShouldReturnUserResponse));
-        Factory.RegisterTestServices(_ => { });
-        var userContext = A.Fake<IUserContext>();
-        var repo = A.Fake<IUserRepository>();
-        var email = "test@example.com";
-        var userResponse = new UserByEmailResponse
+        [Fact]
+        public async Task ExecuteAsync_WithExistingUser_ShouldReturnUserResponse()
         {
-            Id = Guid.NewGuid(),
-            Name = "Test User",
-            Username = "testuser",
-            Email = email,
-            Role = "User"
-        };
-        var query = new GetUserByEmailQuery(email);
-        var handler = new GetUserByEmailQueryHandler(repo, userContext);
-        A.CallTo(() => repo.GetByEmailAsync(email, A<CancellationToken>.Ignored)).Returns(userResponse);
+            // Arrange
+            LogTestStart(nameof(ExecuteAsync_WithExistingUser_ShouldReturnUserResponse));
+            Factory.RegisterTestServices(_ => { });
+            var userContext = A.Fake<IUserContext>();
+            A.CallTo(() => userContext.Role).Returns(AppConstants.AdminRole);
+            var repo = A.Fake<IUserRepository>();
+            var email = "test@example.com";
+            var userResponse = new UserByEmailResponse
+            {
+                Id = Guid.NewGuid(),
+                Name = "Test User",
+                Username = "testuser",
+                Email = email,
+                Role = "User"
+            };
+            var query = new GetUserByEmailQuery(email);
+            var handler = new GetUserByEmailQueryHandler(repo, userContext);
+            A.CallTo(() => repo.GetByEmailAsync(email, A<CancellationToken>.Ignored)).Returns(userResponse);
 
-        // Act
-        var result = await handler.ExecuteAsync(query, TestContext.Current.CancellationToken);
+            // Act
+            var result = await handler.ExecuteAsync(query, TestContext.Current.CancellationToken);
 
-        // Assert
-        result.IsSuccess.ShouldBeTrue();
-        result.Value.ShouldNotBeNull();
-        result.Value.Email.ShouldBe(email);
-        result.Value.Name.ShouldBe("Test User");
-        result.Value.Username.ShouldBe("testuser");
-        result.Value.Role.ShouldBe("User");
-    }
+            // Assert
+            result.IsSuccess.ShouldBeTrue();
+            result.Value.ShouldNotBeNull();
+            result.Value.Email.ShouldBe(email);
+            result.Value.Name.ShouldBe("Test User");
+            result.Value.Username.ShouldBe("testuser");
+            result.Value.Role.ShouldBe("User");
+        }
 
-    [Fact]
-    public async Task ExecuteAsync_WithNonExistingUser_ShouldReturnNotFoundError()
-    {
-        // Arrange
-        LogTestStart(nameof(ExecuteAsync_WithNonExistingUser_ShouldReturnNotFoundError));
-        Factory.RegisterTestServices(_ => { });
+        [Fact]
+        public async Task ExecuteAsync_WithNonExistingUser_ShouldReturnNotFoundError()
+        {
+            // Arrange
+            LogTestStart(nameof(ExecuteAsync_WithNonExistingUser_ShouldReturnNotFoundError));
+            Factory.RegisterTestServices(_ => { });
+            var userContext = A.Fake<IUserContext>();
+            A.CallTo(() => userContext.Role).Returns(AppConstants.AdminRole);
+            var repo = A.Fake<IUserRepository>();
+            var email = "notfound@example.com";
+            var query = new GetUserByEmailQuery(email);
+            var handler = new GetUserByEmailQueryHandler(repo, userContext);
+            A.CallTo(() => repo.GetByEmailAsync(email, A<CancellationToken>.Ignored)).Returns((UserByEmailResponse?)null);
 
-        var userContext = A.Fake<IUserContext>();
-        var repo = A.Fake<IUserRepository>();
+            // Act
+            var result = await handler.ExecuteAsync(query, TestContext.Current.CancellationToken);
 
-        var email = "notfound@example.com";
-        var query = new GetUserByEmailQuery(email);
-        var handler = new GetUserByEmailQueryHandler(repo, userContext);
-        A.CallTo(() => repo.GetByEmailAsync(email, A<CancellationToken>.Ignored)).Returns((UserByEmailResponse?)null);
+            // Assert
+            result.IsSuccess.ShouldBeFalse();
+            result.Errors.Count().ShouldBe(1);
+            result.Errors.Count(e => e == $"User with email '{email}' not found.").ShouldBe(1);
+            result.Status.ShouldBe(ResultStatus.NotFound);
+        }
 
-        // Act
-        var result = await handler.ExecuteAsync(query, TestContext.Current.CancellationToken);
+        [Fact]
+        public async Task ExecuteAsync_WithUserRoleAndDifferentEmail_ShouldReturnNotAuthorizedError()
+        {
+            // Arrange
+            LogTestStart(nameof(ExecuteAsync_WithUserRoleAndDifferentEmail_ShouldReturnNotAuthorizedError));
+            Factory.RegisterTestServices(_ => { });
+            var userContext = A.Fake<IUserContext>();
+            A.CallTo(() => userContext.Role).Returns(AppConstants.UserRole);
+            A.CallTo(() => userContext.Email).Returns("user@user.com");
+            var repo = A.Fake<IUserRepository>();
+            var query = new GetUserByEmailQuery("otheruser@user.com");
+            var handler = new GetUserByEmailQueryHandler(repo, userContext);
 
-        // Assert
-        result.IsSuccess.ShouldBeFalse();
-        result.Errors.Count().ShouldBe(1);
-        result.Errors.Count(e => e == $"User with email '{email}' not found.").ShouldBe(1);
-        result.Status.ShouldBe(ResultStatus.NotFound);
+            // Act
+            var result = await handler.ExecuteAsync(query, TestContext.Current.CancellationToken);
+
+            // Assert
+            result.IsSuccess.ShouldBeFalse();
+            result.Status.ShouldBe(ResultStatus.Unauthorized);
+            result.Errors.ShouldContain("You are not authorized to access this user.");
+        }
     }
 }

@@ -1,7 +1,3 @@
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
-using TC.CloudGames.Users.Api.Middleware;
-
 namespace TC.CloudGames.Users.Unit.Tests.Api.Middleware
 {
     public class ExceptionHandlerMiddlewareTests
