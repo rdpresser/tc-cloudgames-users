@@ -78,5 +78,14 @@
 
             return app;
         }
+
+        public async static Task<IApplicationBuilder> CreateMessageDatabase(this IApplicationBuilder app)
+        {
+            // Ensure outbox database exists before Wolverine is used
+            var connProvider = app.ApplicationServices.GetRequiredService<IConnectionStringProvider>();
+            await PostgresDatabaseHelper.EnsureDatabaseExists(connProvider);
+
+            return app;
+        }
     }
 }

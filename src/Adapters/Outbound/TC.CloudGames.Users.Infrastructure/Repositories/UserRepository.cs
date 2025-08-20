@@ -1,4 +1,4 @@
-﻿using TC.CloudGames.Application.Users.GetUserList;
+﻿using TC.CloudGames.Users.Application.UseCases.GetUserList;
 
 namespace TC.CloudGames.Users.Infrastructure.Repositories
 {
@@ -10,7 +10,7 @@ namespace TC.CloudGames.Users.Infrastructure.Repositories
 
         }
 
-        public async Task<IEnumerable<UserAggregate>> GetAllAsync(CancellationToken cancellationToken = default)
+        public override async Task<IEnumerable<UserAggregate>> GetAllAsync(CancellationToken cancellationToken = default)
         {
             // Efficient approach: Use projections directly instead of replaying events
             // Since projections are always up-to-date, this avoids N+1 queries and unnecessary event replay
@@ -64,15 +64,6 @@ namespace TC.CloudGames.Users.Infrastructure.Repositories
             return await Session.Query<UserProjection>()
                 .AnyAsync(u => u.IsActive && u.Email.ToLower() == email.ToLower(), cancellationToken)
                 .ConfigureAwait(false);
-        }
-
-        public async Task SaveAsync(UserAggregate user, CancellationToken cancellationToken = default)
-        {
-            if (user.UncommittedEvents.Any())
-            {
-                await base.SaveChangesAsync(user.Id, cancellationToken, [.. user.UncommittedEvents]).ConfigureAwait(false);
-                user.MarkEventsAsCommitted();
-            }
         }
 
         public async Task<UserTokenProvider?> GetUserTokenInfoAsync(string email, string password, CancellationToken cancellationToken = default)
@@ -163,25 +154,5 @@ namespace TC.CloudGames.Users.Infrastructure.Repositories
 
             return userList;
         }
-
-        // Descomentar e implementar o Outbox do Wolverine
-        //public async Task SaveAsync(UserAggregate user, CancellationToken cancellationToken = default)
-        // 
-        //    // 1. Salva o aggregate no event store do Marten
-        //    _session.Events.StartStream<UserAggregate>(user.Id, user.UncommittedEvents.ToArray())
-
-        //    // 2. Processa EventEnvelopes para o Outbox do Wolverine
-        //    foreach (var eventEnvelope in user.UncommittedEvents.OfType<EventEnvelope<EventContext<UserAggregate>>>())
-        //    
-        //        // Envia para o Outbox do Wolverine (mesma transação do Marten)
-        //        await _session.SendAsync(eventEnvelope, cancellationToken)
-        //    
-
-        //    // 3. Commit atômico: Event Store + Outbox
-        //    await _session.SaveChangesAsync(cancellationToken)
-
-        //    // 4. Marca eventos como commitados
-        //    user.MarkEventsAsCommitted()
-        //
     }
 }

@@ -1,4 +1,6 @@
-﻿namespace TC.CloudGames.Api.Endpoints.User
+﻿using TC.CloudGames.Users.Application.UseCases.GetUserList;
+
+namespace TC.CloudGames.Users.Api.Endpoints.User
 {
     public sealed class GetUserListEndpoint : BaseApiEndpoint<GetUserListQuery, IReadOnlyList<UserListResponse>>
     {

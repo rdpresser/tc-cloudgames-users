@@ -9,17 +9,20 @@
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
     <PackageReference Include="Marten" Version="8.7.0" />
     <PackageReference Include="FastEndpoints.Swagger" Version="7.0.1" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.7" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.8" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.3" />
     <PackageReference Include="Weasel.Core" Version="8.1.1" />
     <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
-    <PackageReference Include="Serilog.Enrichers.Sensitive" Version="1.7.3" />
+    <PackageReference Include="Serilog.Enrichers.Sensitive" Version="2.1.0" />
     <PackageReference Include="Serilog.Enrichers.Span" Version="3.1.0" />
     <PackageReference Include="Serilog.Sinks.Grafana.Loki" Version="8.3.1" />
     <PackageReference Include="DotNetEnv" Version="3.1.1" />
     <PackageReference Include="Bogus" Version="35.6.3" />
     <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
     <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="9.0.0" />
+    <PackageReference Include="WolverineFx" Version="4.9.3" />
+    <PackageReference Include="WolverineFx.Marten" Version="4.9.3" />
+    <PackageReference Include="WolverineFx.RabbitMQ" Version="4.9.3" />
   </ItemGroup>
 
   <ItemGroup>

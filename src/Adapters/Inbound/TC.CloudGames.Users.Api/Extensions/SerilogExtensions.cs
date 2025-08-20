@@ -33,10 +33,10 @@
                 loggerConfiguration.Enrich.WithProperty("service.instance.id", Environment.MachineName);
 
                 // Sensitive data masking
-                loggerConfiguration.Enrich.WithSensitiveDataMasking(options =>
-                {
-                    options.MaskProperties = ["Password", "Email", "PhoneNumber"];
-                });
+                ////loggerConfiguration.Enrich.WithSensitiveDataMasking(options =>
+                ////{
+                ////    options.MaskProperties = ["Password", "Email", "PhoneNumber"];
+                ////});
 
                 // Console sink for local/dev visibility
                 loggerConfiguration.WriteTo.Console(new Serilog.Formatting.Json.JsonFormatter()); // Optional for local

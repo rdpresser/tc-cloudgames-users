@@ -1,32 +1,22 @@
-﻿namespace TC.CloudGames.Users.Application.UseCases.CreateUser
+﻿using TC.CloudGames.Contracts.Events.Users;
+using static TC.CloudGames.Users.Domain.Aggregates.UserAggregate;
+
+namespace TC.CloudGames.Users.Application.UseCases.CreateUser
 {
     public static class CreateUserMapper
     {
-        public static Result<UserAggregate> ToEntity(
-            CreateUserCommand r,
-            string? userId = null,
-            string? correlationId = null,
-            string? source = null)
+        public static Result<UserAggregate> ToAggregate(
+            CreateUserCommand r)
         {
-            //// Cria EventContext primeiro (sem aggregate ainda)
-            //var eventContext = EventContext<UserCreatedEvent>.Create(
-            //    data: null!, // Será preenchido depois
-            //    eventType: "UserCreated",
-            //    userId: userId,
-            //    correlationId: correlationId,
-            //    source: source ?? "UserRegistrationAPI"
-            //)
-
-            return UserAggregate.CreateFromPrimitives(
+            return CreateFromPrimitives(
                 r.Name,
                 r.Email,
                 r.Username,
                 r.Password,
                 r.Role);
-            //eventContext)
         }
 
-        public static CreateUserResponse FromEntity(UserAggregate e)
+        public static CreateUserResponse FromAggregate(UserAggregate e)
         {
             return new CreateUserResponse
             (
@@ -37,5 +27,15 @@
                 Role: e.Role.Value
             );
         }
+
+        public static UserCreatedIntegrationEvent ToIntegrationEvent(UserCreatedDomainEvent domainEvent)
+        => new(
+            domainEvent.AggregateId,
+            domainEvent.Name,
+            domainEvent.Email.Value,
+            domainEvent.Username,
+            domainEvent.Role.ToString(),
+            domainEvent.OccurredOn
+        );
     }
 }

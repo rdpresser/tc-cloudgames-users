@@ -1,3 +1,5 @@
+using TC.CloudGames.Users.Application.UseCases.GetUserList;
+
 namespace TC.CloudGames.Users.Unit.Tests.Api.Endpoints.User
 {
     public class GetUserListEndpointTests(App App) : TestBase<App>

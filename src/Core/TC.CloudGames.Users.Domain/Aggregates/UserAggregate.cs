@@ -1,15 +1,12 @@
-﻿using TC.CloudGames.SharedKernel.Domain.Events;
-using TC.CloudGames.SharedKernel.Domain.ValueObjects;
-
-namespace TC.CloudGames.Users.Domain.Aggregates;
+﻿namespace TC.CloudGames.Users.Domain.Aggregates;
 
 public sealed class UserAggregate : BaseAggregateRoot
 {
-    public string Name { get; private set; } = string.Empty;
-    public Email Email { get; private set; } = null!;
-    public string Username { get; private set; } = string.Empty;
-    public Password PasswordHash { get; private set; } = null!;
-    public Role Role { get; private set; } = Role.User;
+    public string Name { get; private set; } = default!;
+    public Email Email { get; private set; } = default!;
+    public string Username { get; private set; } = default!;
+    public Password PasswordHash { get; private set; } = default!;
+    public Role Role { get; private set; } = default!;
 
     // Private constructor for aggregate reconstruction
     private UserAggregate(Guid id)
@@ -114,7 +111,7 @@ public sealed class UserAggregate : BaseAggregateRoot
     private static Result<UserAggregate> CreateAggregate(string name, Email email, string username, Password password, Role role)
     {
         var aggregate = new UserAggregate(Guid.NewGuid());
-        var @event = new UserCreatedEvent(aggregate.Id, name, email, username, password, role, aggregate.CreatedAt);
+        var @event = new UserCreatedDomainEvent(aggregate.Id, name, email, username, password, role, aggregate.CreatedAt);
         aggregate.ApplyEvent(@event);
         return Result.Success(aggregate);
     }
@@ -125,12 +122,12 @@ public sealed class UserAggregate : BaseAggregateRoot
     /// <param name="name">User's display name</param>
     /// <param name="username">User's unique username</param>
     /// <returns>List of validation errors</returns>
-    private static List<ValidationError> ValidateNameAndUsername(string name, string username)
+    private static IEnumerable<ValidationError> ValidateNameAndUsername(string name, string username)
     {
-        var errors = new List<ValidationError>();
-        ValidateName(name, errors);
-        ValidateUsername(username, errors);
-        return errors;
+        foreach (var error in ValidateName(name))
+            yield return error;
+        foreach (var error in ValidateUsername(username))
+            yield return error;
     }
 
     /// <summary>
@@ -225,10 +222,10 @@ public sealed class UserAggregate : BaseAggregateRoot
         if (email == null)
             return Result.Invalid(new ValidationError($"Email.Required", "Email is required."));
         var errors = ValidateNameAndUsername(name, username);
-        if (errors.Count > 0)
+        if (errors.Any())
             return Result.Invalid(errors.ToArray());
 
-        var @event = new UserUpdatedEvent(Id, name, email, username, DateTime.UtcNow);
+        var @event = new UserUpdatedDomainEvent(Id, name, email, username, DateTime.UtcNow);
         ApplyEvent(@event);
         return Result.Success();
     }
@@ -242,7 +239,7 @@ public sealed class UserAggregate : BaseAggregateRoot
     {
         if (newPassword == null)
             return Result.Invalid(new ValidationError($"Password.Required", "Password is required."));
-        var @event = new UserPasswordChangedEvent(Id, newPassword, DateTime.UtcNow);
+        var @event = new UserPasswordChangedDomainEvent(Id, newPassword, DateTime.UtcNow);
         ApplyEvent(@event);
         return Result.Success();
     }
@@ -258,7 +255,7 @@ public sealed class UserAggregate : BaseAggregateRoot
             return Result.Invalid(new ValidationError($"{nameof(Role)}.Invalid", "Invalid role value."));
         if (Role.Value == newRole.Value)
             return Result.Invalid(new ValidationError($"{nameof(Role)}.SameRole", "User already has this role."));
-        var @event = new UserRoleChangedEvent(Id, newRole, DateTime.UtcNow);
+        var @event = new UserRoleChangedDomainEvent(Id, newRole, DateTime.UtcNow);
         ApplyEvent(@event);
         return Result.Success();
     }
@@ -271,7 +268,7 @@ public sealed class UserAggregate : BaseAggregateRoot
     {
         if (IsActive)
             return Result.Invalid(new ValidationError("User.AlreadyActive", "User is already active."));
-        var @event = new UserActivatedEvent(Id, DateTime.UtcNow);
+        var @event = new UserActivatedDomainEvent(Id, DateTime.UtcNow);
         ApplyEvent(@event);
         return Result.Success();
     }
@@ -284,81 +281,81 @@ public sealed class UserAggregate : BaseAggregateRoot
     {
         if (!IsActive)
             return Result.Invalid(new ValidationError("User.AlreadyInactive", "User is already deactivated."));
-        var @event = new UserDeactivatedEvent(Id, DateTime.UtcNow);
+        var @event = new UserDeactivatedDomainEvent(Id, DateTime.UtcNow);
         ApplyEvent(@event);
         return Result.Success();
     }
 
     // Event application methods
-    internal void Apply(UserCreatedEvent @event)
+    internal void Apply(UserCreatedDomainEvent @event)
     {
-        SetId(@event.Id);
+        SetId(@event.AggregateId);
         Name = @event.Name;
         Email = @event.Email;
         Username = @event.Username;
         PasswordHash = @event.Password;
         Role = @event.Role;
-        SetCreatedAt(@event.CreatedAt);
+        SetCreatedAt(@event.OccurredOn);
         SetActivate();
     }
 
-    internal void Apply(UserUpdatedEvent @event)
+    internal void Apply(UserUpdatedDomainEvent @event)
     {
         Name = @event.Name;
         Email = @event.Email;
         Username = @event.Username;
-        SetUpdatedAt(@event.UpdatedAt);
+        SetUpdatedAt(@event.OccurredOn);
     }
 
-    internal void Apply(UserPasswordChangedEvent @event)
+    internal void Apply(UserPasswordChangedDomainEvent @event)
     {
         PasswordHash = @event.NewPassword;
-        SetUpdatedAt(@event.ChangedAt);
+        SetUpdatedAt(@event.OccurredOn);
     }
 
-    internal void Apply(UserRoleChangedEvent @event)
+    internal void Apply(UserRoleChangedDomainEvent @event)
     {
         Role = @event.NewRole;
-        SetUpdatedAt(@event.ChangedAt);
+        SetUpdatedAt(@event.OccurredOn);
     }
 
-    internal void Apply(UserActivatedEvent @event)
+    internal void Apply(UserActivatedDomainEvent @event)
     {
         SetActivate();
-        SetUpdatedAt(@event.ActivatedAt);
+        SetUpdatedAt(@event.OccurredOn);
     }
 
-    internal void Apply(UserDeactivatedEvent @event)
+    internal void Apply(UserDeactivatedDomainEvent @event)
     {
         SetDeactivate();
-        SetUpdatedAt(@event.DeactivatedAt);
+        SetUpdatedAt(@event.OccurredOn);
     }
 
     /// <summary>
     /// Applies an event to the aggregate and adds it to uncommitted events
     /// </summary>
     /// <param name="event">Domain event to apply</param>
-    private void ApplyEvent(object @event)
+    private void ApplyEvent(BaseDomainEvent @event)
     {
         AddNewEvent(@event);
         switch (@event)
         {
-            case UserCreatedEvent createdEvent:
+            case UserCreatedDomainEvent createdEvent:
                 Apply(createdEvent);
                 break;
-            case UserUpdatedEvent updatedEvent:
+            case UserUpdatedDomainEvent updatedEvent:
                 Apply(updatedEvent);
                 break;
-            case UserPasswordChangedEvent passwordChangedEvent:
+            case UserPasswordChangedDomainEvent passwordChangedEvent:
                 Apply(passwordChangedEvent);
                 break;
-            case UserRoleChangedEvent roleChangedEvent:
+            case UserRoleChangedDomainEvent roleChangedEvent:
                 Apply(roleChangedEvent);
                 break;
-            case UserActivatedEvent activatedEvent:
+            case UserActivatedDomainEvent activatedEvent:
                 Apply(activatedEvent);
                 break;
-            case UserDeactivatedEvent deactivatedEvent:
+            case UserDeactivatedDomainEvent deactivatedEvent:
                 Apply(deactivatedEvent);
                 break;
         }
@@ -369,13 +366,13 @@ public sealed class UserAggregate : BaseAggregateRoot
     /// </summary>
     /// <param name="name">User's display name</param>
     /// <param name="errors">List to add validation errors to</param>
-    private static void ValidateName(string name, List<ValidationError> errors)
+    private static IEnumerable<ValidationError> ValidateName(string name)
     {
         var maxLength = 200;
         if (string.IsNullOrWhiteSpace(name))
-            errors.Add(new ValidationError($"{nameof(Name)}.Required", "Name is required."));
+            yield return new ValidationError($"{nameof(Name)}.Required", "Name is required.");
         else if (name.Length > maxLength)
-            errors.Add(new ValidationError($"{nameof(Name)}.TooLong", $"Name must be at most {maxLength} characters."));
+            yield return new ValidationError($"{nameof(Name)}.TooLong", $"Name must be at most {maxLength} characters.");
     }
 
     /// <summary>
@@ -383,26 +380,26 @@ public sealed class UserAggregate : BaseAggregateRoot
     /// </summary>
     /// <param name="username">User's unique username</param>
     /// <param name="errors">List to add validation errors to</param>
-    private static void ValidateUsername(string username, List<ValidationError> errors)
+    private static IEnumerable<ValidationError> ValidateUsername(string username)
     {
         var maxLength = 50;
         var minLength = 3;
         var regex = new Regex("^[a-zA-Z0-9_-]+$", RegexOptions.Compiled);
         if (string.IsNullOrWhiteSpace(username))
-            errors.Add(new ValidationError($"{nameof(Username)}.Required", "Username is required."));
+            yield return new ValidationError($"{nameof(Username)}.Required", "Username is required.");
         else if (username.Length < minLength)
-            errors.Add(new ValidationError($"{nameof(Username)}.TooShort", $"Username must be at least {minLength} characters."));
+            yield return new ValidationError($"{nameof(Username)}.TooShort", $"Username must be at least {minLength} characters.");
         else if (username.Length > maxLength)
-            errors.Add(new ValidationError($"{nameof(Username)}.TooLong", $"Username must be at most {maxLength} characters."));
+            yield return new ValidationError($"{nameof(Username)}.TooLong", $"Username must be at most {maxLength} characters.");
         else if (!regex.IsMatch(username))
-            errors.Add(new ValidationError($"{nameof(Username)}.InvalidFormat", "Username contains invalid characters."));
+            yield return new ValidationError($"{nameof(Username)}.InvalidFormat", "Username contains invalid characters.");
     }
-}
 
-// Domain Events - using Value Objects for type safety
-public record UserCreatedEvent(Guid Id, string Name, Email Email, string Username, Password Password, Role Role, DateTime CreatedAt) : BaseEvent(Id);
-public record UserUpdatedEvent(Guid Id, string Name, Email Email, string Username, DateTime UpdatedAt) : BaseEvent(Id);
-public record UserPasswordChangedEvent(Guid Id, Password NewPassword, DateTime ChangedAt) : BaseEvent(Id);
-public record UserRoleChangedEvent(Guid Id, Role NewRole, DateTime ChangedAt) : BaseEvent(Id);
-public record UserActivatedEvent(Guid Id, DateTime ActivatedAt) : BaseEvent(Id);
-public record UserDeactivatedEvent(Guid Id, DateTime DeactivatedAt) : BaseEvent(Id);
+    // Domain Events (internal, rich in domain details, using Value Objects for type safety)
+    public record UserCreatedDomainEvent(Guid AggregateId, string Name, Email Email, string Username, Password Password, Role Role, DateTime OccurredOn) : BaseDomainEvent(AggregateId, OccurredOn);
+    public record UserUpdatedDomainEvent(Guid AggregateId, string Name, Email Email, string Username, DateTime OccurredOn) : BaseDomainEvent(AggregateId, OccurredOn);
+    public record UserPasswordChangedDomainEvent(Guid AggregateId, Password NewPassword, DateTime OccurredOn) : BaseDomainEvent(AggregateId, OccurredOn);
+    public record UserRoleChangedDomainEvent(Guid AggregateId, Role NewRole, DateTime OccurredOn) : BaseDomainEvent(AggregateId, OccurredOn);
+    public record UserActivatedDomainEvent(Guid AggregateId, DateTime OccurredOn) : BaseDomainEvent(AggregateId, OccurredOn);
+    public record UserDeactivatedDomainEvent(Guid AggregateId, DateTime OccurredOn) : BaseDomainEvent(AggregateId, OccurredOn);
+}

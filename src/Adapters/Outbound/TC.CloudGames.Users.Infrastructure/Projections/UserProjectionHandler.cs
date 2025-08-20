@@ -1,79 +1,81 @@
-﻿namespace TC.CloudGames.Users.Infrastructure.Projections
+﻿using static TC.CloudGames.Users.Domain.Aggregates.UserAggregate;
+
+namespace TC.CloudGames.Users.Infrastructure.Projections
 {
     public class UserProjectionHandler : EventProjection
     {
-        public static void Project(UserCreatedEvent @event, IDocumentOperations operations)
+        public static void Project(UserCreatedDomainEvent @event, IDocumentOperations operations)
         {
             var projection = new UserProjection
             {
-                Id = @event.Id,
+                Id = @event.AggregateId,
                 Name = @event.Name,
                 Email = @event.Email,
                 Username = @event.Username,
                 PasswordHash = @event.Password,
                 Role = @event.Role,
-                CreatedAt = @event.CreatedAt,
+                CreatedAt = @event.OccurredOn,
                 IsActive = true
             };
             operations.Store(projection);
         }
 
-        public static void Project(UserUpdatedEvent @event, IDocumentOperations operations)
+        public static void Project(UserUpdatedDomainEvent @event, IDocumentOperations operations)
         {
             var projection = new UserProjection
             {
-                Id = @event.Id,
+                Id = @event.AggregateId,
                 Name = @event.Name,
                 Email = @event.Email,
                 Username = @event.Username,
-                UpdatedAt = @event.UpdatedAt,
+                UpdatedAt = @event.OccurredOn,
                 IsActive = true // Assume still active unless deactivated event is processed
             };
             operations.Store(projection);
         }
 
-        public static void Project(UserPasswordChangedEvent @event, IDocumentOperations operations)
+        public static void Project(UserPasswordChangedDomainEvent @event, IDocumentOperations operations)
         {
             var projection = new UserProjection
             {
-                Id = @event.Id,
+                Id = @event.AggregateId,
                 PasswordHash = @event.NewPassword,
-                UpdatedAt = @event.ChangedAt,
+                UpdatedAt = @event.OccurredOn,
                 IsActive = true // Assume still active unless deactivated event is processed
             };
             operations.Store(projection);
         }
 
-        public static void Project(UserRoleChangedEvent @event, IDocumentOperations operations)
+        public static void Project(UserRoleChangedDomainEvent @event, IDocumentOperations operations)
         {
             var projection = new UserProjection
             {
-                Id = @event.Id,
+                Id = @event.AggregateId,
                 Role = @event.NewRole,
-                UpdatedAt = @event.ChangedAt,
+                UpdatedAt = @event.OccurredOn,
                 IsActive = true // Assume still active unless deactivated event is processed
             };
             operations.Store(projection);
         }
 
-        public static void Project(UserActivatedEvent @event, IDocumentOperations operations)
+        public static void Project(UserActivatedDomainEvent @event, IDocumentOperations operations)
         {
             var projection = new UserProjection
             {
-                Id = @event.Id,
+                Id = @event.AggregateId,
                 IsActive = true,
-                UpdatedAt = @event.ActivatedAt
+                UpdatedAt = @event.OccurredOn
             };
             operations.Store(projection);
         }
 
-        public static void Project(UserDeactivatedEvent @event, IDocumentOperations operations)
+        public static void Project(UserDeactivatedDomainEvent @event, IDocumentOperations operations)
         {
             var projection = new UserProjection
             {
-                Id = @event.Id,
+                Id = @event.AggregateId,
                 IsActive = false,
-                UpdatedAt = @event.DeactivatedAt
+                UpdatedAt = @event.OccurredOn
             };
             operations.Store(projection);
         }

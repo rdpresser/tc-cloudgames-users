@@ -7,8 +7,8 @@ internal sealed class LoginUserCommandHandler : BaseCommandHandler<LoginUserComm
 {
     private readonly ITokenProvider _tokenProvider;
 
-    public LoginUserCommandHandler(IUserRepository repository, ITokenProvider tokenProvider)
-        : base(repository)
+    public LoginUserCommandHandler(IUserRepository repository, IUserContext userContext, ITokenProvider tokenProvider)
+        : base(repository, userContext)
     {
         _tokenProvider = tokenProvider;
     }

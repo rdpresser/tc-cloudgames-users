@@ -1,3 +1,5 @@
+using static TC.CloudGames.Users.Domain.Aggregates.UserAggregate;
+
 namespace TC.CloudGames.Users.Unit.Tests.Domain.Aggregates;
 
 public class UserAggregateEventTests
@@ -19,14 +21,14 @@ public class UserAggregateEventTests
         result.IsSuccess.ShouldBeTrue();
         var user = result.Value;
         user.UncommittedEvents.ShouldHaveSingleItem();
-        var createdEvent = user.UncommittedEvents[0].ShouldBeOfType<UserCreatedEvent>();
-        createdEvent.Id.ShouldNotBe(Guid.Empty);
+        var createdEvent = user.UncommittedEvents[0].ShouldBeOfType<UserCreatedDomainEvent>();
+        createdEvent.AggregateId.ShouldNotBe(Guid.Empty);
         createdEvent.Name.ShouldBe(name);
         createdEvent.Email.ShouldBe(email);
         createdEvent.Username.ShouldBe(username);
         createdEvent.Password.ShouldBe(password);
         createdEvent.Role.ShouldBe(role);
-        createdEvent.CreatedAt.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        createdEvent.OccurredOn.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
     }
 
     [Fact]
@@ -44,12 +46,12 @@ public class UserAggregateEventTests
         // Assert
         result.IsSuccess.ShouldBeTrue();
         user.UncommittedEvents.Count.ShouldBe(2);
-        var updatedEvent = user.UncommittedEvents[user.UncommittedEvents.Count - 1].ShouldBeOfType<UserUpdatedEvent>();
-        updatedEvent.Id.ShouldBe(user.Id);
+        var updatedEvent = user.UncommittedEvents[user.UncommittedEvents.Count - 1].ShouldBeOfType<UserUpdatedDomainEvent>();
+        updatedEvent.AggregateId.ShouldBe(user.Id);
         updatedEvent.Name.ShouldBe(newName);
         updatedEvent.Email.ShouldBe(newEmail);
         updatedEvent.Username.ShouldBe(newUsername);
-        updatedEvent.UpdatedAt.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        updatedEvent.OccurredOn.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
     }
 
     [Fact]
@@ -65,10 +67,10 @@ public class UserAggregateEventTests
         // Assert
         result.IsSuccess.ShouldBeTrue();
         user.UncommittedEvents.Count.ShouldBe(2);
-        var passwordChangedEvent = user.UncommittedEvents[user.UncommittedEvents.Count - 1].ShouldBeOfType<UserPasswordChangedEvent>();
-        passwordChangedEvent.Id.ShouldBe(user.Id);
+        var passwordChangedEvent = user.UncommittedEvents[user.UncommittedEvents.Count - 1].ShouldBeOfType<UserPasswordChangedDomainEvent>();
+        passwordChangedEvent.AggregateId.ShouldBe(user.Id);
         passwordChangedEvent.NewPassword.ShouldBe(newPassword);
-        passwordChangedEvent.ChangedAt.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        passwordChangedEvent.OccurredOn.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
     }
 
     [Fact]
@@ -84,10 +86,10 @@ public class UserAggregateEventTests
         // Assert
         result.IsSuccess.ShouldBeTrue();
         user.UncommittedEvents.Count.ShouldBe(2);
-        var roleChangedEvent = user.UncommittedEvents[user.UncommittedEvents.Count - 1].ShouldBeOfType<UserRoleChangedEvent>();
-        roleChangedEvent.Id.ShouldBe(user.Id);
+        var roleChangedEvent = user.UncommittedEvents[user.UncommittedEvents.Count - 1].ShouldBeOfType<UserRoleChangedDomainEvent>();
+        roleChangedEvent.AggregateId.ShouldBe(user.Id);
         roleChangedEvent.NewRole.ShouldBe(newRole);
-        roleChangedEvent.ChangedAt.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        roleChangedEvent.OccurredOn.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
     }
 
     [Fact]
@@ -104,9 +106,9 @@ public class UserAggregateEventTests
         // Assert
         result.IsSuccess.ShouldBeTrue();
         user.UncommittedEvents.Count.ShouldBe(3);
-        var activatedEvent = user.UncommittedEvents[user.UncommittedEvents.Count - 1].ShouldBeOfType<UserActivatedEvent>();
-        activatedEvent.Id.ShouldBe(user.Id);
-        activatedEvent.ActivatedAt.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        var activatedEvent = user.UncommittedEvents[user.UncommittedEvents.Count - 1].ShouldBeOfType<UserActivatedDomainEvent>();
+        activatedEvent.AggregateId.ShouldBe(user.Id);
+        activatedEvent.OccurredOn.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
     }
 
     [Fact]
@@ -122,9 +124,9 @@ public class UserAggregateEventTests
         // Assert
         result.IsSuccess.ShouldBeTrue();
         user.UncommittedEvents.Count.ShouldBe(2);
-        var deactivatedEvent = user.UncommittedEvents[user.UncommittedEvents.Count - 1].ShouldBeOfType<UserDeactivatedEvent>();
-        deactivatedEvent.Id.ShouldBe(user.Id);
-        deactivatedEvent.DeactivatedAt.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        var deactivatedEvent = user.UncommittedEvents[user.UncommittedEvents.Count - 1].ShouldBeOfType<UserDeactivatedDomainEvent>();
+        deactivatedEvent.AggregateId.ShouldBe(user.Id);
+        deactivatedEvent.OccurredOn.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
     }
 
     [Fact]
@@ -138,7 +140,7 @@ public class UserAggregateEventTests
         var password = Password.Create("EventPassword123!").Value;
         var role = Role.Create("Admin").Value;
         var createdAt = DateTime.UtcNow;
-        var createdEvent = new UserCreatedEvent(id, name, email, username, password, role, createdAt);
+        var createdEvent = new UserCreatedDomainEvent(id, name, email, username, password, role, createdAt);
         var user = UserAggregate.FromProjection(Guid.Empty, "", Email.Create("temp@temp.com").Value, "", Password.Create("TempPass123!").Value, Role.Create("User").Value, DateTime.MinValue, null, false);
 
         // Act
@@ -167,7 +169,7 @@ public class UserAggregateEventTests
         var newEmail = Email.Create("updated.event@test.com").Value;
         var newUsername = "updatedeventuser";
         var updatedAt = DateTime.UtcNow;
-        var updatedEvent = new UserUpdatedEvent(user.Id, newName, newEmail, newUsername, updatedAt);
+        var updatedEvent = new UserUpdatedDomainEvent(user.Id, newName, newEmail, newUsername, updatedAt);
 
         // Act
         user.Apply(updatedEvent);
@@ -192,7 +194,7 @@ public class UserAggregateEventTests
         var originalEmail = user.Email;
         var newPassword = Password.Create("NewEventPassword123!").Value;
         var changedAt = DateTime.UtcNow;
-        var passwordChangedEvent = new UserPasswordChangedEvent(user.Id, newPassword, changedAt);
+        var passwordChangedEvent = new UserPasswordChangedDomainEvent(user.Id, newPassword, changedAt);
 
         // Act
         user.Apply(passwordChangedEvent);
@@ -214,7 +216,7 @@ public class UserAggregateEventTests
         var originalName = user.Name;
         var newRole = Role.Create("Admin").Value;
         var changedAt = DateTime.UtcNow;
-        var roleChangedEvent = new UserRoleChangedEvent(user.Id, newRole, changedAt);
+        var roleChangedEvent = new UserRoleChangedDomainEvent(user.Id, newRole, changedAt);
 
         // Act
         user.Apply(roleChangedEvent);
@@ -234,7 +236,7 @@ public class UserAggregateEventTests
         user.Deactivate();
         user.IsActive.ShouldBeFalse();
         var activatedAt = DateTime.UtcNow;
-        var activatedEvent = new UserActivatedEvent(user.Id, activatedAt);
+        var activatedEvent = new UserActivatedDomainEvent(user.Id, activatedAt);
 
         // Act
         user.Apply(activatedEvent);
@@ -251,7 +253,7 @@ public class UserAggregateEventTests
         var user = new UserAggregateBuilder().Build().Value;
         user.IsActive.ShouldBeTrue();
         var deactivatedAt = DateTime.UtcNow;
-        var deactivatedEvent = new UserDeactivatedEvent(user.Id, deactivatedAt);
+        var deactivatedEvent = new UserDeactivatedDomainEvent(user.Id, deactivatedAt);
 
         // Act
         user.Apply(deactivatedEvent);
@@ -275,11 +277,11 @@ public class UserAggregateEventTests
 
         // Assert
         user.UncommittedEvents.Count.ShouldBe(5);
-        user.UncommittedEvents[0].ShouldBeOfType<UserCreatedEvent>();
-        user.UncommittedEvents[1].ShouldBeOfType<UserUpdatedEvent>();
-        user.UncommittedEvents[2].ShouldBeOfType<UserPasswordChangedEvent>();
-        user.UncommittedEvents[3].ShouldBeOfType<UserRoleChangedEvent>();
-        user.UncommittedEvents[4].ShouldBeOfType<UserDeactivatedEvent>();
+        user.UncommittedEvents[0].ShouldBeOfType<UserCreatedDomainEvent>();
+        user.UncommittedEvents[1].ShouldBeOfType<UserUpdatedDomainEvent>();
+        user.UncommittedEvents[2].ShouldBeOfType<UserPasswordChangedDomainEvent>();
+        user.UncommittedEvents[3].ShouldBeOfType<UserRoleChangedDomainEvent>();
+        user.UncommittedEvents[4].ShouldBeOfType<UserDeactivatedDomainEvent>();
     }
 
     [Fact]
@@ -297,7 +299,7 @@ public class UserAggregateEventTests
         user.UncommittedEvents.ShouldBeEmpty();
         user.Deactivate();
         user.UncommittedEvents.ShouldHaveSingleItem();
-        user.UncommittedEvents[0].ShouldBeOfType<UserDeactivatedEvent>();
+        user.UncommittedEvents[0].ShouldBeOfType<UserDeactivatedDomainEvent>();
     }
 
     [Fact]

@@ -1,6 +1,6 @@
-﻿using TC.CloudGames.Application.Users.GetUserList;
-using TC.CloudGames.SharedKernel.Infrastructure.Authentication;
+﻿using TC.CloudGames.SharedKernel.Infrastructure.Authentication;
 using TC.CloudGames.Users.Application.UseCases.GetUserByEmail;
+using TC.CloudGames.Users.Application.UseCases.GetUserList;
 
 namespace TC.CloudGames.Users.Application.Abstractions.Ports
 {

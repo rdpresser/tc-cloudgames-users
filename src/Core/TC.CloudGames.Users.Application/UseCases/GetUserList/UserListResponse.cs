@@ -1,4 +1,4 @@
-﻿namespace TC.CloudGames.Application.Users.GetUserList
+﻿namespace TC.CloudGames.Users.Application.UseCases.GetUserList
 {
     public sealed class UserListResponse
     {

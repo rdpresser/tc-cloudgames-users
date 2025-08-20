@@ -1,4 +1,4 @@
-﻿namespace TC.CloudGames.Application.Users.GetUserList;
+﻿namespace TC.CloudGames.Users.Application.UseCases.GetUserList;
 
 internal sealed class GetUserListQueryHandler : BaseQueryHandler<GetUserListQuery, IReadOnlyList<UserListResponse>>
 {

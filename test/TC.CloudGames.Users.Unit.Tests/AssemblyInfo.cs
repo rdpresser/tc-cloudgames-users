@@ -18,8 +18,6 @@ global using Microsoft.IdentityModel.JsonWebTokens;
 global using Shouldly;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Security.Claims;
-global using TC.CloudGames.Api.Endpoints.User;
-global using TC.CloudGames.Application.Users.GetUserList;
 global using TC.CloudGames.SharedKernel.Application.Commands;
 global using TC.CloudGames.SharedKernel.Application.Queries;
 global using TC.CloudGames.SharedKernel.Infrastructure.Authentication;

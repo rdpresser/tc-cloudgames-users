@@ -1,16 +1,23 @@
-﻿namespace TC.CloudGames.Users.Api.Extensions
+﻿using TC.CloudGames.SharedKernel.Infrastructure.MessageBroker;
+using Wolverine;
+using Wolverine.Marten;
+using Wolverine.Postgresql;
+using Wolverine.RabbitMQ;
+
+namespace TC.CloudGames.Users.Api.Extensions
 {
     internal static class ServiceCollectionExtensions
     {
-        public static IServiceCollection AddUserServices(this IServiceCollection services, IConfiguration configuration, IWebHostEnvironment env)
+        public static IServiceCollection AddUserServices(this IServiceCollection services, WebApplicationBuilder builder)
         {
             // Configure FluentValidation globally
             ConfigureFluentValidationGlobals();
 
             // Add Marten configuration only if not testing
-            if (!env.IsEnvironment("Testing"))
+            if (!builder.Environment.IsEnvironment("Testing"))
             {
                 services.AddMartenEventSourcing();
+                builder.AddWolverineMessaging();
             }
 
             services.AddHttpClient()
@@ -23,9 +30,9 @@
 
             //services.AddCustomOpenTelemetry()
 
-            services.AddCustomAuthentication(configuration)
+            services.AddCustomAuthentication(builder.Configuration)
                 .AddCustomFastEndpoints()
-                .ConfigureAppSettings(configuration)
+                .ConfigureAppSettings(builder.Configuration)
                 .AddCustomHealthCheck();
 
             return services;
@@ -123,6 +130,56 @@
             return services;
         }
 
+        private static WebApplicationBuilder AddWolverineMessaging(this WebApplicationBuilder builder)
+        {
+            // Configure RabbitMQ options from appsettings.json into DI
+            builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMq"));
+            var connectionString = ConnectionStringHelper.BuildConnectionString(builder.Configuration);
+
+            // Add Wolverine for event sourcing and messaging
+            builder.Host.UseWolverine(opts =>
+            {
+                // Pega as opções tipadas sem construir o provider:
+                var mq = new RabbitMqOptions();
+                builder.Configuration.GetSection("RabbitMq").Bind(mq);
+
+                if (!string.IsNullOrWhiteSpace(mq.ConnectionString))
+                {
+                    opts.UseRabbitMq(rabbit =>
+                    {
+                        rabbit.ClientProperties.Add("application", "TC.CloudGames.Users.Api");
+                        rabbit.ClientProperties.Add("environment", builder.Environment.EnvironmentName);
+
+                        ////rabbit.HostName = "";
+                        ////rabbit.Uri = new Uri(mq.ConnectionString);
+                        ////rabbit.Password = "";
+                        ////rabbit.UserName = "";
+                        rabbit.VirtualHost = mq.VirtualHost;
+                    });
+
+                    var rabbit = opts.UseRabbitMq(new Uri(mq.ConnectionString));
+
+                    if (mq.AutoProvision) rabbit.AutoProvision();
+
+                    if (mq.Durable)
+                    {
+                        // Isso é do WolverineOptions, não do objeto RabbitMqTransportExpression
+                        opts.PersistMessagesWithPostgresql(connectionString);
+                        opts.Policies.UseDurableLocalQueues();
+                    }
+
+                    // Exemplo: publicar mensagens para uma exchange
+                    // (você pode refinar com .Message<T>().ToQueue(...) por tipo)
+                    opts.PublishAllMessages().ToRabbitExchange(mq.Exchange).UseDurableOutbox();
+                }
+
+                // Outras políticas que você queira:
+                /// opts.Policies.AutoApplyTransactions();
+            });
+
+            return builder;
+        }
+
         private static IServiceCollection AddMartenEventSourcing(this IServiceCollection services)
         {
             services.AddMarten(serviceProvider =>
@@ -156,6 +213,7 @@
                 return options;
             })
             .UseLightweightSessions()
+            .IntegrateWithWolverine()
             .ApplyAllDatabaseChangesOnStartup();
 
             return services;

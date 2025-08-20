@@ -6,9 +6,11 @@ public class LoginUserCommandHandlerTests : BaseTest
     public async Task ExecuteAsync_WithValidCredentials_ShouldReturnJwtToken()
     {
         // Arrange
+        Factory.RegisterTestServices(_ => { });
         var repo = A.Fake<IUserRepository>();
         var tokenProvider = A.Fake<ITokenProvider>();
-        var handler = new LoginUserCommandHandler(repo, tokenProvider);
+        var userContext = A.Fake<IUserContext>();
+
         var command = new LoginUserCommand("valid@email.com", "ValidPass123!");
         // Create a real UserTokenProvider instance with all required parameters
         var userTokenInfo = new UserTokenProvider(
@@ -18,6 +20,9 @@ public class LoginUserCommandHandlerTests : BaseTest
             Username: "testuser",
             Role: "User"
         );
+
+        var handler = new LoginUserCommandHandler(repo, userContext, tokenProvider);
+
         A.CallTo(() => repo.GetUserTokenInfoAsync(command.Email, command.Password, A<CancellationToken>.Ignored)).Returns(userTokenInfo);
         A.CallTo(() => tokenProvider.Create(userTokenInfo)).Returns("jwt-token");
 
@@ -34,9 +39,11 @@ public class LoginUserCommandHandlerTests : BaseTest
     public async Task ExecuteAsync_WithInvalidCredentials_ShouldReturnInvalidResult()
     {
         // Arrange
+        Factory.RegisterTestServices(_ => { });
         var repo = A.Fake<IUserRepository>();
+        var userContext = A.Fake<IUserContext>();
         var tokenProvider = A.Fake<ITokenProvider>();
-        var handler = new LoginUserCommandHandler(repo, tokenProvider);
+        var handler = new LoginUserCommandHandler(repo, userContext, tokenProvider);
         var command = new LoginUserCommand("invalid@email.com", "WrongPass!");
         A.CallTo(() => repo.GetUserTokenInfoAsync(command.Email, command.Password, A<CancellationToken>.Ignored)).Returns((UserTokenProvider?)null);
 

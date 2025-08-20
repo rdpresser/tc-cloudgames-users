@@ -8,12 +8,11 @@ DotNetEnv.Env.Load(Path.Combine("./", ".env"));
 
 builder.Host.UseCustomSerilog(builder.Configuration);
 
-
 //***************** ADICIONAR **************************************************/
 //builder.AddCustomLoggingTelemetry()
 //********************************************************************************/
 
-builder.Services.AddUserServices(builder.Configuration, builder.Environment);
+builder.Services.AddUserServices(builder);
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure();
 
@@ -24,6 +23,11 @@ var app = builder.Build();
 //var logger = app.Services.GetRequiredService<ILogger<TC.CloudGames.Users.Api.Program>>()
 //TelemetryConstants.LogTelemetryConfiguration(logger)
 //********************************************************************************/
+
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    await app.CreateMessageDatabase().ConfigureAwait(false);
+}
 
 // Use metrics authentication middleware extension
 app.UseMetricsAuthentication();

@@ -1,8 +1,21 @@
+using TC.CloudGames.SharedKernel.Infrastructure.Database;
+using TC.CloudGames.SharedKernel.Infrastructure.Middleware;
+
 namespace TC.CloudGames.Users.Unit.Tests.Api.Abstractions;
 
 public class App : AppFixture<Users.Api.Program>
 {
-    public App() { }
+    public App()
+    {
+        ValidatorOptions.Global.PropertyNameResolver = (type, memberInfo, expression) => memberInfo?.Name;
+        ValidatorOptions.Global.DisplayNameResolver = (type, memberInfo, expression) => memberInfo?.Name;
+        ValidatorOptions.Global.ErrorCodeResolver = validator => validator.Name;
+        ValidatorOptions.Global.LanguageManager = new LanguageManager
+        {
+            Enabled = true,
+            Culture = new System.Globalization.CultureInfo("en")
+        };
+    }
 
     // Runs once before any tests in this fixture
     protected override ValueTask SetupAsync()
@@ -42,6 +55,19 @@ public class App : AppFixture<Users.Api.Program>
         s.RemoveAll<IUserRepository>();
         s.AddSingleton(sp => A.Fake<IUserRepository>());
 
+        s.RemoveAll<ICorrelationIdGenerator>();
+        s.AddSingleton(sp => A.Fake<ICorrelationIdGenerator>());
+
+        s.RemoveAll<IUserContext>();
+        s.AddSingleton(sp => GetValidLoggedUser());
+
+        s.RemoveAll<IHttpContextAccessor>();
+        s.AddSingleton(sp => GetValidUserContextAccessor());
+
+        // Mock IConnectionStringProvider to prevent real DB calls
+        s.RemoveAll<IConnectionStringProvider>();
+        s.AddSingleton(sp => A.Fake<IConnectionStringProvider>());
+
         s.AddFusionCache()
             .WithDefaultEntryOptions(options =>
             {
@@ -50,7 +76,7 @@ public class App : AppFixture<Users.Api.Program>
             });
     }
 
-    public IFusionCache GetCache() => Services.GetRequiredService<IFusionCache>();
+    protected IFusionCache GetCache() => Services.GetRequiredService<IFusionCache>();
 
     public IHttpContextAccessor GetValidUserContextAccessor(string userRole = "Admin")
     {
@@ -76,7 +102,19 @@ public class App : AppFixture<Users.Api.Program>
     public IUserContext GetValidLoggedUser(string userRole = "Admin")
     {
         var httpContextAccessor = GetValidUserContextAccessor(userRole);
-        return new UserContext(httpContextAccessor);
+        var correlationId = Services.GetRequiredService<ICorrelationIdGenerator>();
+        return new UserContext(httpContextAccessor, correlationId);
+    }
+
+    public static IEnumerable<(string Identifier, int Count, IEnumerable<string> ErrorCodes)> GroupValidationErrorsByIdentifier(IEnumerable<ValidationError> errors)
+    {
+        return errors
+            .GroupBy(e => e.Identifier)
+            .Select(g => (
+                Identifier: g.Key,
+                Count: g.Count(),
+                ErrorCodes: g.Select(e => $"{e.ErrorCode} - {e.ErrorMessage}")
+            ));
     }
 
     // Runs once after all tests in this fixture

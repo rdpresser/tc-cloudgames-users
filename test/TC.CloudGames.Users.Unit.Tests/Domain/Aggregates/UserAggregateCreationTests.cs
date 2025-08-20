@@ -1,3 +1,5 @@
+using static TC.CloudGames.Users.Domain.Aggregates.UserAggregate;
+
 namespace TC.CloudGames.Users.Unit.Tests.Domain.Aggregates;
 
 public class UserAggregateCreationTests
@@ -26,7 +28,7 @@ public class UserAggregateCreationTests
         user.CreatedAt.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
         user.UpdatedAt.ShouldBeNull();
         user.UncommittedEvents.ShouldHaveSingleItem();
-        user.UncommittedEvents[0].ShouldBeOfType<UserCreatedEvent>();
+        user.UncommittedEvents[0].ShouldBeOfType<UserCreatedDomainEvent>();
     }
 
     [Theory]

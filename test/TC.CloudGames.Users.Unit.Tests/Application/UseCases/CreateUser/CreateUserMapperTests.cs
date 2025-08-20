@@ -9,7 +9,7 @@ public class CreateUserMapperTests
         var command = new CreateUserCommand("Test User", "test@example.com", "testuser", "TestPassword123!", "User");
 
         // Act
-        var result = CreateUserMapper.ToEntity(command);
+        var result = CreateUserMapper.ToAggregate(command);
 
         // Assert
         result.IsSuccess.ShouldBeTrue();
@@ -23,7 +23,7 @@ public class CreateUserMapperTests
         var command = new CreateUserCommand("", "", "", "", "");
 
         // Act
-        var result = CreateUserMapper.ToEntity(command);
+        var result = CreateUserMapper.ToAggregate(command);
 
         // Assert
         result.IsSuccess.ShouldBeFalse();
@@ -35,11 +35,11 @@ public class CreateUserMapperTests
     {
         // Arrange
         var command = new CreateUserCommand("Test User", "test@example.com", "testuser", "TestPassword123!", "User");
-        var aggregateResult = CreateUserMapper.ToEntity(command);
+        var aggregateResult = CreateUserMapper.ToAggregate(command);
         var aggregate = aggregateResult.Value;
 
         // Act
-        var response = CreateUserMapper.FromEntity(aggregate);
+        var response = CreateUserMapper.FromAggregate(aggregate);
 
         // Assert
         response.Name.ShouldBe(command.Name);

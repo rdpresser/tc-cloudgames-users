@@ -1,21 +1,23 @@
-using FastEndpoints;
-using TC.CloudGames.Users.Unit.Tests.Common;
+using TC.CloudGames.Users.Unit.Tests.Fakes;
+using Wolverine;
 
 namespace TC.CloudGames.Users.Unit.Tests.Application.UseCases.CreateUser;
 
-public class CreateUserCommandHandlerTests : BaseTest
+public class CreateUserCommandHandlerTests(App App) : TestBase<App>
 {
     [Theory, AutoFakeItEasyValidUserData]
     public async Task ExecuteAsync_WithValidCommand_ShouldReturnSuccessResponse(CreateUserCommand command)
     {
         // Arrange
-        LogTestStart(nameof(ExecuteAsync_WithValidCommand_ShouldReturnSuccessResponse));
         Factory.RegisterTestServices(_ => { });
+        var repo = new FakeUserRepository();
+        var userContext = App.GetValidLoggedUser();
 
-        var repo = A.Fake<IUserRepository>();
+        var bus = A.Fake<IMessageBus>();
+        var looger = A.Fake<ILogger<CreateUserCommandHandler>>();
+
         command = new CreateUserCommand("Test User", "test@example.com", "testuser", "TestPassword123!", "User");
-        var handler = new CreateUserCommandHandler(repo);
-        A.CallTo(() => repo.SaveAsync(A<UserAggregate>.Ignored, A<CancellationToken>.Ignored)).Returns(Task.CompletedTask);
+        var handler = new CreateUserCommandHandler(repo, userContext, bus, looger);
 
         // Act
         var result = await handler.ExecuteAsync(command, TestContext.Current.CancellationToken);
@@ -27,11 +29,6 @@ public class CreateUserCommandHandlerTests : BaseTest
         result.Value.Email.ShouldBe(command.Email);
         result.Value.Username.ShouldBe(command.Username);
         result.Value.Role.ShouldBe(command.Role);
-        A.CallTo(() => repo.SaveAsync(A<UserAggregate>.That.Matches(u =>
-            u.Name == command.Name &&
-            u.Email.Value == command.Email &&
-            u.Username == command.Username &&
-            u.Role.Value == command.Role), A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
     [Theory]
@@ -44,11 +41,13 @@ public class CreateUserCommandHandlerTests : BaseTest
         string name, string email, string username, string password, string role)
     {
         // Arrange
-        LogTestStart(nameof(ExecuteAsync_WithInvalidCommand_ShouldReturnInvalidResult));
         Factory.RegisterTestServices(_ => { });
-        var repo = A.Fake<IUserRepository>();
+        var repo = new FakeUserRepository();
+        var userContext = App.GetValidLoggedUser();
+        var bus = A.Fake<IMessageBus>();
+        var looger = A.Fake<ILogger<CreateUserCommandHandler>>();
         var command = new CreateUserCommand(name, email, username, password, role);
-        var handler = new CreateUserCommandHandler(repo);
+        var handler = new CreateUserCommandHandler(repo, userContext, bus, looger);
 
         // Act
         var result = await handler.ExecuteAsync(command, TestContext.Current.CancellationToken);
