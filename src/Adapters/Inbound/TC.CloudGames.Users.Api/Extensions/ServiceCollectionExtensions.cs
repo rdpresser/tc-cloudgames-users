@@ -276,7 +276,10 @@ namespace TC.CloudGames.Users.Api.Extensions
                 return options;
             })
             .UseLightweightSessions() // optional, lightweight sessions for better performance
-            .IntegrateWithWolverine() // enables transactional outbox + inbox with Wolverine
+            .IntegrateWithWolverine(cfg => // enables transactional outbox + inbox with Wolverine
+            {
+                cfg.UseWolverineManagedEventSubscriptionDistribution = true;
+            })
             .ApplyAllDatabaseChangesOnStartup(); // optional, automatically applies schema changes at startup
 
             return services;
