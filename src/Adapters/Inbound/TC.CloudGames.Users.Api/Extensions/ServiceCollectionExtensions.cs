@@ -1,8 +1,14 @@
-﻿using TC.CloudGames.SharedKernel.Infrastructure.MessageBroker;
+﻿using JasperFx.Resources;
+using TC.CloudGames.Contracts.Events.Users;
+using TC.CloudGames.SharedKernel.Infrastructure.MessageBroker;
+using TC.CloudGames.SharedKernel.Infrastructure.Messaging;
+using TC.CloudGames.Users.Domain.Aggregates;
 using Wolverine;
+using Wolverine.AzureServiceBus;
 using Wolverine.Marten;
 using Wolverine.Postgresql;
 using Wolverine.RabbitMQ;
+using Wolverine.Runtime.Routing;
 
 namespace TC.CloudGames.Users.Api.Extensions
 {
@@ -21,19 +27,16 @@ namespace TC.CloudGames.Users.Api.Extensions
             }
 
             services.AddHttpClient()
-                .AddCorrelationIdGenerator();
-
-            //services// Add custom telemetry services
-            //    .AddSingleton<UserMetrics>()
-
-            services.AddCaching();
-
-            //services.AddCustomOpenTelemetry()
-
-            services.AddCustomAuthentication(builder.Configuration)
+                .AddCorrelationIdGenerator()
+                .AddCaching()
+                .AddCustomAuthentication(builder.Configuration)
                 .AddCustomFastEndpoints()
                 .ConfigureAppSettings(builder.Configuration)
                 .AddCustomHealthCheck();
+
+            //services// Add custom telemetry services
+            //    .AddSingleton<UserMetrics>()
+            //services.AddCustomOpenTelemetry()
 
             return services;
         }
@@ -130,56 +133,113 @@ namespace TC.CloudGames.Users.Api.Extensions
             return services;
         }
 
+        // 2) Configure Wolverine messaging with RabbitMQ transport and durable outbox
         private static WebApplicationBuilder AddWolverineMessaging(this WebApplicationBuilder builder)
         {
-            // Configure RabbitMQ options from appsettings.json into DI
-            builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection("RabbitMq"));
-            var connectionString = ConnectionStringHelper.BuildConnectionString(builder.Configuration);
-
-            // Add Wolverine for event sourcing and messaging
             builder.Host.UseWolverine(opts =>
             {
-                // Pega as opções tipadas sem construir o provider:
-                var mq = new RabbitMqOptions();
-                builder.Configuration.GetSection("RabbitMq").Bind(mq);
+                // --------------------------------------------------
+                // Envelope customizer + routing convention
+                // --------------------------------------------------
+                opts.Services.AddSingleton<IEnvelopeCustomizer, GenericEventContextEnvelopeCustomizer>();
+                opts.Services.AddSingleton<IMessageRoutingConvention, EventContextRoutingConvention>();
 
-                if (!string.IsNullOrWhiteSpace(mq.ConnectionString))
+                // --------------------------------------------------
+                // Durable local queues e outbox
+                // --------------------------------------------------
+                opts.Policies.UseDurableLocalQueues();
+                opts.Policies.AutoApplyTransactions();
+
+                // --------------------------------------------------
+                // Load broker configuration
+                // --------------------------------------------------
+                var broker = MessageBrokerHelper.Build(builder.Configuration);
+
+                if (broker.Type == BrokerType.RabbitMQ && broker.RabbitMqSettings != null)
                 {
-                    opts.UseRabbitMq(rabbit =>
-                    {
-                        rabbit.ClientProperties.Add("application", "TC.CloudGames.Users.Api");
-                        rabbit.ClientProperties.Add("environment", builder.Environment.EnvironmentName);
+                    var mq = broker.RabbitMqSettings;
 
-                        ////rabbit.HostName = "";
-                        ////rabbit.Uri = new Uri(mq.ConnectionString);
-                        ////rabbit.Password = "";
-                        ////rabbit.UserName = "";
-                        rabbit.VirtualHost = mq.VirtualHost;
+                    // Configure RabbitMQ connection
+                    var rabbitOpts = opts.UseRabbitMq(factory =>
+                    {
+                        factory.Uri = new Uri(mq.ConnectionString);
+                        factory.VirtualHost = mq.VirtualHost;
+
+                        // Add client metadata
+                        factory.ClientProperties["application"] = "TC.CloudGames.Users.Api";
+                        factory.ClientProperties["environment"] = builder.Environment.EnvironmentName;
                     });
 
-                    var rabbit = opts.UseRabbitMq(new Uri(mq.ConnectionString));
+                    if (mq.AutoProvision)
+                        rabbitOpts.AutoProvision(); // call separately
 
-                    if (mq.AutoProvision) rabbit.AutoProvision();
+                    // Apply feature toggles
+                    if (mq.UseQuorumQueues)
+                        rabbitOpts.UseQuorumQueues(); // call separately
 
-                    if (mq.Durable)
-                    {
-                        // Isso é do WolverineOptions, não do objeto RabbitMqTransportExpression
-                        opts.PersistMessagesWithPostgresql(connectionString);
-                        opts.Policies.UseDurableLocalQueues();
-                    }
+                    if (mq.AutoPurgeOnStartup)
+                        rabbitOpts.AutoPurgeOnStartup(); // call separately
 
-                    // Exemplo: publicar mensagens para uma exchange
-                    // (você pode refinar com .Message<T>().ToQueue(...) por tipo)
-                    opts.PublishAllMessages().ToRabbitExchange(mq.Exchange).UseDurableOutbox();
+                    // Register messages
+                    opts.PublishMessage<EventContext<UserCreatedIntegrationEvent, UserAggregate>>()
+                        .ToRabbitExchange(mq.Exchange);
+                    opts.PublishMessage<EventContext<UserUpdatedIntegrationEvent, UserAggregate>>()
+                        .ToRabbitExchange(mq.Exchange);
+                    opts.PublishMessage<EventContext<UserRoleChangedIntegrationEvent, UserAggregate>>()
+                        .ToRabbitExchange(mq.Exchange);
+                    opts.PublishMessage<EventContext<UserActivatedIntegrationEvent, UserAggregate>>()
+                        .ToRabbitExchange(mq.Exchange);
+                    opts.PublishMessage<EventContext<UserDeactivatedIntegrationEvent, UserAggregate>>()
+                        .ToRabbitExchange(mq.Exchange);
+
+                    // Publish all messages to the configured exchange
+                    opts.PublishAllMessages()
+                        .ToRabbitExchange(mq.Exchange);
+
+                    // Durable outbox for all sending endpoints
+                    opts.Policies.UseDurableOutboxOnAllSendingEndpoints();
+                }
+                else if (broker.Type == BrokerType.AzureServiceBus && broker.ServiceBusSettings != null)
+                {
+                    var sb = broker.ServiceBusSettings;
+
+                    // Configure Azure Service Bus connection
+                    var azureOpts = opts.UseAzureServiceBus(sb.ConnectionString);
+
+                    if (sb.AutoProvision)
+                        azureOpts.AutoProvision();
+
+                    // Apply feature toggles
+                    if (sb.AutoPurgeOnStartup)
+                        azureOpts.AutoPurgeOnStartup();
+
+                    if (sb.UseControlQueues)
+                        azureOpts.EnableWolverineControlQueues();
+
+                    // Publish all messages to a Topic with durable outbox
+                    opts.PublishAllMessages()
+                        .ToAzureServiceBusTopic(sb.TopicName)
+                        .BufferedInMemory();
+
+                    // Durable outbox for all sending endpoints
+                    opts.Policies.UseDurableOutboxOnAllSendingEndpoints();
                 }
 
-                // Outras políticas que você queira:
-                /// opts.Policies.AutoApplyTransactions();
+                // --------------------------------------------------
+                // Persist Wolverine messages in Postgres
+                // --------------------------------------------------
+                opts.PersistMessagesWithPostgresql(
+                    PostgresHelper.Build(builder.Configuration).ConnectionString,
+                    "wolverine");
             });
+
+            // Create all messaging resources + Postgres schema at startup
+            builder.Services.AddResourceSetupOnStartup();
 
             return builder;
         }
 
+        // 1) Configure Marten with event sourcing, projections, and Wolverine integration
         private static IServiceCollection AddMartenEventSourcing(this IServiceCollection services)
         {
             services.AddMarten(serviceProvider =>
@@ -188,18 +248,21 @@ namespace TC.CloudGames.Users.Api.Extensions
 
                 var options = new StoreOptions();
                 options.Connection(connProvider.ConnectionString);
-                options.Logger(new ConsoleMartenLogger());
+                options.Logger(new ConsoleMartenLogger()); // optional: log SQL for debugging
 
-                // Event Store configuration
+                // Event Store configuration (events schema)
                 options.Events.DatabaseSchemaName = "events";
-                // Document database configuration  
+
+                // Document store configuration (documents schema)
                 options.DatabaseSchemaName = "documents";
-                // Register UserProjection as a document type so its table is created
+
+                // Register projection documents
                 options.Schema.For<UserProjection>().DatabaseSchemaName("documents");
-                // Register event projections
+
+                // Register inline projections
                 options.Projections.Add<UserProjectionHandler>(ProjectionLifecycle.Inline);
 
-                // Ensure database is created if missing
+                // Auto-create databases/schemas if missing
                 options.CreateDatabasesForTenants(c =>
                 {
                     c.MaintenanceDatabase(connProvider.MaintenanceConnectionString);
@@ -212,9 +275,9 @@ namespace TC.CloudGames.Users.Api.Extensions
 
                 return options;
             })
-            .UseLightweightSessions()
-            .IntegrateWithWolverine()
-            .ApplyAllDatabaseChangesOnStartup();
+            .UseLightweightSessions() // optional, lightweight sessions for better performance
+            .IntegrateWithWolverine() // enables transactional outbox + inbox with Wolverine
+            .ApplyAllDatabaseChangesOnStartup(); // optional, automatically applies schema changes at startup
 
             return services;
         }
@@ -234,7 +297,8 @@ namespace TC.CloudGames.Users.Api.Extensions
 
         public static IServiceCollection ConfigureAppSettings(this IServiceCollection services, IConfiguration configuration)
         {
-            services.Configure<DatabaseSettings>(configuration.GetSection("Database"));
+            services.Configure<RabbitMqOptions>(configuration.GetSection("RabbitMq"));
+            services.Configure<PostgresOptions>(configuration.GetSection("Database"));
             services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
             services.Configure<CacheProviderSettings>(configuration.GetSection("Cache"));
 

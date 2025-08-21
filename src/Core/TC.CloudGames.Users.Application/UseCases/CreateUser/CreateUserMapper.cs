@@ -1,7 +1,4 @@
-﻿using TC.CloudGames.Contracts.Events.Users;
-using static TC.CloudGames.Users.Domain.Aggregates.UserAggregate;
-
-namespace TC.CloudGames.Users.Application.UseCases.CreateUser
+﻿namespace TC.CloudGames.Users.Application.UseCases.CreateUser
 {
     public static class CreateUserMapper
     {
@@ -34,7 +31,7 @@ namespace TC.CloudGames.Users.Application.UseCases.CreateUser
             domainEvent.Name,
             domainEvent.Email.Value,
             domainEvent.Username,
-            domainEvent.Role.ToString(),
+            domainEvent.Role.Value,
             domainEvent.OccurredOn
         );
     }

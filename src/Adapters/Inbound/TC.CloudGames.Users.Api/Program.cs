@@ -4,14 +4,17 @@ using TC.CloudGames.Users.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Load environment variables from .env file
 DotNetEnv.Env.Load(Path.Combine("./", ".env"));
 
+// Configure Serilog as logging provider
 builder.Host.UseCustomSerilog(builder.Configuration);
 
 //***************** ADICIONAR **************************************************/
 //builder.AddCustomLoggingTelemetry()
 //********************************************************************************/
 
+// Register application, infrastructure and API services
 builder.Services.AddUserServices(builder);
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure();
@@ -37,4 +40,5 @@ app.UseAuthentication()
   .UseCustomFastEndpoints()
   .UseCustomMiddlewares();
 
+// Run the application
 await app.RunAsync().ConfigureAwait(false);

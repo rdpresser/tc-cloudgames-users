@@ -1,5 +1,4 @@
-﻿using TC.CloudGames.SharedKernel.Application.Commands;
-using TC.CloudGames.SharedKernel.Infrastructure.Authentication;
+﻿using TC.CloudGames.SharedKernel.Infrastructure.Authentication;
 
 namespace TC.CloudGames.Users.Application.UseCases.LoginUser;
 

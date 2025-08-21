@@ -9,7 +9,6 @@ global using TC.CloudGames.SharedKernel.Application.Commands;
 global using TC.CloudGames.SharedKernel.Application.Ports;
 global using TC.CloudGames.SharedKernel.Application.Queries;
 global using TC.CloudGames.SharedKernel.Extensions;
-global using TC.CloudGames.SharedKernel.Infrastructure.Message;
 global using TC.CloudGames.SharedKernel.Infrastructure.UserClaims;
 global using TC.CloudGames.Users.Application.Abstractions;
 global using TC.CloudGames.Users.Application.Abstractions.Mappers;
