@@ -138,102 +138,90 @@ namespace TC.CloudGames.Users.Api.Extensions
         {
             builder.Host.UseWolverine(opts =>
             {
-                // --------------------------------------------------
-                // Envelope customizer + routing convention
-                // --------------------------------------------------
+                // -------------------------------
+                // Define schema for Wolverine durability and Postgres persistence
+                // -------------------------------
+                const string wolverineSchema = "wolverine";
+                opts.Durability.MessageStorageSchemaName = wolverineSchema;
+
+                // -------------------------------
+                // Envelope customizer and routing convention
+                // -------------------------------
                 opts.Services.AddSingleton<IEnvelopeCustomizer, GenericEventContextEnvelopeCustomizer>();
                 opts.Services.AddSingleton<IMessageRoutingConvention, EventContextRoutingConvention>();
 
-                // --------------------------------------------------
-                // Durable local queues e outbox
-                // --------------------------------------------------
+                // -------------------------------
+                // Enable durable local queues and auto transaction application
+                // -------------------------------
                 opts.Policies.UseDurableLocalQueues();
                 opts.Policies.AutoApplyTransactions();
 
-                // --------------------------------------------------
-                // Load broker configuration
-                // --------------------------------------------------
+                // -------------------------------
+                // Load and configure message broker
+                // -------------------------------
                 var broker = MessageBrokerHelper.Build(builder.Configuration);
 
-                if (broker.Type == BrokerType.RabbitMQ && broker.RabbitMqSettings != null)
+                switch (broker.Type)
                 {
-                    var mq = broker.RabbitMqSettings;
+                    case BrokerType.RabbitMQ when broker.RabbitMqSettings is { } mq:
+                        var rabbitOpts = opts.UseRabbitMq(factory =>
+                        {
+                            factory.Uri = new Uri(mq.ConnectionString);
+                            factory.VirtualHost = mq.VirtualHost;
+                            factory.ClientProperties["application"] = "TC.CloudGames.Users.Api";
+                            factory.ClientProperties["environment"] = builder.Environment.EnvironmentName;
+                        });
 
-                    // Configure RabbitMQ connection
-                    var rabbitOpts = opts.UseRabbitMq(factory =>
-                    {
-                        factory.Uri = new Uri(mq.ConnectionString);
-                        factory.VirtualHost = mq.VirtualHost;
+                        if (mq.AutoProvision) rabbitOpts.AutoProvision();
+                        if (mq.UseQuorumQueues) rabbitOpts.UseQuorumQueues();
+                        if (mq.AutoPurgeOnStartup) rabbitOpts.AutoPurgeOnStartup();
 
-                        // Add client metadata
-                        factory.ClientProperties["application"] = "TC.CloudGames.Users.Api";
-                        factory.ClientProperties["environment"] = builder.Environment.EnvironmentName;
-                    });
+                        // Publish all messages to the configured exchange with durable outbox
+                        opts.PublishAllMessages().ToRabbitExchange(mq.Exchange);
+                        opts.Policies.UseDurableOutboxOnAllSendingEndpoints();
 
-                    if (mq.AutoProvision)
-                        rabbitOpts.AutoProvision(); // call separately
+                        // Register messages
+                        opts.PublishMessage<EventContext<UserCreatedIntegrationEvent, UserAggregate>>()
+                            .ToRabbitExchange(mq.Exchange);
+                        opts.PublishMessage<EventContext<UserUpdatedIntegrationEvent, UserAggregate>>()
+                            .ToRabbitExchange(mq.Exchange);
+                        opts.PublishMessage<EventContext<UserRoleChangedIntegrationEvent, UserAggregate>>()
+                            .ToRabbitExchange(mq.Exchange);
+                        opts.PublishMessage<EventContext<UserActivatedIntegrationEvent, UserAggregate>>()
+                            .ToRabbitExchange(mq.Exchange);
+                        opts.PublishMessage<EventContext<UserDeactivatedIntegrationEvent, UserAggregate>>()
+                            .ToRabbitExchange(mq.Exchange);
+                        break;
 
-                    // Apply feature toggles
-                    if (mq.UseQuorumQueues)
-                        rabbitOpts.UseQuorumQueues(); // call separately
+                    case BrokerType.AzureServiceBus when broker.ServiceBusSettings is { } sb:
+                        var azureOpts = opts.UseAzureServiceBus(sb.ConnectionString);
 
-                    if (mq.AutoPurgeOnStartup)
-                        rabbitOpts.AutoPurgeOnStartup(); // call separately
+                        if (sb.AutoProvision) azureOpts.AutoProvision();
+                        if (sb.AutoPurgeOnStartup) azureOpts.AutoPurgeOnStartup();
+                        if (sb.UseControlQueues) azureOpts.EnableWolverineControlQueues();
 
-                    // Register messages
-                    opts.PublishMessage<EventContext<UserCreatedIntegrationEvent, UserAggregate>>()
-                        .ToRabbitExchange(mq.Exchange);
-                    opts.PublishMessage<EventContext<UserUpdatedIntegrationEvent, UserAggregate>>()
-                        .ToRabbitExchange(mq.Exchange);
-                    opts.PublishMessage<EventContext<UserRoleChangedIntegrationEvent, UserAggregate>>()
-                        .ToRabbitExchange(mq.Exchange);
-                    opts.PublishMessage<EventContext<UserActivatedIntegrationEvent, UserAggregate>>()
-                        .ToRabbitExchange(mq.Exchange);
-                    opts.PublishMessage<EventContext<UserDeactivatedIntegrationEvent, UserAggregate>>()
-                        .ToRabbitExchange(mq.Exchange);
+                        // Publish all messages to a Topic with buffered in-memory delivery and durable outbox
+                        opts.PublishAllMessages()
+                            .ToAzureServiceBusTopic(sb.TopicName)
+                            .BufferedInMemory();
 
-                    // Publish all messages to the configured exchange
-                    opts.PublishAllMessages()
-                        .ToRabbitExchange(mq.Exchange);
-
-                    // Durable outbox for all sending endpoints
-                    opts.Policies.UseDurableOutboxOnAllSendingEndpoints();
-                }
-                else if (broker.Type == BrokerType.AzureServiceBus && broker.ServiceBusSettings != null)
-                {
-                    var sb = broker.ServiceBusSettings;
-
-                    // Configure Azure Service Bus connection
-                    var azureOpts = opts.UseAzureServiceBus(sb.ConnectionString);
-
-                    if (sb.AutoProvision)
-                        azureOpts.AutoProvision();
-
-                    // Apply feature toggles
-                    if (sb.AutoPurgeOnStartup)
-                        azureOpts.AutoPurgeOnStartup();
-
-                    if (sb.UseControlQueues)
-                        azureOpts.EnableWolverineControlQueues();
-
-                    // Publish all messages to a Topic with durable outbox
-                    opts.PublishAllMessages()
-                        .ToAzureServiceBusTopic(sb.TopicName)
-                        .BufferedInMemory();
-
-                    // Durable outbox for all sending endpoints
-                    opts.Policies.UseDurableOutboxOnAllSendingEndpoints();
+                        // Durable outbox for all sending endpoints
+                        opts.Policies.UseDurableOutboxOnAllSendingEndpoints();
+                        break;
                 }
 
-                // --------------------------------------------------
-                // Persist Wolverine messages in Postgres
-                // --------------------------------------------------
+                // -------------------------------
+                // Persist Wolverine messages in Postgres using the same schema
+                // -------------------------------
                 opts.PersistMessagesWithPostgresql(
                     PostgresHelper.Build(builder.Configuration).ConnectionString,
-                    "wolverine");
+                    wolverineSchema
+                );
             });
 
-            // Create all messaging resources + Postgres schema at startup
+            // -------------------------------
+            // Ensure all messaging resources and schema are created at startup
+            // -------------------------------
             builder.Services.AddResourceSetupOnStartup();
 
             return builder;

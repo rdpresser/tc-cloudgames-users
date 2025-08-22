@@ -1,3 +1,5 @@
+using TC.CloudGames.SharedKernel.Application.Handlers;
+
 namespace TC.CloudGames.Users.Unit.Tests.Api.Endpoints.User
 {
     public class GetUserByEmailEndpointTests(App App) : TestBase<App>

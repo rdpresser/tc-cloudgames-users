@@ -1,4 +1,5 @@
-﻿using TC.CloudGames.SharedKernel.Domain.Events;
+﻿using TC.CloudGames.SharedKernel.Application.Handlers;
+using TC.CloudGames.SharedKernel.Domain.Events;
 using Wolverine.Marten;
 
 namespace TC.CloudGames.Users.Application.UseCases.CreateUser
@@ -20,47 +21,94 @@ namespace TC.CloudGames.Users.Application.UseCases.CreateUser
             _logger = logger ?? throw new ArgumentNullException(nameof(logger), "Logger cannot be null");
         }
 
-        public override async Task<Result<CreateUserResponse>> ExecuteAsync(
-            CreateUserCommand command,
-            CancellationToken ct = default)
+        /// <summary>
+        /// Maps the command to the aggregate.
+        /// </summary>
+        protected override Task<Result<UserAggregate>> MapCommandToAggregateAsync(CreateUserCommand command)
         {
-            // Step 1: Map command to aggregate
             var aggregateResult = CreateUserMapper.ToAggregate(command);
             if (!aggregateResult.IsSuccess)
             {
                 AddErrors(aggregateResult.ValidationErrors);
-                return Result.Invalid(aggregateResult.ValidationErrors);
+                return Task.FromResult(Result<UserAggregate>.Invalid(aggregateResult.ValidationErrors));
             }
-            var aggregate = aggregateResult.Value;
 
-            // Step 2: Take snapshot of uncommitted events
-            var uncommittedEvents = aggregate.UncommittedEvents?.ToArray() ?? Array.Empty<BaseDomainEvent>();
+            return Task.FromResult(Result<UserAggregate>.Success(aggregateResult.Value));
+        }
 
-            // Step 3: Map domain events to integration events
+        /// <summary>
+        /// Validates the aggregate.
+        /// Example: cross-entity checks, uniqueness rules, or custom domain invariants.
+        /// </summary>
+        protected override Task<Result> ValidateAggregateAsync(UserAggregate aggregate)
+        {
+            // For now, no extra validation beyond the aggregate factory
+            // Validate Email/Username uniqueness here if needed (Future enhancement)
+            return Task.FromResult(Result.Success());
+        }
+
+        /// <summary>
+        /// Publishes integration events through Wolverine Outbox.
+        /// Maps domain events -> integration events and wraps them in EventContext.
+        /// </summary>
+        protected override async Task PublishIntegrationEventsAsync(UserAggregate aggregate)
+        {
             var mappings = new Dictionary<Type, Func<BaseDomainEvent, UserCreatedIntegrationEvent>>
             {
                 { typeof(UserCreatedDomainEvent), e => CreateUserMapper.ToIntegrationEvent((UserCreatedDomainEvent)e) }
             };
 
-            var integrationEvents = uncommittedEvents
-                .MapToIntegrationEvents(aggregate, UserContext, nameof(CreateUserCommandHandler), mappings);
+            var integrationEvents = aggregate.UncommittedEvents
+                .MapToIntegrationEvents(
+                    aggregate: aggregate, // vamos resolver esse ponto já já
+                    userContext: UserContext,
+                    handlerName: nameof(CreateUserCommandHandler),
+                    mappings: mappings
+                );
 
-            // Step 4: Persist aggregate events (event sourcing)
-            await Repository.SaveAsync(aggregate, ct).ConfigureAwait(false);
-
-            // Step 5: Publish integration events in Marten outbox
             foreach (var evt in integrationEvents)
             {
-                _logger.LogDebug("Queueing integration event for user {UserId} in Marten outbox", evt.AggregateId);
+                _logger.LogDebug(
+                    "Queueing integration event {EventType} for user {UserId} in Marten outbox",
+                    evt.EventData.GetType().Name,
+                    evt.AggregateId);
+
                 await _outbox.PublishAsync(evt).ConfigureAwait(false);
             }
+        }
 
-            // Step 6: Commit Marten session (sends messages in the same transaction)
-            await Repository.CommitAsync(aggregate, ct).ConfigureAwait(false);
+        /// <summary>
+        /// Main command execution.
+        /// Uses the base template (map → validate → save → publish → commit).
+        /// </summary>
+        public override async Task<Result<CreateUserResponse>> ExecuteAsync(
+            CreateUserCommand command,
+            CancellationToken ct = default)
+        {
+            // 1. Map command -> aggregate
+            var mapResult = await MapCommandToAggregateAsync(command);
+            if (!mapResult.IsSuccess)
+                return Result<CreateUserResponse>.Invalid(mapResult.ValidationErrors);
 
-            _logger.LogInformation("User {UserId} created successfully and integration events committed", aggregate.Id);
+            var aggregate = mapResult.Value;
 
-            // Step 7: Return response
+            // 2. Validate aggregate (optional custom rules)
+            var validationResult = await ValidateAggregateAsync(aggregate);
+            if (!validationResult.IsSuccess)
+                return Result<CreateUserResponse>.Invalid(validationResult.ValidationErrors);
+
+            // 3. Persist aggregate events (event sourcing)
+            await Repository.SaveAsync(aggregate, ct);
+
+            // 4. Publish integration events via outbox
+            await PublishIntegrationEventsAsync(aggregate);
+
+            // 5. Commit session (persist + flush outbox atomically)
+            await Repository.CommitAsync(aggregate, ct);
+
+            _logger.LogInformation("User {UserId} created successfully and events committed", aggregate.Id);
+
+            // 6. Map response
             return CreateUserMapper.FromAggregate(aggregate);
         }
     }

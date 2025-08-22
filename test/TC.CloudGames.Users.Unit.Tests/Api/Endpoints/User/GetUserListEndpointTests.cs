@@ -1,3 +1,4 @@
+using TC.CloudGames.SharedKernel.Application.Handlers;
 using TC.CloudGames.Users.Application.UseCases.GetUserList;
 
 namespace TC.CloudGames.Users.Unit.Tests.Api.Endpoints.User

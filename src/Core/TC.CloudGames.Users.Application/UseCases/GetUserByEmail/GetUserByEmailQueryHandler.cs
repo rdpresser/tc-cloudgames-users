@@ -1,4 +1,6 @@
-﻿namespace TC.CloudGames.Users.Application.UseCases.GetUserByEmail
+﻿using TC.CloudGames.SharedKernel.Application.Handlers;
+
+namespace TC.CloudGames.Users.Application.UseCases.GetUserByEmail
 {
     internal sealed class GetUserByEmailQueryHandler : BaseQueryHandler<GetUserByEmailQuery, UserByEmailResponse>
     {
@@ -19,7 +21,7 @@
                 && !_userContext.Email.Equals(command.Email, StringComparison.InvariantCultureIgnoreCase))
             {
                 AddError(x => x.Email, "You are not authorized to access this user.", $"{nameof(GetUserByEmailQuery.Email)}.NotAuthorized");
-                return ValidationErrorNotAuthorized();
+                return BuildNotAuthorizedResult();
             }
 
             userResponse = await _userRepository
@@ -30,7 +32,7 @@
                 return userResponse;
 
             AddError(x => x.Email, $"User with email '{command.Email}' not found.", UserDomainErrors.NotFound.ErrorCode);
-            return ValidationErrorNotFound();
+            return BuildNotFoundResult();
         }
     }
 }

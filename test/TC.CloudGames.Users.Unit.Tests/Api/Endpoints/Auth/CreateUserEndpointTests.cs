@@ -1,3 +1,5 @@
+using TC.CloudGames.SharedKernel.Application.Handlers;
+
 namespace TC.CloudGames.Users.Unit.Tests.Api.Endpoints.Auth
 {
     public class CreateUserEndpointTests() : TestBase<App>
