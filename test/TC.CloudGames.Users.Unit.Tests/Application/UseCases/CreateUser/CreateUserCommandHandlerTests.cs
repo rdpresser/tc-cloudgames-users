@@ -1,4 +1,4 @@
-using Wolverine;
+using Wolverine.Marten;
 
 namespace TC.CloudGames.Users.Unit.Tests.Application.UseCases.CreateUser;
 
@@ -9,10 +9,10 @@ public class CreateUserCommandHandlerTests : TestBase<App>
     {
         // Arrange
         var repo = A.Fake<IUserRepository>();
-        var bus = A.Fake<IMessageBus>();
+        var outbox = A.Fake<IMartenOutbox>();
         var logger = A.Fake<ILogger<CreateUserCommandHandler>>();
         var userContext = A.Fake<IUserContext>();
-        
+
         // Setup user context
         A.CallTo(() => userContext.Id).Returns(Guid.NewGuid());
         A.CallTo(() => userContext.Name).Returns("Test User");
@@ -22,7 +22,7 @@ public class CreateUserCommandHandlerTests : TestBase<App>
         A.CallTo(() => userContext.IsAuthenticated).Returns(true);
 
         var command = new CreateUserCommand("Test User", "test@example.com", "testuser", "TestPassword123!", "User");
-        var handler = new CreateUserCommandHandler(repo, userContext, bus, logger);
+        var handler = new CreateUserCommandHandler(repo, userContext, outbox, logger);
 
         // Act
         var result = await handler.ExecuteAsync(command, CancellationToken.None);
@@ -51,10 +51,10 @@ public class CreateUserCommandHandlerTests : TestBase<App>
     {
         // Arrange
         var repo = A.Fake<IUserRepository>();
-        var bus = A.Fake<IMessageBus>();
+        var outbox = A.Fake<IMartenOutbox>();
         var logger = A.Fake<ILogger<CreateUserCommandHandler>>();
         var userContext = A.Fake<IUserContext>();
-        
+
         // Setup user context
         A.CallTo(() => userContext.Id).Returns(Guid.NewGuid());
         A.CallTo(() => userContext.Name).Returns("Test User");
@@ -64,7 +64,7 @@ public class CreateUserCommandHandlerTests : TestBase<App>
         A.CallTo(() => userContext.IsAuthenticated).Returns(true);
 
         var command = new CreateUserCommand(name, email, username, password, role);
-        var handler = new CreateUserCommandHandler(repo, userContext, bus, logger);
+        var handler = new CreateUserCommandHandler(repo, userContext, outbox, logger);
 
         // Act
         var result = await handler.ExecuteAsync(command, CancellationToken.None);
@@ -76,6 +76,6 @@ public class CreateUserCommandHandlerTests : TestBase<App>
 
         // Verify no persistence happened for invalid commands
         A.CallTo(repo).Where(call => call.Method.Name == "PersistAsync").MustNotHaveHappened();
-        A.CallTo(bus).Where(call => call.Method.Name == "PublishAsync").MustNotHaveHappened();
+        A.CallTo(outbox).Where(call => call.Method.Name == "PublishAsync").MustNotHaveHappened();
     }
 }
