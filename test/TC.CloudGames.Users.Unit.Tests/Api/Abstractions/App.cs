@@ -59,38 +59,18 @@ public class App : AppFixture<Users.Api.Program>
         s.RemoveAll<IUserRepository>();
         s.AddSingleton<IUserRepository, Fakes.FakeUserRepository>();
 
-        // Decouple UserContext and HttpContextAccessor from the service provider during creation
-        var fakeCorrelationIdGenerator = A.Fake<ICorrelationIdGenerator>();
-        
+        // Register fake CorrelationIdGenerator
         s.RemoveAll<ICorrelationIdGenerator>();
-        s.AddSingleton(fakeCorrelationIdGenerator);
+        s.AddSingleton(A.Fake<ICorrelationIdGenerator>());
 
-        s.RemoveAll<IUserContext>();
-        s.AddSingleton<IUserContext>(sp =>
-        {
-            var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
-            return new UserContext(httpContextAccessor, fakeCorrelationIdGenerator);
-        });
+        // Register Keyed Services for different user roles
+        s.AddKeyedTransient($"{nameof(ValidUserContextAccessor)}.{AppConstants.AdminRole}", (sp, key) => ValidUserContextAccessor(sp, AppConstants.AdminRole));
+        s.AddKeyedTransient($"{nameof(ValidUserContextAccessor)}.{AppConstants.UserRole}", (sp, key) => ValidUserContextAccessor(sp, AppConstants.UserRole));
+        s.AddKeyedTransient($"{nameof(ValidUserContextAccessor)}.{AppConstants.UnknownRole}", (sp, key) => ValidUserContextAccessor(sp, AppConstants.UnknownRole));
 
-        s.RemoveAll<IHttpContextAccessor>();
-        s.AddSingleton<IHttpContextAccessor>(sp =>
-        {
-            var identity = new ClaimsIdentity(new[]
-            {
-                new Claim(JwtRegisteredClaimNames.Sub, Guid.NewGuid().ToString()),
-                new Claim(JwtRegisteredClaimNames.Name, "Admin User"),
-                new Claim(JwtRegisteredClaimNames.Email, "admin@admin.com"),
-                new Claim(JwtRegisteredClaimNames.UniqueName, "adminuser"),
-                new Claim("role", "Admin")
-            }, "TestAuthType");
-            var claimsPrincipal = new ClaimsPrincipal(identity);
-            var httpContext = new DefaultHttpContext
-            {
-                User = claimsPrincipal,
-                RequestServices = sp
-            };
-            return new HttpContextAccessor { HttpContext = httpContext };
-        });
+        s.AddKeyedTransient($"{nameof(ValidLoggedUser)}.{AppConstants.AdminRole}", (sp, key) => ValidLoggedUser(sp, AppConstants.AdminRole));
+        s.AddKeyedTransient($"{nameof(ValidLoggedUser)}.{AppConstants.UserRole}", (sp, key) => ValidLoggedUser(sp, AppConstants.UserRole));
+        s.AddKeyedTransient($"{nameof(ValidLoggedUser)}.{AppConstants.UnknownRole}", (sp, key) => ValidLoggedUser(sp, AppConstants.UnknownRole));
 
         // Mock IConnectionStringProvider to prevent real DB calls
         s.RemoveAll<IConnectionStringProvider>();
@@ -105,37 +85,67 @@ public class App : AppFixture<Users.Api.Program>
         s.AddSingleton(sp => A.Fake<ILogger<CreateUserCommandHandler>>());
     }
 
-    protected IFusionCache GetCache() => Services.GetRequiredService<IFusionCache>();
-
-    public IHttpContextAccessor GetValidUserContextAccessor(string userRole = "Admin")
+    protected static IReadOnlyList<Claim> GetClaimsForRole(string userRole)
     {
-        var identity = new ClaimsIdentity(new[]
+        var userId = Guid.NewGuid().ToString();
+        return userRole switch
         {
-            new Claim(JwtRegisteredClaimNames.Sub, Guid.NewGuid().ToString()),
-            new Claim(JwtRegisteredClaimNames.Name, userRole == "Admin" ? "Admin User" : "Regular User"),
-            new Claim(JwtRegisteredClaimNames.Email, userRole == "Admin" ? "admin@admin.com" : "user@user.com"),
-            new Claim(JwtRegisteredClaimNames.UniqueName, userRole == "Admin" ? "adminuser" : "regularuser"),
-            new Claim("role", userRole)
-        }, "TestAuthType");
-        var claimsPrincipal = new ClaimsPrincipal(identity);
-        var httpContextAccessor = new HttpContextAccessor
-        {
-            HttpContext = new DefaultHttpContext
-            {
-                User = claimsPrincipal,
-                // RequestServices is the key part. We avoid setting it here.
-                // The test server will set it on the HttpContext when a request is processed.
-            }
+            AppConstants.AdminRole =>
+            [
+                new(JwtRegisteredClaimNames.Sub, userId),
+                new(JwtRegisteredClaimNames.Name, "Admin User"),
+                new(JwtRegisteredClaimNames.Email, "admin@admin.com"),
+                new(JwtRegisteredClaimNames.UniqueName, "adminuser"),
+                new("role", AppConstants.AdminRole)
+            ],
+            AppConstants.UserRole =>
+            [
+                new(JwtRegisteredClaimNames.Sub, userId),
+                new(JwtRegisteredClaimNames.Name, "Regular User"),
+                new(JwtRegisteredClaimNames.Email, "user@user.com"),
+                new(JwtRegisteredClaimNames.UniqueName, "regularuser"),
+                new("role", AppConstants.UserRole)
+            ],
+            _ =>
+            [
+                new(JwtRegisteredClaimNames.Sub, Guid.Empty.ToString()),
+                new(JwtRegisteredClaimNames.Name, "Unknown User"),
+                new(JwtRegisteredClaimNames.Email, "unknown@test.com"),
+                new(JwtRegisteredClaimNames.UniqueName, "unknownuser"),
+                new("role", AppConstants.UnknownRole)
+            ]
         };
-        return httpContextAccessor;
     }
 
-    public IUserContext GetValidLoggedUser(string userRole = "Admin")
+    protected static IHttpContextAccessor ValidUserContextAccessor(IServiceProvider sp, string userRole)
     {
-        // This method is now simplified and can be called outside of DI resolution
-        var httpContextAccessor = GetValidUserContextAccessor(userRole);
-        var correlationId = A.Fake<ICorrelationIdGenerator>(); // Use a fake directly
-        return new UserContext(httpContextAccessor, correlationId);
+        var identity = new ClaimsIdentity(GetClaimsForRole(userRole), "TestAuthType");
+        var claimsPrincipal = new ClaimsPrincipal(identity);
+        var httpContext = new DefaultHttpContext
+        {
+            User = claimsPrincipal,
+            RequestServices = sp
+        };
+        return new HttpContextAccessor { HttpContext = httpContext };
+    }
+
+    protected static IUserContext ValidLoggedUser(IServiceProvider sp, string userRole)
+    {
+        var httpContextAccessor = sp.GetRequiredKeyedService<IHttpContextAccessor>($"{nameof(ValidUserContextAccessor)}.{userRole}");
+        var correlationIdGenerator = sp.GetRequiredService<ICorrelationIdGenerator>();
+        return new UserContext(httpContextAccessor, correlationIdGenerator);
+    }
+
+    internal IFusionCache GetCache() => Services.GetRequiredService<IFusionCache>();
+
+    internal IHttpContextAccessor GetValidUserContextAccessor(string userRole = AppConstants.AdminRole)
+    {
+        return Services.GetRequiredKeyedService<IHttpContextAccessor>($"{nameof(ValidUserContextAccessor)}.{userRole}");
+    }
+
+    internal IUserContext GetValidLoggedUser(string userRole = AppConstants.AdminRole)
+    {
+        return Services.GetRequiredKeyedService<IUserContext>($"{nameof(ValidLoggedUser)}.{userRole}");
     }
 
     public static IEnumerable<(string Identifier, int Count, IEnumerable<string> ErrorCodes)> GroupValidationErrorsByIdentifier(IEnumerable<ValidationError> errors)
