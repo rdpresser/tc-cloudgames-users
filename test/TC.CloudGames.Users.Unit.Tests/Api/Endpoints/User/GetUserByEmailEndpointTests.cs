@@ -1,9 +1,3 @@
-using Xunit;
-using Shouldly;
-using FakeItEasy;
-using TC.CloudGames.Users.Api.Endpoints.User;
-using TC.CloudGames.Users.Application.UseCases.GetUserByEmail;
-using TC.CloudGames.Users.Unit.Tests.Api.Abstractions;
 using TC.CloudGames.SharedKernel.Application.Handlers;
 
 namespace TC.CloudGames.Users.Unit.Tests.Api.Endpoints.User
@@ -65,6 +59,7 @@ namespace TC.CloudGames.Users.Unit.Tests.Api.Endpoints.User
 
             // Act
             await ep.HandleAsync(getUserReq, CancellationToken.None);
+            await ep.OnBeforeHandleAsync(getUserReq, CancellationToken.None);
 
             // Assert - Not found should result in default/empty response
             ep.Response.Id.ShouldBe(Guid.Empty);
@@ -97,6 +92,7 @@ namespace TC.CloudGames.Users.Unit.Tests.Api.Endpoints.User
 
             // Act
             await ep.HandleAsync(getUserReq, CancellationToken.None);
+            await ep.OnBeforeHandleAsync(getUserReq, CancellationToken.None);
 
             // Assert - Validation error should result in default/empty response
             ep.Response.Id.ShouldBe(Guid.Empty);
@@ -124,6 +120,7 @@ namespace TC.CloudGames.Users.Unit.Tests.Api.Endpoints.User
 
             // Act
             await ep.HandleAsync(getUserReq, CancellationToken.None);
+            await ep.OnBeforeHandleAsync(getUserReq, CancellationToken.None);
 
             // Assert - Unauthorized should result in default/empty response
             ep.Response.Id.ShouldBe(Guid.Empty);
