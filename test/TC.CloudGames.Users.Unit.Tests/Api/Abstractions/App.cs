@@ -1,5 +1,6 @@
 using TC.CloudGames.SharedKernel.Infrastructure.Database;
 using TC.CloudGames.SharedKernel.Infrastructure.Middleware;
+using Wolverine.Marten;
 
 namespace TC.CloudGames.Users.Unit.Tests.Api.Abstractions;
 
@@ -53,7 +54,7 @@ public class App : AppFixture<Users.Api.Program>
 
         // Register fake repository
         s.RemoveAll<IUserRepository>();
-        s.AddSingleton(sp => A.Fake<IUserRepository>());
+        s.AddSingleton<IUserRepository, Fakes.FakeUserRepository>();
 
         s.RemoveAll<ICorrelationIdGenerator>();
         s.AddSingleton(sp => A.Fake<ICorrelationIdGenerator>());
@@ -67,6 +68,14 @@ public class App : AppFixture<Users.Api.Program>
         // Mock IConnectionStringProvider to prevent real DB calls
         s.RemoveAll<IConnectionStringProvider>();
         s.AddSingleton(sp => A.Fake<IConnectionStringProvider>());
+
+        // Add missing mocks for handlers/services
+        s.RemoveAll<ITokenProvider>();
+        s.AddSingleton(sp => A.Fake<ITokenProvider>());
+        s.RemoveAll<IMartenOutbox>();
+        s.AddSingleton(sp => A.Fake<IMartenOutbox>());
+        s.RemoveAll<ILogger<CreateUserCommandHandler>>();
+        s.AddSingleton(sp => A.Fake<ILogger<CreateUserCommandHandler>>());
 
         s.AddFusionCache()
             .WithDefaultEntryOptions(options =>
