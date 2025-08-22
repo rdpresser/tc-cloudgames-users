@@ -52,18 +52,45 @@ public class App : AppFixture<Users.Api.Program>
         s.RemoveAll<ICacheService>();
         s.AddSingleton(sp => A.Fake<ICacheService>());
 
+        s.RemoveAll<IFusionCache>();
+        s.AddSingleton(sp => A.Fake<IFusionCache>());
+
         // Register fake repository
         s.RemoveAll<IUserRepository>();
         s.AddSingleton<IUserRepository, Fakes.FakeUserRepository>();
 
+        // Decouple UserContext and HttpContextAccessor from the service provider during creation
+        var fakeCorrelationIdGenerator = A.Fake<ICorrelationIdGenerator>();
+        
         s.RemoveAll<ICorrelationIdGenerator>();
-        s.AddSingleton(sp => A.Fake<ICorrelationIdGenerator>());
+        s.AddSingleton(fakeCorrelationIdGenerator);
 
         s.RemoveAll<IUserContext>();
-        s.AddSingleton(sp => GetValidLoggedUser());
+        s.AddSingleton<IUserContext>(sp =>
+        {
+            var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
+            return new UserContext(httpContextAccessor, fakeCorrelationIdGenerator);
+        });
 
         s.RemoveAll<IHttpContextAccessor>();
-        s.AddSingleton(sp => GetValidUserContextAccessor());
+        s.AddSingleton<IHttpContextAccessor>(sp =>
+        {
+            var identity = new ClaimsIdentity(new[]
+            {
+                new Claim(JwtRegisteredClaimNames.Sub, Guid.NewGuid().ToString()),
+                new Claim(JwtRegisteredClaimNames.Name, "Admin User"),
+                new Claim(JwtRegisteredClaimNames.Email, "admin@admin.com"),
+                new Claim(JwtRegisteredClaimNames.UniqueName, "adminuser"),
+                new Claim("role", "Admin")
+            }, "TestAuthType");
+            var claimsPrincipal = new ClaimsPrincipal(identity);
+            var httpContext = new DefaultHttpContext
+            {
+                User = claimsPrincipal,
+                RequestServices = sp
+            };
+            return new HttpContextAccessor { HttpContext = httpContext };
+        });
 
         // Mock IConnectionStringProvider to prevent real DB calls
         s.RemoveAll<IConnectionStringProvider>();
@@ -76,13 +103,6 @@ public class App : AppFixture<Users.Api.Program>
         s.AddSingleton(sp => A.Fake<IMartenOutbox>());
         s.RemoveAll<ILogger<CreateUserCommandHandler>>();
         s.AddSingleton(sp => A.Fake<ILogger<CreateUserCommandHandler>>());
-
-        s.AddFusionCache()
-            .WithDefaultEntryOptions(options =>
-            {
-                options.Duration = TimeSpan.FromSeconds(20);
-                options.DistributedCacheDuration = TimeSpan.FromSeconds(30);
-            });
     }
 
     protected IFusionCache GetCache() => Services.GetRequiredService<IFusionCache>();
@@ -98,20 +118,23 @@ public class App : AppFixture<Users.Api.Program>
             new Claim("role", userRole)
         }, "TestAuthType");
         var claimsPrincipal = new ClaimsPrincipal(identity);
-        var httpContextAccessor = new HttpContextAccessor();
-        var httpContext = new DefaultHttpContext
+        var httpContextAccessor = new HttpContextAccessor
         {
-            User = claimsPrincipal,
-            RequestServices = Services
+            HttpContext = new DefaultHttpContext
+            {
+                User = claimsPrincipal,
+                // RequestServices is the key part. We avoid setting it here.
+                // The test server will set it on the HttpContext when a request is processed.
+            }
         };
-        httpContextAccessor.HttpContext = httpContext;
         return httpContextAccessor;
     }
 
     public IUserContext GetValidLoggedUser(string userRole = "Admin")
     {
+        // This method is now simplified and can be called outside of DI resolution
         var httpContextAccessor = GetValidUserContextAccessor(userRole);
-        var correlationId = Services.GetRequiredService<ICorrelationIdGenerator>();
+        var correlationId = A.Fake<ICorrelationIdGenerator>(); // Use a fake directly
         return new UserContext(httpContextAccessor, correlationId);
     }
 
