@@ -2,12 +2,14 @@ using Wolverine.Marten;
 
 namespace TC.CloudGames.Users.Unit.Tests.Application.UseCases.CreateUser;
 
-public class CreateUserCommandHandlerTests : TestBase<App>
+public class CreateUserCommandHandlerTests : BaseTest
 {
     [Fact]
     public async Task ExecuteAsync_WithValidCommand_ShouldReturnSuccessResponse()
     {
         // Arrange
+        Factory.RegisterTestServices(_ => { });
+        
         var repo = A.Fake<IUserRepository>();
         var outbox = A.Fake<IMartenOutbox>();
         var logger = A.Fake<ILogger<CreateUserCommandHandler>>();
@@ -35,8 +37,10 @@ public class CreateUserCommandHandlerTests : TestBase<App>
         result.Value.Username.ShouldBe(command.Username);
         result.Value.Role.ShouldBe(command.Role);
 
-        // Verify interactions using Any<T>() instead of A<T>.Ignored
-        A.CallTo(() => repo.PersistAsync(A<UserAggregate>.That.IsNotNull(), A<CancellationToken>.That.IsEqualTo(CancellationToken.None)))
+        // Verify interactions - handler calls SaveAsync and CommitAsync
+        A.CallTo(() => repo.SaveAsync(A<UserAggregate>.That.IsNotNull(), A<CancellationToken>.That.IsEqualTo(CancellationToken.None)))
+            .MustHaveHappenedOnceExactly();
+        A.CallTo(() => repo.CommitAsync(A<UserAggregate>.That.IsNotNull(), A<CancellationToken>.That.IsEqualTo(CancellationToken.None)))
             .MustHaveHappenedOnceExactly();
     }
 
@@ -50,6 +54,8 @@ public class CreateUserCommandHandlerTests : TestBase<App>
         string name, string email, string username, string password, string role, string expectedErrorPrefix)
     {
         // Arrange
+        Factory.RegisterTestServices(_ => { });
+        
         var repo = A.Fake<IUserRepository>();
         var outbox = A.Fake<IMartenOutbox>();
         var logger = A.Fake<ILogger<CreateUserCommandHandler>>();
@@ -75,7 +81,8 @@ public class CreateUserCommandHandlerTests : TestBase<App>
         result.ValidationErrors.Any(e => e.Identifier.StartsWith(expectedErrorPrefix)).ShouldBeTrue();
 
         // Verify no persistence happened for invalid commands
-        A.CallTo(repo).Where(call => call.Method.Name == "PersistAsync").MustNotHaveHappened();
+        A.CallTo(repo).Where(call => call.Method.Name == "SaveAsync").MustNotHaveHappened();
+        A.CallTo(repo).Where(call => call.Method.Name == "CommitAsync").MustNotHaveHappened();
         A.CallTo(outbox).Where(call => call.Method.Name == "PublishAsync").MustNotHaveHappened();
     }
 }
