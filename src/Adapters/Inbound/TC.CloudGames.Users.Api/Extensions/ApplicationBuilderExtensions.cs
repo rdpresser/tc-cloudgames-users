@@ -71,6 +71,17 @@ namespace TC.CloudGames.Users.Api.Extensions
                 {
                     Predicate = _ => true,
                     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+                })
+                .UseHealthChecks("/ready", new HealthCheckOptions
+                {
+                    Predicate = check => check.Tags.Contains("ready"),
+                    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+                })
+                .UseHealthChecks("/live", new HealthCheckOptions
+                {
+                    Predicate = check => check.Tags.Contains("live"),
+
+                    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
                 });
 
             // Add Prometheus metrics endpoint

@@ -45,33 +45,33 @@ namespace TC.CloudGames.Users.Api.Extensions
         public static IServiceCollection AddCustomHealthCheck(this IServiceCollection services)
         {
             services.AddHealthChecks()
-                    .AddNpgSql(sp =>
-                    {
-                        var connectionProvider = sp.GetRequiredService<IConnectionStringProvider>();
-                        return connectionProvider.ConnectionString;
-                    },
-                        name: "PostgreSQL",
-                        failureStatus: HealthStatus.Unhealthy,
-                        tags: ["db", "sql", "postgres"])
-                    .AddTypeActivatedCheck<RedisHealthCheck>("Redis",
-                        failureStatus: HealthStatus.Unhealthy,
-                        tags: ["cache", "redis"])
-                    .AddCheck("Memory", () =>
-                    {
-                        var allocated = GC.GetTotalMemory(false);
-                        var mb = allocated / 1024 / 1024;
+                .AddNpgSql(sp =>
+                {
+                    var connectionProvider = sp.GetRequiredService<IConnectionStringProvider>();
+                    return connectionProvider.ConnectionString;
+                },
+                    name: "PostgreSQL",
+                    failureStatus: HealthStatus.Unhealthy,
+                    tags: ["db", "sql", "postgres", "live", "ready"])
+                .AddTypeActivatedCheck<RedisHealthCheck>("Redis",
+                    failureStatus: HealthStatus.Unhealthy,
+                    tags: ["cache", "redis", "live", "ready"])
+                .AddCheck("Memory", () =>
+                {
+                    var allocated = GC.GetTotalMemory(false);
+                    var mb = allocated / 1024 / 1024;
 
-                        return mb < 1024
-                        ? HealthCheckResult.Healthy($"Memory usage: {mb} MB")
-                        : HealthCheckResult.Degraded($"High memory usage: {mb} MB");
-                    },
-                        tags: ["memory", "system"])
-                    .AddCheck("Custom-Metrics", () =>
-                    {
-                        // Add any custom health logic for your metrics system
-                        return HealthCheckResult.Healthy("Custom metrics are functioning");
-                    },
-                        tags: ["metrics", "telemetry"]);
+                    return mb < 1024
+                    ? HealthCheckResult.Healthy($"Memory usage: {mb} MB")
+                    : HealthCheckResult.Degraded($"High memory usage: {mb} MB");
+                },
+                    tags: ["memory", "system", "live"])
+                .AddCheck("Custom-Metrics", () =>
+                {
+                    // Add any custom health logic for your metrics system
+                    return HealthCheckResult.Healthy("Custom metrics are functioning");
+                },
+                    tags: ["metrics", "telemetry", "live"]);
 
             return services;
         }
