@@ -1,4 +1,6 @@
-﻿namespace TC.CloudGames.Users.Api.Extensions
+﻿using TC.CloudGames.SharedKernel.Infrastructure.Database.Initializer;
+
+namespace TC.CloudGames.Users.Api.Extensions
 {
     [ExcludeFromCodeCoverage]
     internal static class ApplicationBuilderExtensions
