@@ -1,9 +1,10 @@
-using TC.CloudGames.SharedKernel.Infrastructure.Database.Initializer;
 using TC.CloudGames.Users.Api.Extensions;
 using TC.CloudGames.Users.Application;
 using TC.CloudGames.Users.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.AddServiceDefaults();
 
 // Load environment variables from .env file
 DotNetEnv.Env.Load(Path.Combine("./", ".env"));
@@ -22,18 +23,35 @@ builder.Services.AddInfrastructure();
 
 if (!builder.Environment.IsEnvironment("Testing"))
 {
-    builder.Services.AddScoped<IMessageDatabaseInitializer, MessageDatabaseInitializer>();
+    ////builder.Services.AddScoped<IMessageDatabaseInitializer, MessageDatabaseInitializer>();
 }
 
 var app = builder.Build();
 
-// Executa inicializaÁ„o do banco, se n„o estiver em ambiente de teste
+////app.MapDefaultEndpoints();
+
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    await app.CreateMessageDatabase().ConfigureAwait(false);
+}
+
+// Executa inicializa√ß√£o do banco, se n√£o estiver em ambiente de teste
 if (!builder.Environment.IsEnvironment("Testing"))
 {
     using (var scope = app.Services.CreateScope())
     {
-        var initializer = scope.ServiceProvider.GetRequiredService<IMessageDatabaseInitializer>();
-        await initializer.CreateAsync(default).ConfigureAwait(false);
+        ////string? usersDbConnStr = $"{builder.Configuration.GetConnectionString("UsersDbConnection")};Timeout=30;CommandTimeout=30";
+        ////string? maintenanceDbConnStr = $"{builder.Configuration.GetConnectionString("MaintenanceDbConnection")};Timeout=30;CommandTimeout=30";
+        ////string? mqConnStr = builder.Configuration.GetConnectionString("TC-CloudGames-RabbitMq-Host");
+        ////string? cacheConnStr = builder.Configuration.GetConnectionString("TC-CloudGames-Redis-Host");
+
+        ////Console.WriteLine(usersDbConnStr);
+        ////Console.WriteLine(maintenanceDbConnStr);
+        ////Console.WriteLine(mqConnStr);
+        ////Console.WriteLine(cacheConnStr);
+
+        ////var initializer = scope.ServiceProvider.GetRequiredService<IMessageDatabaseInitializer>();
+        ////await initializer.CreateAsync(default).ConfigureAwait(false);
     }
 }
 

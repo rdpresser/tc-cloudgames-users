@@ -7,11 +7,11 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
-    <PackageReference Include="Marten" Version="8.8.2" />
+    <PackageReference Include="Marten" Version="8.9.0" />
     <PackageReference Include="FastEndpoints.Swagger" Version="7.0.1" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.8" />
     <PackageReference Include="Polly" Version="8.6.3" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.3" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.4" />
     <PackageReference Include="Weasel.Core" Version="8.1.1" />
     <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
     <PackageReference Include="Serilog.Enrichers.Sensitive" Version="2.1.0" />
@@ -28,6 +28,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\..\orchestration\apphost\src\TC.CloudGames.AppHost.Aspire.ServiceDefaults\TC.CloudGames.AppHost.Aspire.ServiceDefaults.csproj" />
     <ProjectReference Include="..\..\..\Core\TC.CloudGames.Users.Application\TC.CloudGames.Users.Application.csproj" />
     <ProjectReference Include="..\..\Outbound\TC.CloudGames.Users.Infrastructure\TC.CloudGames.Users.Infrastructure.csproj" />
   </ItemGroup>

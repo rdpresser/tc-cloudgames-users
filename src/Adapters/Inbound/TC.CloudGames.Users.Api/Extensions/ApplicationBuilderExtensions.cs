@@ -80,7 +80,6 @@ namespace TC.CloudGames.Users.Api.Extensions
                 .UseHealthChecks("/live", new HealthCheckOptions
                 {
                     Predicate = check => check.Tags.Contains("live"),
-
                     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
                 });
 
