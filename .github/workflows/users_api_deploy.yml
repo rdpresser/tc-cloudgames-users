@@ -59,6 +59,13 @@ jobs:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
 
+      - name: 📥 Checkout shared common repository
+        uses: actions/checkout@v4
+        with:
+          repository: rdpresser/tc-cloudgames-common
+          path: ../shared/common
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: ⚙️ Setup .NET 9.0
         uses: actions/setup-dotnet@v4
         with:
@@ -163,6 +170,13 @@ jobs:
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
+
+      - name: 📥 Checkout shared common repository
+        uses: actions/checkout@v4
+        with:
+          repository: rdpresser/tc-cloudgames-common
+          path: ../shared/common
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 🔐 Azure Login
         uses: azure/login@v2
@@ -296,11 +310,12 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 🎉 AZD Integral Pipeline Benefits:" >> $GITHUB_STEP_SUMMARY
             echo "- **🧪 Comprehensive Testing**: Unit tests executed before deployment" >> $GITHUB_STEP_SUMMARY
-            echo "- **🔗 Foundation Integration**: Automatic infrastructure discovery via Azure CLI" >> $GITHUB_STEP_SUMMARY
+            echo "- **� Shared Dependencies**: Automatic checkout of tc-cloudgames-common repository" >> $GITHUB_STEP_SUMMARY
+            echo "- **�🔗 Foundation Integration**: Automatic infrastructure discovery via Azure CLI" >> $GITHUB_STEP_SUMMARY
             echo "- **🚀 AZD Up Command**: Single \`azd up\` handles build, push, Bicep generation, and Container App creation" >> $GITHUB_STEP_SUMMARY
             echo "- **📦 Bicep Internal**: Infrastructure as Code generated automatically (no versioning needed)" >> $GITHUB_STEP_SUMMARY
             echo "- **🆔 System Managed Identity**: Automatic RBAC configuration for Key Vault and ACR" >> $GITHUB_STEP_SUMMARY
-            echo "- **� Key Vault Integration**: Seamless secret references using System MI" >> $GITHUB_STEP_SUMMARY
+            echo "- **🔐 Key Vault Integration**: Seamless secret references using System MI" >> $GITHUB_STEP_SUMMARY
             echo "- **💚 Health Checks**: Automated post-deployment validation" >> $GITHUB_STEP_SUMMARY
           else
             echo "## ❌ Deployment Status: FAILED" >> $GITHUB_STEP_SUMMARY
@@ -310,7 +325,7 @@ jobs:
             echo "- **Foundation Discovery**: $FOUNDATION_STATUS - Verify foundation infrastructure is deployed" >> $GITHUB_STEP_SUMMARY
             echo "- **AZD Deployment**: $DEPLOY_STATUS - Check \`azd up\` logs and Container App status" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### � Quick Fixes:" >> $GITHUB_STEP_SUMMARY
+            echo "### 🛠️ Quick Fixes:" >> $GITHUB_STEP_SUMMARY
             echo "1. Ensure foundation infrastructure is deployed: \`terraform apply\` in solution repo" >> $GITHUB_STEP_SUMMARY
             echo "2. Check AZD configuration in \`azd/azure.yaml\`" >> $GITHUB_STEP_SUMMARY
             echo "3. Verify GitHub secrets: AZURE_SUBSCRIPTION_ID, AZURE_TENANT_ID, AZURE_CLIENT_ID" >> $GITHUB_STEP_SUMMARY
