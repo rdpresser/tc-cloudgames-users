@@ -28,7 +28,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\..\orchestration\apphost\src\TC.CloudGames.AppHost.Aspire.ServiceDefaults\TC.CloudGames.AppHost.Aspire.ServiceDefaults.csproj" />
+    <!-- Commented out for GitHub Actions - not available in isolated service deployment -->
+    <!-- <ProjectReference Include="..\..\..\..\..\..\orchestration\apphost\src\TC.CloudGames.AppHost.Aspire.ServiceDefaults\TC.CloudGames.AppHost.Aspire.ServiceDefaults.csproj" /> -->
     <ProjectReference Include="..\..\..\Core\TC.CloudGames.Users.Application\TC.CloudGames.Users.Application.csproj" />
     <ProjectReference Include="..\..\Outbound\TC.CloudGames.Users.Infrastructure\TC.CloudGames.Users.Infrastructure.csproj" />
   </ItemGroup>

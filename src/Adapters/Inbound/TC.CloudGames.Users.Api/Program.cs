@@ -4,7 +4,7 @@ using TC.CloudGames.Users.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.AddServiceDefaults();
+////builder.AddServiceDefaults();
 
 // Load environment variables from .env file
 DotNetEnv.Env.Load(Path.Combine("./", ".env"));
