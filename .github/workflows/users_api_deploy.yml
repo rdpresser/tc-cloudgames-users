@@ -56,6 +56,19 @@ jobs:
           path: shared/common
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: 🔗 Setup shared references for local paths
+        run: |
+          # Create directory structure to match local development paths
+          mkdir -p ../shared/common
+          
+          # Create symbolic links to make both paths work
+          cp -r shared/common/* ../shared/common/
+          
+          # Verify both paths exist
+          echo "✅ Shared common content:"
+          ls -la shared/common/src/
+          ls -la ../shared/common/src/
+
       - name: ⚙️ Setup .NET 9.0
         uses: actions/setup-dotnet@v4
         with:
@@ -186,7 +199,20 @@ jobs:
           path: shared/common
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 🔐 Azure Login
+      - name: � Setup shared references for local paths
+        run: |
+          # Create directory structure to match local development paths
+          mkdir -p ../shared/common
+          
+          # Copy content to match local development structure
+          cp -r shared/common/* ../shared/common/
+          
+          # Verify both paths exist
+          echo "✅ Shared common content available at both paths"
+          ls -la shared/common/src/
+          ls -la ../shared/common/src/
+
+      - name: �🔐 Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
