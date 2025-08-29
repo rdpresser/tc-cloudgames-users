@@ -73,6 +73,7 @@ jobs:
             --no-build \
             --configuration Release \
             --logger trx \
+            --collect:"XPlat Code Coverage" \
             --results-directory ./test-results \
             --verbosity normal
 
@@ -84,6 +85,14 @@ jobs:
           path: ./test-results/*.trx
           reporter: dotnet-trx
           fail-on-error: true
+
+      - name: 📈 Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-reports-${{ github.sha }}
+          path: ./test-results/**/coverage.cobertura.xml
+          retention-days: 5
 
   # ==============================================================================
   # GET FOUNDATION OUTPUTS - Fetch infrastructure info from Azure
@@ -123,11 +132,14 @@ jobs:
           
           echo "🔍 Environment: $GITHUB_ENVIRONMENT → $AZURE_ENV_PREFIX → $RESOURCE_GROUP"
           
-          # Discover resources with pattern matching
-          ACR_NAME=$(az acr list --resource-group $RESOURCE_GROUP --query "[?contains(name, '${AZURE_ENV_PREFIX}')].name" -o tsv | head -1)
-          KEY_VAULT_NAME=$(az keyvault list --resource-group $RESOURCE_GROUP --query "[?contains(name, '${AZURE_ENV_PREFIX}')].name" -o tsv | head -1)
-          CONTAINER_APP_ENV_NAME=$(az containerapp env list --resource-group $RESOURCE_GROUP --query "[?contains(name, '${AZURE_ENV_PREFIX}')].name" -o tsv | head -1)
-          ACR_LOGIN_SERVER=$(az acr show --name $ACR_NAME --resource-group $RESOURCE_GROUP --query "loginServer" -o tsv 2>/dev/null || echo "")
+          # Discover resources with exact pattern matching (more resilient)
+          # Expected patterns: tccloudgames{env}{random}acr, tccloudgames{env}{random}kv, tc-cloudgames-{env}-{random}-env
+          ACR_NAME=$(az acr list --resource-group $RESOURCE_GROUP --query "[?starts_with(name, 'tccloudgames${AZURE_ENV_PREFIX}')].name" -o tsv | head -1)
+          KEY_VAULT_NAME=$(az keyvault list --resource-group $RESOURCE_GROUP --query "[?starts_with(name, 'tccloudgames${AZURE_ENV_PREFIX}')].name" -o tsv | head -1)
+          CONTAINER_APP_ENV_NAME=$(az containerapp env list --resource-group $RESOURCE_GROUP --query "[?starts_with(name, 'tc-cloudgames-${AZURE_ENV_PREFIX}-') && ends_with(name, '-env')].name" -o tsv | head -1)
+          
+          # ACR login server follows predictable pattern: {name}.azurecr.io
+          ACR_LOGIN_SERVER="${ACR_NAME}.azurecr.io"
           
           # Validate required resources
           if [ -z "$ACR_NAME" ] || [ -z "$KEY_VAULT_NAME" ] || [ -z "$CONTAINER_APP_ENV_NAME" ]; then
@@ -193,20 +205,23 @@ jobs:
           echo "🏷️ Image: ${IMAGE_URI}"
           echo "🔗 Using: ${{ needs.get-foundation-outputs.outputs.resource-group }}"
           
-          # Initialize AZD environment
+          # Initialize AZD environment (more semantic approach)
           ENVIRONMENT="${{ needs.get-foundation-outputs.outputs.environment }}"
           if [ ! -f ".azure/$ENVIRONMENT/.env" ]; then
-            azd init --template empty --environment $ENVIRONMENT --subscription ${{ needs.get-foundation-outputs.outputs.azure-subscription-id }}
+            echo "📝 Creating new AZD environment: $ENVIRONMENT"
+            azd env new $ENVIRONMENT
+          else
+            echo "✅ AZD environment already exists: $ENVIRONMENT"
           fi
           
           # Configure AZD with foundation infrastructure
           azd env set AZURE_SUBSCRIPTION_ID ${{ needs.get-foundation-outputs.outputs.azure-subscription-id }}
           azd env set AZURE_RESOURCE_GROUP ${{ needs.get-foundation-outputs.outputs.resource-group }}
           azd env set AZURE_CONTAINER_REGISTRY_NAME ${{ needs.get-foundation-outputs.outputs.acr-name }}
-          azd env set AZURE_CONTAINER_REGISTRY_ENDPOINT ${{ needs.get-foundation-outputs.outputs.acr-login-server }}
           azd env set AZURE_CONTAINER_APP_ENVIRONMENT_NAME ${{ needs.get-foundation-outputs.outputs.container-app-env-name }}
           azd env set AZURE_KEY_VAULT_NAME ${{ needs.get-foundation-outputs.outputs.key-vault-name }}
           azd env set AZURE_LOCATION $(az group show --name ${{ needs.get-foundation-outputs.outputs.resource-group }} --query location -o tsv)
+          azd env set AZURE_ENVIRONMENT ${{ needs.get-foundation-outputs.outputs.azure-environment }}
           azd env set CONTAINER_IMAGE_TAG $IMAGE_TAG
           azd env set CONTAINER_IMAGE_URI $IMAGE_URI
           
