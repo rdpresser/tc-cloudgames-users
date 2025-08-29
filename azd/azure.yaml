@@ -1,0 +1,57 @@
+name: users-api
+metadata:
+  template: users-api@0.0.1-beta
+  
+services:
+  users-api:
+    project: .
+    language: dotnet
+    host: containerapp
+    
+    # Docker configuration
+    docker:
+      path: ./Dockerfile
+      context: .
+      
+    # Container App specific configuration
+    options:
+      containerapp:
+        ingress:
+          external: true
+          targetPort: 8080
+          transport: http
+        secrets:
+          - name: postgres-connection-string
+            keyVaultUrl: https://{KEY_VAULT_NAME}.vault.azure.net/secrets/postgres-connection-string
+          - name: redis-connection-string
+            keyVaultUrl: https://{KEY_VAULT_NAME}.vault.azure.net/secrets/redis-connection-string
+          - name: servicebus-connection-string
+            keyVaultUrl: https://{KEY_VAULT_NAME}.vault.azure.net/secrets/servicebus-connection-string
+        env:
+          - name: DATABASE_CONNECTION_STRING
+            secretRef: postgres-connection-string
+          - name: REDIS_CONNECTION_STRING
+            secretRef: redis-connection-string
+          - name: SERVICEBUS_CONNECTION_STRING
+            secretRef: servicebus-connection-string
+          - name: ASPNETCORE_ENVIRONMENT
+            value: Production
+        scale:
+          minReplicas: 1
+          maxReplicas: 10
+        resources:
+          cpu: 0.25
+          memory: 0.5Gi
+
+# Infrastructure configuration - references existing foundation infrastructure
+infra:
+  # Use existing foundation infrastructure
+  module: ../../../infrastructure/terraform/foundation
+  
+# Pipeline configuration
+pipeline:
+  variables:
+    # These will be set by GitHub Actions
+    AZURE_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+    AZURE_TENANT_ID: $(AZURE_TENANT_ID)  
+    AZURE_CLIENT_ID: $(AZURE_CLIENT_ID)
