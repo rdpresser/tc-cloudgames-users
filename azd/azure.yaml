@@ -8,6 +8,15 @@ services:
     language: dotnet
     host: containerapp
     
+    # Tags for resource management and cost tracking
+    tags:
+      Environment: "{{ .Env.AZURE_ENVIRONMENT }}"
+      Project: "TC Cloud Games"
+      ManagedBy: "AZD"
+      Owner: "DevOps Team"
+      CostCenter: "Engineering"
+      Service: "Users API"
+    
     # Docker configuration
     docker:
       path: ../src/Adapters/Inbound/TC.CloudGames.Users.Api/Dockerfile
@@ -81,21 +90,33 @@ hooks:
       
       echo "🆔 System MI Principal ID: $PRINCIPAL_ID"
       
-      # Grant Key Vault Secrets User role to System MI (if not already granted)
+      # Grant Key Vault Secrets User role to System MI (idempotent)
       echo "🔐 Ensuring Key Vault access..."
-      az role assignment create \
-        --assignee $PRINCIPAL_ID \
-        --role "Key Vault Secrets User" \
-        --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$AZURE_KEY_VAULT_NAME" \
-        --query "id" -o tsv || echo "✅ Key Vault role assignment already exists"
+      if az role assignment list --assignee $PRINCIPAL_ID --role "Key Vault Secrets User" --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$AZURE_KEY_VAULT_NAME" --query "[0].id" -o tsv | grep -q "roleAssignments"; then
+        echo "✅ Key Vault role assignment already exists"
+      else
+        az role assignment create \
+          --assignee $PRINCIPAL_ID \
+          --role "Key Vault Secrets User" \
+          --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$AZURE_KEY_VAULT_NAME" \
+          --only-show-errors \
+          --query "id" -o tsv
+        echo "✅ Key Vault role assignment created"
+      fi
       
-      # Grant ACR Pull role for container image access
+      # Grant ACR Pull role for container image access (idempotent)
       echo "📦 Ensuring ACR access..."
-      az role assignment create \
-        --assignee $PRINCIPAL_ID \
-        --role "AcrPull" \
-        --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/providers/Microsoft.ContainerRegistry/registries/$AZURE_CONTAINER_REGISTRY_NAME" \
-        --query "id" -o tsv || echo "✅ ACR role assignment already exists"
+      if az role assignment list --assignee $PRINCIPAL_ID --role "AcrPull" --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/providers/Microsoft.ContainerRegistry/registries/$AZURE_CONTAINER_REGISTRY_NAME" --query "[0].id" -o tsv | grep -q "roleAssignments"; then
+        echo "✅ ACR role assignment already exists"
+      else
+        az role assignment create \
+          --assignee $PRINCIPAL_ID \
+          --role "AcrPull" \
+          --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/providers/Microsoft.ContainerRegistry/registries/$AZURE_CONTAINER_REGISTRY_NAME" \
+          --only-show-errors \
+          --query "id" -o tsv
+        echo "✅ ACR role assignment created"
+      fi
       
       echo "✅ Post-deployment configuration completed!"
       echo "🔑 Container App has System Managed Identity access to Key Vault and ACR"
