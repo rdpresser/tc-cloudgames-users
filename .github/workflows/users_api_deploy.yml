@@ -1,16 +1,13 @@
-name: Deploy Users API
+name: 🚀 Users API CI/CD Pipeline
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'src/Users/**'
-      - '.github/workflows/users_api_deploy.yml'
   pull_request:
     branches: [main]
+    types: [closed]
     paths:
-      - 'src/Users/**'
-      - '.github/workflows/users_api_deploy.yml'
+      - 'src/**'
+      - '.github/workflows/**'
+      - 'azd/**'
   workflow_dispatch:
     inputs:
       environment:
@@ -28,25 +25,88 @@ env:
   AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
   AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
   SERVICE_NAME: users-api
-  PROJECT_PATH: src/Users
+  PROJECT_PATH: src/Adapters/Inbound/TC.CloudGames.Users.Api
+  SOLUTION_PATH: .
+  # Terraform Cloud integration for foundation outputs
+  TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
+  TF_API_TOKEN: ${{ secrets.TF_API_TOKEN }}
+  TF_WORKSPACE_NAME: tc-cloudgames-foundation
 
 jobs:
-  # ==============================================================================
-  # BUILD JOB - Build and push container image
-  # ==============================================================================
-  build:
-    name: 🏗️ Build Container Image
+  # Only run on merged PRs or manual dispatch
+  check-trigger:
+    if: (github.event.pull_request.merged == true) || (github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'dev' || 'dev') }}
-    
     outputs:
-      image-tag: ${{ steps.build.outputs.image-tag }}
-      image-uri: ${{ steps.build.outputs.image-uri }}
-      
+      should-deploy: ${{ steps.check.outputs.should-deploy }}
+    steps:
+      - name: ✅ Check deployment trigger
+        id: check
+        run: |
+          echo "should-deploy=true" >> $GITHUB_OUTPUT
+          echo "🚀 Deployment triggered by: ${{ github.event_name }}"
+  
+  # ==============================================================================
+  # UNIT TESTS - Run comprehensive test suite
+  # ==============================================================================
+  unit-tests:
+    name: 🧪 Unit Tests
+    runs-on: ubuntu-latest
+    needs: check-trigger
+    if: needs.check-trigger.outputs.should-deploy == 'true'
+    
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
 
+      - name: ⚙️ Setup .NET 9.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: 📦 Restore dependencies
+        run: dotnet restore ${{ env.SOLUTION_PATH }}
+
+      - name: 🏗️ Build solution
+        run: dotnet build ${{ env.SOLUTION_PATH }} --no-restore --configuration Release
+
+      - name: 🧪 Run unit tests
+        run: |
+          dotnet test ${{ env.SOLUTION_PATH }} \
+            --no-build \
+            --configuration Release \
+            --logger trx \
+            --collect:"XPlat Code Coverage" \
+            --results-directory ./test-results \
+            --verbosity normal
+
+      - name: 📊 Publish test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: 🧪 Unit Tests Results
+          path: ./test-results/*.trx
+          reporter: dotnet-trx
+          fail-on-error: true
+
+  # ==============================================================================
+  # GET FOUNDATION OUTPUTS - Fetch infrastructure info from Terraform Cloud
+  # ==============================================================================
+  get-foundation-outputs:
+    name: 🔗 Get Foundation Infrastructure
+    runs-on: ubuntu-latest
+    needs: [check-trigger, unit-tests]
+    if: needs.check-trigger.outputs.should-deploy == 'true'
+    
+    outputs:
+      resource-group: ${{ steps.outputs.outputs.resource-group }}
+      acr-name: ${{ steps.outputs.outputs.acr-name }}
+      acr-login-server: ${{ steps.outputs.outputs.acr-login-server }}
+      key-vault-name: ${{ steps.outputs.outputs.key-vault-name }}
+      container-app-env-name: ${{ steps.outputs.outputs.container-app-env-name }}
+      environment: ${{ steps.outputs.outputs.environment }}
+    
+    steps:
       - name: 🔐 Azure Login
         uses: azure/login@v2
         with:
@@ -54,45 +114,51 @@ jobs:
           tenant-id: ${{ env.AZURE_TENANT_ID }}
           subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
 
-      - name: 🏗️ Build and Push Container Image
-        id: build
+      - name: 🔗 Get Foundation Infrastructure Outputs
+        id: outputs
         run: |
-          # Determine environment and set variables
-          ENVIRONMENT="${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'dev' || 'dev') }}"
-          RESOURCE_GROUP="rg-tc-cloudgames-${ENVIRONMENT}"
+          # Determine environment
+          ENVIRONMENT="${{ github.event.inputs.environment || 'dev' }}"
+          RESOURCE_GROUP="tc-cloudgames-solution-${ENVIRONMENT}-rg"          
+          
+          echo "🔍 Fetching foundation infrastructure outputs..."
+          echo "Environment: $ENVIRONMENT"
+          echo "Resource Group: $RESOURCE_GROUP"
+          
+          # Get infrastructure outputs using Azure CLI (simpler than Terraform Cloud API)
           ACR_NAME=$(az acr list --resource-group $RESOURCE_GROUP --query "[0].name" -o tsv)
           ACR_LOGIN_SERVER=$(az acr list --resource-group $RESOURCE_GROUP --query "[0].loginServer" -o tsv)
+          KEY_VAULT_NAME=$(az keyvault list --resource-group $RESOURCE_GROUP --query "[0].name" -o tsv)
+          CONTAINER_APP_ENV_NAME=$(az containerapp env list --resource-group $RESOURCE_GROUP --query "[0].name" -o tsv)
           
-          # Generate image tag with timestamp and commit SHA
-          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-          COMMIT_SHA=$(echo ${{ github.sha }} | cut -c1-8)
-          IMAGE_TAG="${TIMESTAMP}-${COMMIT_SHA}"
-          IMAGE_URI="${ACR_LOGIN_SERVER}/${SERVICE_NAME}:${IMAGE_TAG}"
+          echo "✅ Foundation infrastructure found:"
+          echo "ACR Name: $ACR_NAME"
+          echo "Key Vault: $KEY_VAULT_NAME"
+          echo "Container App Environment: $CONTAINER_APP_ENV_NAME"
           
-          echo "🏷️ Image Tag: ${IMAGE_TAG}"
-          echo "🐳 Image URI: ${IMAGE_URI}"
-          
-          # Login to ACR using Azure CLI (System MI will handle this in Container Apps)
-          az acr login --name $ACR_NAME
-          
-          # Build and push the container image
-          docker build -f ${{ env.PROJECT_PATH }}/Dockerfile -t $IMAGE_URI ${{ env.PROJECT_PATH }}
-          docker push $IMAGE_URI
-          
-          # Set outputs for deploy job
-          echo "image-tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
-          echo "image-uri=${IMAGE_URI}" >> $GITHUB_OUTPUT
-          
-          echo "✅ Container image built and pushed successfully!"
+          # Set outputs
+          echo "resource-group=$RESOURCE_GROUP" >> $GITHUB_OUTPUT
+          echo "acr-name=$ACR_NAME" >> $GITHUB_OUTPUT
+          echo "acr-login-server=$ACR_LOGIN_SERVER" >> $GITHUB_OUTPUT
+          echo "key-vault-name=$KEY_VAULT_NAME" >> $GITHUB_OUTPUT
+          echo "container-app-env-name=$CONTAINER_APP_ENV_NAME" >> $GITHUB_OUTPUT
+          echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
 
   # ==============================================================================
   # DEPLOY JOB - Deploy using AZD with System Managed Identity
   # ==============================================================================
   deploy:
-    name: 🚀 Deploy Users API
+    name: 🚀 Deploy Users API with AZD
     runs-on: ubuntu-latest
-    needs: build
-    environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'dev' || 'dev') }}
+    needs: [check-trigger, unit-tests, get-foundation-outputs]
+    if: needs.check-trigger.outputs.should-deploy == 'true'
+    environment: ${{ needs.get-foundation-outputs.outputs.environment }}
+    
+    outputs:
+      container-app-name: ${{ steps.deploy.outputs.container-app-name }}
+      container-app-url: ${{ steps.deploy.outputs.container-app-url }}
+      image-tag: ${{ steps.deploy.outputs.image-tag }}
+      image-uri: ${{ steps.deploy.outputs.image-uri }}
     
     steps:
       - name: 📥 Checkout repository
@@ -110,49 +176,90 @@ jobs:
 
       - name: 🚀 Deploy Users API with AZD
         id: deploy
+        working-directory: ./azd
         run: |
-          # Set environment variables for deployment
-          ENVIRONMENT="${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'dev' || 'dev') }}"
-          RESOURCE_GROUP="rg-tc-cloudgames-${ENVIRONMENT}"
+          # Generate image tag with timestamp and commit SHA
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          COMMIT_SHA=$(echo ${{ github.sha }} | cut -c1-8)
+          IMAGE_TAG="${TIMESTAMP}-${COMMIT_SHA}"
+          IMAGE_URI="${{ needs.get-foundation-outputs.outputs.acr-login-server }}/${{ env.SERVICE_NAME }}:${IMAGE_TAG}"
           
-          # Navigate to Users API directory
-          cd ${{ env.PROJECT_PATH }}
+          echo "🏷️ Image Tag: ${IMAGE_TAG}"
+          echo "🐳 Image URI: ${IMAGE_URI}"
+          echo "🔗 Using foundation infrastructure:"
+          echo "  Resource Group: ${{ needs.get-foundation-outputs.outputs.resource-group }}"
+          echo "  ACR: ${{ needs.get-foundation-outputs.outputs.acr-name }}"
+          echo "  Key Vault: ${{ needs.get-foundation-outputs.outputs.key-vault-name }}"
+          echo "  Container App Environment: ${{ needs.get-foundation-outputs.outputs.container-app-env-name }}"
           
-          # Initialize AZD environment if not exists
-          if [ ! -f "azure.yaml" ]; then
-            echo "📝 Creating AZD configuration for Users API..."
+          # Initialize AZD environment if not exists (creates ./infra and .azure directories)
+          ENVIRONMENT="${{ needs.get-foundation-outputs.outputs.environment }}"
+          if [ ! -f ".azure/$ENVIRONMENT/.env" ]; then
+            echo "📝 Initializing AZD environment for $ENVIRONMENT..."
             azd init --template empty --environment $ENVIRONMENT --subscription ${{ env.AZURE_SUBSCRIPTION_ID }}
+            echo "✅ AZD environment initialized (./infra and .azure directories created)"
+          else
+            echo "✅ AZD environment already exists for $ENVIRONMENT"
           fi
           
-          # Set AZD environment variables for Container Apps deployment
+          # Configure AZD environment with foundation infrastructure outputs
+          echo "🔧 Configuring AZD environment variables..."
           azd env set AZURE_SUBSCRIPTION_ID ${{ env.AZURE_SUBSCRIPTION_ID }}
-          azd env set AZURE_RESOURCE_GROUP $RESOURCE_GROUP
-          azd env set AZURE_CONTAINER_REGISTRY_NAME $(az acr list --resource-group $RESOURCE_GROUP --query "[0].name" -o tsv)
-          azd env set AZURE_CONTAINER_APP_ENVIRONMENT_NAME $(az containerapp env list --resource-group $RESOURCE_GROUP --query "[0].name" -o tsv)
-          azd env set AZURE_KEY_VAULT_NAME $(az keyvault list --resource-group $RESOURCE_GROUP --query "[0].name" -o tsv)
+          azd env set AZURE_RESOURCE_GROUP ${{ needs.get-foundation-outputs.outputs.resource-group }}
+          azd env set AZURE_CONTAINER_REGISTRY_NAME ${{ needs.get-foundation-outputs.outputs.acr-name }}
+          azd env set AZURE_CONTAINER_REGISTRY_ENDPOINT ${{ needs.get-foundation-outputs.outputs.acr-login-server }}
+          azd env set AZURE_CONTAINER_APP_ENVIRONMENT_NAME ${{ needs.get-foundation-outputs.outputs.container-app-env-name }}
+          azd env set AZURE_KEY_VAULT_NAME ${{ needs.get-foundation-outputs.outputs.key-vault-name }}
+          azd env set AZURE_LOCATION $(az group show --name ${{ needs.get-foundation-outputs.outputs.resource-group }} --query location -o tsv)
           
-          # Set the container image built in previous job
-          azd env set DOCKER_IMAGE_URI ${{ needs.build.outputs.image-uri }}
+          # Set container image tag for this deployment
+          azd env set CONTAINER_IMAGE_TAG $IMAGE_TAG
+          azd env set CONTAINER_IMAGE_URI $IMAGE_URI
           
-          # Deploy the Users API Container App
-          echo "🚀 Deploying Users API Container App..."
-          azd deploy --no-prompt
+          echo "🚀 Starting AZD deployment (build + push + Container App creation)..."
+          
+          # Deploy using AZD - creates Container App with Bicep, builds/pushes image, configures everything
+          azd up --no-prompt
+          
+          echo "✅ AZD deployment completed!"
           
           # Get deployment outputs
-          CONTAINER_APP_NAME=$(az containerapp list --resource-group $RESOURCE_GROUP --query "[?contains(name, '${{ env.SERVICE_NAME }}')].name" -o tsv)
-          CONTAINER_APP_URL=$(az containerapp show --name $CONTAINER_APP_NAME --resource-group $RESOURCE_GROUP --query "properties.configuration.ingress.fqdn" -o tsv)
+          CONTAINER_APP_NAME=$(az containerapp list \
+            --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
+            --query "[?contains(name, '${{ env.SERVICE_NAME }}')].name" -o tsv)
           
-          echo "✅ Users API deployed successfully!"
+          CONTAINER_APP_URL=$(az containerapp show \
+            --name $CONTAINER_APP_NAME \
+            --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
+            --query "properties.configuration.ingress.fqdn" -o tsv)
+          
           echo "🌐 Container App Name: $CONTAINER_APP_NAME"
           echo "🔗 Container App URL: https://$CONTAINER_APP_URL"
           
-          # Test the deployment
+          # Set outputs
+          echo "container-app-name=$CONTAINER_APP_NAME" >> $GITHUB_OUTPUT
+          echo "container-app-url=https://$CONTAINER_APP_URL" >> $GITHUB_OUTPUT
+          echo "image-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "image-uri=$IMAGE_URI" >> $GITHUB_OUTPUT
+
+      - name: 🧪 Health Check
+        run: |
           echo "🧪 Testing deployment health..."
-          if curl -f "https://$CONTAINER_APP_URL/health" > /dev/null 2>&1; then
-            echo "✅ Health check passed!"
-          else
-            echo "⚠️ Health check failed - but deployment completed"
-          fi
+          HEALTH_URL="${{ steps.deploy.outputs.container-app-url }}/health"
+          
+          # Wait a bit for the container to start
+          sleep 30
+          
+          # Try health check with retries
+          for i in {1..5}; do
+            if curl -f "$HEALTH_URL" > /dev/null 2>&1; then
+              echo "✅ Health check passed on attempt $i!"
+              break
+            else
+              echo "⏳ Health check failed on attempt $i, retrying in 30s..."
+              sleep 30
+            fi
+          done
 
   # ==============================================================================
   # SUMMARY JOB - Deployment summary and next steps
@@ -160,8 +267,8 @@ jobs:
   summary:
     name: 📊 Deployment Summary
     runs-on: ubuntu-latest
-    needs: [build, deploy]
-    if: always()
+    needs: [check-trigger, unit-tests, get-foundation-outputs, deploy]
+    if: always() && needs.check-trigger.outputs.should-deploy == 'true'
     
     steps:
       - name: 📊 Generate Deployment Summary
@@ -169,37 +276,50 @@ jobs:
           echo "# 🚀 Users API Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          ENVIRONMENT="${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'dev' || 'dev') }}"
-          
           echo "## 📋 Deployment Details" >> $GITHUB_STEP_SUMMARY
-          echo "- **Environment**: \`$ENVIRONMENT\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: \`${{ needs.get-foundation-outputs.outputs.environment }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Service**: \`${{ env.SERVICE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image Tag**: \`${{ needs.build.outputs.image-tag }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image URI**: \`${{ needs.build.outputs.image-uri }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Tag**: \`${{ needs.deploy.outputs.image-tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image URI**: \`${{ needs.deploy.outputs.image-uri }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Container App**: \`${{ needs.deploy.outputs.container-app-name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: [${{ needs.deploy.outputs.container-app-url }}](${{ needs.deploy.outputs.container-app-url }})" >> $GITHUB_STEP_SUMMARY
           echo "- **Trigger**: \`${{ github.event_name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          if [ "${{ needs.build.result }}" = "success" ] && [ "${{ needs.deploy.result }}" = "success" ]; then
+          # Check job statuses
+          UNIT_TESTS_STATUS="${{ needs.unit-tests.result }}"
+          FOUNDATION_STATUS="${{ needs.get-foundation-outputs.result }}"
+          DEPLOY_STATUS="${{ needs.deploy.result }}"
+          
+          if [ "$UNIT_TESTS_STATUS" = "success" ] && [ "$FOUNDATION_STATUS" = "success" ] && [ "$DEPLOY_STATUS" = "success" ]; then
             echo "## ✅ Deployment Status: SUCCESS" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 🎉 Key Benefits of This Modern Pipeline:" >> $GITHUB_STEP_SUMMARY
-            echo "- **System Managed Identity**: No manual secret management required" >> $GITHUB_STEP_SUMMARY
-            echo "- **RBAC Integration**: Secure access to Key Vault using Azure roles" >> $GITHUB_STEP_SUMMARY
-            echo "- **Automated Secret Binding**: Container App automatically accesses Key Vault secrets" >> $GITHUB_STEP_SUMMARY
-            echo "- **AZD Integration**: Streamlined Container Apps deployment" >> $GITHUB_STEP_SUMMARY
-            echo "- **Infrastructure Separation**: Foundation infrastructure managed separately" >> $GITHUB_STEP_SUMMARY
+            echo "### 🎉 AZD Integral Pipeline Benefits:" >> $GITHUB_STEP_SUMMARY
+            echo "- **🧪 Comprehensive Testing**: Unit tests executed before deployment" >> $GITHUB_STEP_SUMMARY
+            echo "- **🔗 Foundation Integration**: Automatic infrastructure discovery via Azure CLI" >> $GITHUB_STEP_SUMMARY
+            echo "- **🚀 AZD Up Command**: Single \`azd up\` handles build, push, Bicep generation, and Container App creation" >> $GITHUB_STEP_SUMMARY
+            echo "- **📦 Bicep Internal**: Infrastructure as Code generated automatically (no versioning needed)" >> $GITHUB_STEP_SUMMARY
+            echo "- **🆔 System Managed Identity**: Automatic RBAC configuration for Key Vault and ACR" >> $GITHUB_STEP_SUMMARY
+            echo "- **� Key Vault Integration**: Seamless secret references using System MI" >> $GITHUB_STEP_SUMMARY
+            echo "- **💚 Health Checks**: Automated post-deployment validation" >> $GITHUB_STEP_SUMMARY
           else
             echo "## ❌ Deployment Status: FAILED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 🔍 Troubleshooting:" >> $GITHUB_STEP_SUMMARY
-            echo "- Check build logs for container image issues" >> $GITHUB_STEP_SUMMARY
-            echo "- Verify AZD configuration and azure.yaml" >> $GITHUB_STEP_SUMMARY
-            echo "- Ensure foundation infrastructure is deployed" >> $GITHUB_STEP_SUMMARY
-            echo "- Validate System Managed Identity permissions" >> $GITHUB_STEP_SUMMARY
+            echo "### 🔍 Troubleshooting Steps:" >> $GITHUB_STEP_SUMMARY
+            echo "- **Unit Tests**: $UNIT_TESTS_STATUS - Check test failures in the logs" >> $GITHUB_STEP_SUMMARY
+            echo "- **Foundation Discovery**: $FOUNDATION_STATUS - Verify foundation infrastructure is deployed" >> $GITHUB_STEP_SUMMARY
+            echo "- **AZD Deployment**: $DEPLOY_STATUS - Check \`azd up\` logs and Container App status" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### � Quick Fixes:" >> $GITHUB_STEP_SUMMARY
+            echo "1. Ensure foundation infrastructure is deployed: \`terraform apply\` in solution repo" >> $GITHUB_STEP_SUMMARY
+            echo "2. Check AZD configuration in \`azd/azure.yaml\`" >> $GITHUB_STEP_SUMMARY
+            echo "3. Verify GitHub secrets: AZURE_SUBSCRIPTION_ID, AZURE_TENANT_ID, AZURE_CLIENT_ID" >> $GITHUB_STEP_SUMMARY
+            echo "4. Validate System Managed Identity permissions on Key Vault" >> $GITHUB_STEP_SUMMARY
           fi
           
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🔗 Quick Links:" >> $GITHUB_STEP_SUMMARY
-          echo "- [Azure Portal - Resource Group](https://portal.azure.com/#@${{ env.AZURE_TENANT_ID }}/resource/subscriptions/${{ env.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-tc-cloudgames-$ENVIRONMENT)" >> $GITHUB_STEP_SUMMARY
-          echo "- [Azure Portal - Container Apps](https://portal.azure.com/#@${{ env.AZURE_TENANT_ID }}/resource/subscriptions/${{ env.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-tc-cloudgames-$ENVIRONMENT/providers/Microsoft.App/containerApps)" >> $GITHUB_STEP_SUMMARY
-          echo "- [Azure Portal - Key Vault](https://portal.azure.com/#@${{ env.AZURE_TENANT_ID }}/resource/subscriptions/${{ env.AZURE_SUBSCRIPTION_ID }}/resourceGroups/rg-tc-cloudgames-$ENVIRONMENT/providers/Microsoft.KeyVault/vaults)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Azure Portal - Resource Group](https://portal.azure.com/#@${{ env.AZURE_TENANT_ID }}/resource/subscriptions/${{ env.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ needs.get-foundation-outputs.outputs.resource-group }})" >> $GITHUB_STEP_SUMMARY
+          echo "- [Azure Portal - Container Apps](https://portal.azure.com/#@${{ env.AZURE_TENANT_ID }}/resource/subscriptions/${{ env.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ needs.get-foundation-outputs.outputs.resource-group }}/providers/Microsoft.App/containerApps)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Azure Portal - Key Vault](https://portal.azure.com/#@${{ env.AZURE_TENANT_ID }}/resource/subscriptions/${{ env.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ needs.get-foundation-outputs.outputs.resource-group }}/providers/Microsoft.KeyVault/vaults)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Azure Portal - Container Registry](https://portal.azure.com/#@${{ env.AZURE_TENANT_ID }}/resource/subscriptions/${{ env.AZURE_SUBSCRIPTION_ID }}/resourceGroups/${{ needs.get-foundation-outputs.outputs.resource-group }}/providers/Microsoft.ContainerRegistry/registries)" >> $GITHUB_STEP_SUMMARY
