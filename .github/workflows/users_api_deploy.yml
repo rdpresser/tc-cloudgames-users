@@ -5,7 +5,7 @@ on:
     branches: [main]
     types: [closed]
     paths:
-      - 'src/**'
+      - 'services/users/**'
       - '.github/workflows/**'
       - 'azd/**'
   workflow_dispatch:
@@ -19,9 +19,7 @@ on:
 
 env:
   SERVICE_NAME: users-api
-  PROJECT_PATH: src/Adapters/Inbound/TC.CloudGames.Users.Api
-  SOLUTION_PATH: TC.CloudGames.Users.sln
-  SOLUTION_FULL_PATH: users/TC.CloudGames.Users.sln
+  SOLUTION_PATH: services/users/TC.CloudGames.Users.sln
 
 jobs:
   check-trigger:
@@ -36,26 +34,26 @@ jobs:
           echo "should-deploy=true" >> $GITHUB_OUTPUT
           echo "🚀 Deployment triggered by: ${{ github.event_name }}"
 
-  # ==============================================================================  
-  # UNIT TESTS  
-  # ==============================================================================  
   unit-tests:
     name: 🧪 Unit Tests
     runs-on: ubuntu-latest
     needs: check-trigger
     if: needs.check-trigger.outputs.should-deploy == 'true'
-    
+
     steps:
+      - name: 📂 Prepare workspace
+        run: mkdir -p tc-cloudgames-solution/services/users
+
       - name: 📥 Checkout Users API repository
         uses: actions/checkout@v4
         with:
-          path: users
+          path: tc-cloudgames-solution/services/users
 
       - name: 📥 Checkout shared common repository
         uses: actions/checkout@v4
         with:
           repository: rdpresser/tc-cloudgames-common
-          path: users/shared/common
+          path: tc-cloudgames-solution/shared/common
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: ⚙️ Setup .NET 9.0
@@ -64,14 +62,14 @@ jobs:
           dotnet-version: '9.0.x'
 
       - name: 📦 Restore dependencies
-        run: dotnet restore ${{ env.SOLUTION_FULL_PATH }}
+        run: dotnet restore tc-cloudgames-solution/services/users/TC.CloudGames.Users.sln
 
       - name: 🏗️ Build solution
-        run: dotnet build ${{ env.SOLUTION_FULL_PATH }} --no-restore --configuration Release
+        run: dotnet build tc-cloudgames-solution/services/users/TC.CloudGames.Users.sln --no-restore --configuration Release
 
       - name: 🧪 Run unit tests
         run: |
-          dotnet test ${{ env.SOLUTION_FULL_PATH }} \
+          dotnet test tc-cloudgames-solution/services/users/TC.CloudGames.Users.sln \
             --no-build \
             --configuration Release \
             --logger trx \
@@ -96,15 +94,12 @@ jobs:
           path: ./test-results/**/coverage.cobertura.xml
           retention-days: 5
 
-  # ==============================================================================  
-  # GET FOUNDATION OUTPUTS  
-  # ==============================================================================  
   get-foundation-outputs:
     name: 🔗 Get Foundation Infrastructure
     runs-on: ubuntu-latest
     needs: [check-trigger, unit-tests]
     if: needs.check-trigger.outputs.should-deploy == 'true'
-    
+
     outputs:
       resource-group: ${{ steps.outputs.outputs.resource-group }}
       acr-name: ${{ steps.outputs.outputs.acr-name }}
@@ -114,7 +109,7 @@ jobs:
       environment: ${{ steps.outputs.outputs.environment }}
       azure-environment: ${{ steps.outputs.outputs.azure-environment }}
       azure-subscription-id: ${{ steps.outputs.outputs.azure-subscription-id }}
-    
+
     steps:
       - name: 🔐 Azure Login
         uses: azure/login@v2
@@ -129,8 +124,6 @@ jobs:
           AZURE_ENV_PREFIX=$(echo $GITHUB_ENVIRONMENT | cut -d'-' -f1)
           RESOURCE_GROUP="tc-cloudgames-solution-${AZURE_ENV_PREFIX}-rg"
 
-          echo "🔍 Environment: $GITHUB_ENVIRONMENT → $AZURE_ENV_PREFIX → $RESOURCE_GROUP"
-
           ACR_NAME=$(az acr list --resource-group $RESOURCE_GROUP --query "[?starts_with(name, 'tccloudgames${AZURE_ENV_PREFIX}')].name" -o tsv | head -1)
           KEY_VAULT_NAME=$(az keyvault list --resource-group $RESOURCE_GROUP --query "[?starts_with(name, 'tccloudgames${AZURE_ENV_PREFIX}')].name" -o tsv | head -1)
           CONTAINER_APP_ENV_NAME=$(az containerapp env list --resource-group $RESOURCE_GROUP --query "[?starts_with(name, 'tc-cloudgames-${AZURE_ENV_PREFIX}-') && ends_with(name, '-env')].name" -o tsv | head -1)
@@ -140,8 +133,6 @@ jobs:
             echo "❌ Missing resources in $RESOURCE_GROUP. Found: ACR=$ACR_NAME, KV=$KEY_VAULT_NAME, ENV=$CONTAINER_APP_ENV_NAME"
             exit 1
           fi
-          
-          echo "✅ Found: ACR=$ACR_NAME, KV=$KEY_VAULT_NAME, ENV=$CONTAINER_APP_ENV_NAME"
 
           echo "resource-group=$RESOURCE_GROUP" >> $GITHUB_OUTPUT
           echo "acr-name=$ACR_NAME" >> $GITHUB_OUTPUT
@@ -152,33 +143,27 @@ jobs:
           echo "azure-environment=$AZURE_ENV_PREFIX" >> $GITHUB_OUTPUT
           echo "azure-subscription-id=$AZURE_SUBSCRIPTION_ID" >> $GITHUB_OUTPUT
 
-  # ==============================================================================  
-  # DEPLOY JOB  
-  # ==============================================================================  
   deploy:
     name: 🚀 Deploy Users API with AZD
     runs-on: ubuntu-latest
     needs: [check-trigger, unit-tests, get-foundation-outputs]
     if: needs.check-trigger.outputs.should-deploy == 'true'
     environment: ${{ needs.get-foundation-outputs.outputs.environment }}
-    
-    outputs:
-      container-app-name: ${{ steps.deploy.outputs.container-app-name }}
-      container-app-url: ${{ steps.deploy.outputs.container-app-url }}
-      image-tag: ${{ steps.deploy.outputs.image-tag }}
-      image-uri: ${{ steps.deploy.outputs.image-uri }}
-    
+
     steps:
+      - name: 📂 Prepare workspace
+        run: mkdir -p tc-cloudgames-solution/services/users
+
       - name: 📥 Checkout Users API repository
         uses: actions/checkout@v4
         with:
-          path: users
+          path: tc-cloudgames-solution/services/users
 
       - name: 📥 Checkout shared common repository
         uses: actions/checkout@v4
         with:
           repository: rdpresser/tc-cloudgames-common
-          path: users/shared/common
+          path: tc-cloudgames-solution/shared/common
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: ⚙️ Setup .NET 9.0
@@ -196,7 +181,7 @@ jobs:
 
       - name: 🚀 Deploy Users API with AZD
         id: deploy
-        working-directory: ./users/azd
+        working-directory: ./tc-cloudgames-solution/services/users/azd
         run: |
           IMAGE_TAG="$(date +%Y%m%d-%H%M%S)-$(echo ${{ github.sha }} | cut -c1-8)"
           IMAGE_URI="${{ needs.get-foundation-outputs.outputs.acr-login-server }}/${{ env.SERVICE_NAME }}:${IMAGE_TAG}"
@@ -246,21 +231,18 @@ jobs:
             fi
           done
 
-  # ==============================================================================  
-  # SUMMARY JOB  
-  # ==============================================================================  
   summary:
     name: 📊 Deployment Summary
     runs-on: ubuntu-latest
     needs: [check-trigger, unit-tests, get-foundation-outputs, deploy]
     if: always() && needs.check-trigger.outputs.should-deploy == 'true'
-    
+
     steps:
       - name: 📊 Generate Deployment Summary
         run: |
           echo "# 🚀 Users API Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **Environment**: \`${{ needs.get-foundation-outputs.outputs.environment }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Service**: \`${{ env.SERVICE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Image**: \`${{ needs.deploy.outputs.image-tag }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Container App**: \`${{ needs.deploy.outputs.container-app-name }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **URL**: [${{ needs.deploy.outputs.container-app-url }}](${{ needs.deploy.outputs.container-app-url }})" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image**: \`${{ steps.deploy.outputs.image-tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Container App**: \`${{ steps.deploy.outputs.container-app-name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **URL**: [${{ steps.deploy.outputs.container-app-url }}](${{ steps.deploy.outputs.container-app-url }})" >> $GITHUB_STEP_SUMMARY
