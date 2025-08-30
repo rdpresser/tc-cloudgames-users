@@ -31,19 +31,50 @@ services:
           transport: http
           allowInsecure: false
         secrets:
-          - name: postgres-connection-string
-            keyVaultUrl: https://{{ .Env.AZURE_KEY_VAULT_NAME }}.vault.azure.net/secrets/postgres-connection-string
-          - name: redis-connection-string
-            keyVaultUrl: https://{{ .Env.AZURE_KEY_VAULT_NAME }}.vault.azure.net/secrets/redis-connection-string
-          - name: servicebus-connection-string
-            keyVaultUrl: https://{{ .Env.AZURE_KEY_VAULT_NAME }}.vault.azure.net/secrets/servicebus-connection-string
+          # Database secrets (matching Terraform Key Vault secrets)
+          - name: db-host
+            keyVaultUrl: https://{{ .Env.AZURE_KEY_VAULT_NAME }}.vault.azure.net/secrets/db-host
+          - name: db-port
+            keyVaultUrl: https://{{ .Env.AZURE_KEY_VAULT_NAME }}.vault.azure.net/secrets/db-port
+          - name: db-name-users
+            keyVaultUrl: https://{{ .Env.AZURE_KEY_VAULT_NAME }}.vault.azure.net/secrets/db-name-users
+          - name: db-admin-login
+            keyVaultUrl: https://{{ .Env.AZURE_KEY_VAULT_NAME }}.vault.azure.net/secrets/db-admin-login
+          - name: db-password
+            keyVaultUrl: https://{{ .Env.AZURE_KEY_VAULT_NAME }}.vault.azure.net/secrets/db-password
+          # Redis cache secrets (matching Terraform Key Vault secrets)
+          - name: cache-host
+            keyVaultUrl: https://{{ .Env.AZURE_KEY_VAULT_NAME }}.vault.azure.net/secrets/cache-host
+          - name: cache-port
+            keyVaultUrl: https://{{ .Env.AZURE_KEY_VAULT_NAME }}.vault.azure.net/secrets/cache-port
+          - name: cache-password
+            keyVaultUrl: https://{{ .Env.AZURE_KEY_VAULT_NAME }}.vault.azure.net/secrets/cache-password
+          # Service Bus secrets (matching Terraform Key Vault secrets)
+          - name: servicebus-namespace
+            keyVaultUrl: https://{{ .Env.AZURE_KEY_VAULT_NAME }}.vault.azure.net/secrets/servicebus-namespace
         env:
-          - name: DATABASE_CONNECTION_STRING
-            secretRef: postgres-connection-string
-          - name: REDIS_CONNECTION_STRING
-            secretRef: redis-connection-string
-          - name: SERVICEBUS_CONNECTION_STRING
-            secretRef: servicebus-connection-string
+          # Database environment variables (individual components)
+          - name: DB_HOST
+            secretRef: db-host
+          - name: DB_PORT
+            secretRef: db-port
+          - name: DB_NAME
+            secretRef: db-name-users
+          - name: DB_USER
+            secretRef: db-admin-login
+          - name: DB_PASSWORD
+            secretRef: db-password
+          # Redis cache environment variables (individual components)
+          - name: CACHE_HOST
+            secretRef: cache-host
+          - name: CACHE_PORT
+            secretRef: cache-port
+          - name: CACHE_PASSWORD
+            secretRef: cache-password
+          # Service Bus environment variables
+          - name: SERVICEBUS_NAMESPACE
+            secretRef: servicebus-namespace
+          # Static environment variables
           - name: ASPNETCORE_ENVIRONMENT
             value: Production
           - name: ASPNETCORE_URLS
