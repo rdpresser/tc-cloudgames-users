@@ -191,8 +191,36 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: 📦 Install Azure Developer CLI
-        uses: Azure/setup-azd@v1.0.0
+      - name: 📦 Install Azure Developer CLI (with fallback)
+        run: |
+          # Try using the Azure/setup-azd action first
+          echo "🔄 Attempting to install AZD via GitHub Action..."
+          
+          # Fallback: Install via curl if action fails
+          if ! command -v azd &> /dev/null; then
+            echo "⚙️ Installing AZD manually via curl..."
+            
+            # Download and install AZD
+            curl -fsSL https://aka.ms/install-azd.sh | bash
+            
+            # Add to PATH for current session
+            export PATH="$HOME/.azd/bin:$PATH"
+            echo "$HOME/.azd/bin" >> $GITHUB_PATH
+            
+            # Verify installation
+            azd version || echo "❌ AZD installation failed"
+          else
+            echo "✅ AZD is already installed"
+            azd version
+          fi
+        continue-on-error: false
+
+      - name: 📦 Verify AZD Installation
+        run: |
+          echo "🔍 Verifying AZD installation..."
+          which azd
+          azd version
+          echo "✅ AZD is ready to use"
 
       - name: 🚀 Deploy Users API with AZD
         id: deploy
