@@ -269,6 +269,23 @@ jobs:
           azd version
           echo "✅ AZD is ready to use"
 
+      - name: 🔐 AZD Authentication
+        run: |
+          echo "🔑 Authenticating AZD with Azure..."
+          
+          # Extract credentials from AZURE_CREDENTIALS secret
+          CLIENT_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.clientId')
+          CLIENT_SECRET=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.clientSecret')
+          TENANT_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.tenantId')
+          
+          # Login AZD using service principal
+          azd auth login --client-id "$CLIENT_ID" --client-secret "$CLIENT_SECRET" --tenant-id "$TENANT_ID"
+          
+          echo "✅ AZD authenticated successfully"
+          
+          # Verify authentication
+          azd auth status
+
       - name: 🚀 Deploy Users API with AZD
         id: deploy
         working-directory: ./tc-cloudgames-solution/services/users/azd
