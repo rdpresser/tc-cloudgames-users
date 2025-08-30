@@ -23,7 +23,6 @@ env:
   SOLUTION_PATH: .
 
 jobs:
-  # Only run on merged PRs or manual dispatch
   check-trigger:
     if: (github.event.pull_request.merged == true) || (github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
@@ -36,9 +35,6 @@ jobs:
           echo "should-deploy=true" >> $GITHUB_OUTPUT
           echo "🚀 Deployment triggered by: ${{ github.event_name }}"
   
-  # ==============================================================================
-  # UNIT TESTS - Run comprehensive test suite
-  # ==============================================================================
   unit-tests:
     name: 🧪 Unit Tests
     runs-on: ubuntu-latest
@@ -46,8 +42,10 @@ jobs:
     if: needs.check-trigger.outputs.should-deploy == 'true'
     
     steps:
-      - name: 📥 Checkout repository
+      - name: 📥 Checkout repository (users-api)
         uses: actions/checkout@v4
+        with:
+          path: users-api
 
       - name: 📥 Checkout shared common repository
         uses: actions/checkout@v4
@@ -56,18 +54,33 @@ jobs:
           path: shared/common
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 🔗 Setup shared references for local paths
+      - name: 🗂️ Setup directory structure to match .sln expectations
         run: |
-          # Create directory structure to match local development paths
-          mkdir -p ../shared/common
+          # Debug: Show initial structure
+          echo "🔍 Initial structure:"
+          pwd
+          ls -la
           
-          # Create symbolic links to make both paths work
-          cp -r shared/common/* ../shared/common/
+          # The .sln file expects: ../../shared/common/src/
+          # So we need to create this exact structure
           
-          # Verify both paths exist
-          echo "✅ Shared common content:"
-          ls -la shared/common/src/
-          ls -la ../shared/common/src/
+          # Create the directory where .sln expects to find shared projects
+          mkdir -p ../../shared/common
+          
+          # Copy shared content to the location expected by .sln
+          cp -r shared/common/* ../../shared/common/
+          
+          # Debug: Verify the shared content is in the right place
+          echo "✅ Shared projects location (where .sln expects):"
+          ls -la ../../shared/common/src/ || echo "❌ ../../shared/common/src/ not found"
+          
+          echo "📦 Available shared projects:"
+          ls -la ../../shared/common/src/TC.CloudGames.SharedKernel/ || echo "SharedKernel not found"
+          ls -la ../../shared/common/src/TC.CloudGames.Contracts/ || echo "Contracts not found"
+          
+          # Now the users-api directory structure
+          echo "📁 Users API structure:"
+          ls -la users-api/
 
       - name: ⚙️ Setup .NET 9.0
         uses: actions/setup-dotnet@v4
@@ -75,12 +88,15 @@ jobs:
           dotnet-version: '9.0.x'
 
       - name: 📦 Restore dependencies
+        working-directory: users-api
         run: dotnet restore ${{ env.SOLUTION_PATH }}
 
       - name: 🏗️ Build solution
+        working-directory: users-api
         run: dotnet build ${{ env.SOLUTION_PATH }} --no-restore --configuration Release
 
       - name: 🧪 Run unit tests
+        working-directory: users-api
         run: |
           dotnet test ${{ env.SOLUTION_PATH }} \
             --no-build \
@@ -95,7 +111,7 @@ jobs:
         if: always()
         with:
           name: 🧪 Unit Tests Results
-          path: ./test-results/*.trx
+          path: users-api/test-results/*.trx
           reporter: dotnet-trx
           fail-on-error: true
 
@@ -104,12 +120,9 @@ jobs:
         if: always()
         with:
           name: coverage-reports-${{ github.sha }}
-          path: ./test-results/**/coverage.cobertura.xml
+          path: users-api/test-results/**/coverage.cobertura.xml
           retention-days: 5
 
-  # ==============================================================================
-  # GET FOUNDATION OUTPUTS - Fetch infrastructure info from Azure
-  # ==============================================================================
   get-foundation-outputs:
     name: 🔗 Get Foundation Infrastructure
     runs-on: ubuntu-latest
@@ -146,7 +159,6 @@ jobs:
           echo "🔍 Environment: $GITHUB_ENVIRONMENT → $AZURE_ENV_PREFIX → $RESOURCE_GROUP"
           
           # Discover resources with exact pattern matching (more resilient)
-          # Expected patterns: tccloudgames{env}{random}acr, tccloudgames{env}{random}kv, tc-cloudgames-{env}-{random}-env
           ACR_NAME=$(az acr list --resource-group $RESOURCE_GROUP --query "[?starts_with(name, 'tccloudgames${AZURE_ENV_PREFIX}')].name" -o tsv | head -1)
           KEY_VAULT_NAME=$(az keyvault list --resource-group $RESOURCE_GROUP --query "[?starts_with(name, 'tccloudgames${AZURE_ENV_PREFIX}')].name" -o tsv | head -1)
           CONTAINER_APP_ENV_NAME=$(az containerapp env list --resource-group $RESOURCE_GROUP --query "[?starts_with(name, 'tc-cloudgames-${AZURE_ENV_PREFIX}-') && ends_with(name, '-env')].name" -o tsv | head -1)
@@ -172,9 +184,6 @@ jobs:
           echo "azure-environment=$AZURE_ENV_PREFIX" >> $GITHUB_OUTPUT
           echo "azure-subscription-id=$AZURE_SUBSCRIPTION_ID" >> $GITHUB_OUTPUT
 
-  # ==============================================================================
-  # DEPLOY JOB - Deploy using AZD
-  # ==============================================================================
   deploy:
     name: 🚀 Deploy Users API with AZD
     runs-on: ubuntu-latest
@@ -189,8 +198,10 @@ jobs:
       image-uri: ${{ steps.deploy.outputs.image-uri }}
     
     steps:
-      - name: 📥 Checkout repository
+      - name: 📥 Checkout repository (users-api)
         uses: actions/checkout@v4
+        with:
+          path: users-api
 
       - name: 📥 Checkout shared common repository
         uses: actions/checkout@v4
@@ -199,20 +210,19 @@ jobs:
           path: shared/common
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: � Setup shared references for local paths
+      - name: 🗂️ Setup directory structure to match .sln expectations
         run: |
-          # Create directory structure to match local development paths
-          mkdir -p ../shared/common
+          # The .sln file expects: ../../shared/common/src/
+          # Create this exact structure for deployment
           
-          # Copy content to match local development structure
-          cp -r shared/common/* ../shared/common/
+          mkdir -p ../../shared/common
+          cp -r shared/common/* ../../shared/common/
           
-          # Verify both paths exist
-          echo "✅ Shared common content available at both paths"
-          ls -la shared/common/src/
-          ls -la ../shared/common/src/
+          echo "✅ Directory structure for deployment ready"
+          ls -la ../../shared/common/src/
+          ls -la users-api/azd/
 
-      - name: �🔐 Azure Login
+      - name: 🔐 Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
@@ -222,7 +232,7 @@ jobs:
 
       - name: 🚀 Deploy Users API with AZD
         id: deploy
-        working-directory: ./azd
+        working-directory: users-api/azd
         run: |
           # Generate image tag
           IMAGE_TAG="$(date +%Y%m%d-%H%M%S)-$(echo ${{ github.sha }} | cut -c1-8)"
@@ -290,9 +300,6 @@ jobs:
             fi
           done
 
-  # ==============================================================================
-  # SUMMARY JOB - Deployment summary
-  # ==============================================================================
   summary:
     name: 📊 Deployment Summary
     runs-on: ubuntu-latest
