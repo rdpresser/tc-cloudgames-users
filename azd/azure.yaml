@@ -122,6 +122,48 @@ hooks:
       
       echo "🆔 System MI Principal ID: $PRINCIPAL_ID"
       
+      # ============================================================================
+      # RBAC CONFIGURATION - Service Principal and GitHub Actions for Key Vault
+      # ============================================================================
+      
+      echo "🔐 Configuring Key Vault RBAC permissions..."
+      
+      # Grant Service Principal Key Vault Administrator role (for Terraform)
+      echo "🔧 Granting Service Principal Key Vault Administrator access..."
+      az role assignment create \
+        --assignee $AZURE_CLIENT_ID \
+        --role "Key Vault Administrator" \
+        --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$AZURE_KEY_VAULT_NAME" \
+        --only-show-errors || echo "⚠️  Role assignment may already exist"
+      
+      # Grant Service Principal Key Vault Secrets User role
+      echo "🔧 Granting Service Principal Key Vault Secrets User access..."
+      az role assignment create \
+        --assignee $AZURE_CLIENT_ID \
+        --role "Key Vault Secrets User" \
+        --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$AZURE_KEY_VAULT_NAME" \
+        --only-show-errors || echo "⚠️  Role assignment may already exist"
+      
+      # Grant GitHub Actions Service Principal Key Vault Secrets User role (if exists)
+      if [ -n "$GITHUB_ACTIONS_CLIENT_ID" ]; then
+        echo "🔧 Granting GitHub Actions Key Vault Secrets User access..."
+        az role assignment create \
+          --assignee $GITHUB_ACTIONS_CLIENT_ID \
+          --role "Key Vault Secrets User" \
+          --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$AZURE_KEY_VAULT_NAME" \
+          --only-show-errors || echo "⚠️  Role assignment may already exist"
+      fi
+      
+      # Grant your user Key Vault Administrator role (if exists)
+      if [ -n "$USER_OBJECT_ID" ]; then
+        echo "🔧 Granting User Key Vault Administrator access..."
+        az role assignment create \
+          --assignee $USER_OBJECT_ID \
+          --role "Key Vault Administrator" \
+          --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$AZURE_KEY_VAULT_NAME" \
+          --only-show-errors || echo "⚠️  Role assignment may already exist"
+      fi
+      
       # Grant Key Vault Secrets User role to System MI (idempotent)
       echo "🔐 Ensuring Key Vault access..."
       if az role assignment list --assignee $PRINCIPAL_ID --role "Key Vault Secrets User" --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$AZURE_KEY_VAULT_NAME" --query "[0].id" -o tsv | grep -q "roleAssignments"; then
