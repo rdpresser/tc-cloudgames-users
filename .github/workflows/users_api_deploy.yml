@@ -20,9 +20,12 @@ on:
 env:
   SERVICE_NAME: users-api
   PROJECT_PATH: src/Adapters/Inbound/TC.CloudGames.Users.Api
-  SOLUTION_PATH: .
+  SOLUTION_PATH: ./TC.CloudGames.Users.sln
 
 jobs:
+  # ==================================================================
+  # CHECK TRIGGER
+  # ==================================================================
   check-trigger:
     if: (github.event.pull_request.merged == true) || (github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
@@ -34,53 +37,38 @@ jobs:
         run: |
           echo "should-deploy=true" >> $GITHUB_OUTPUT
           echo "🚀 Deployment triggered by: ${{ github.event_name }}"
-  
+
+  # ==================================================================
+  # UNIT TESTS
+  # ==================================================================
   unit-tests:
     name: 🧪 Unit Tests
     runs-on: ubuntu-latest
     needs: check-trigger
     if: needs.check-trigger.outputs.should-deploy == 'true'
-    
     steps:
-      - name: 📥 Checkout repository (users-api)
+      - name: 📥 Checkout Users API repository
         uses: actions/checkout@v4
         with:
-          path: users-api
+          path: users
 
-      - name: 📥 Checkout shared common repository
+      - name: 📥 Checkout shared/common repository
         uses: actions/checkout@v4
         with:
           repository: rdpresser/tc-cloudgames-common
           path: shared/common
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 🗂️ Setup directory structure to match .sln expectations
+      - name: 🔗 Prepare local paths
         run: |
-          # Debug: Show initial structure
-          echo "🔍 Initial structure:"
-          pwd
-          ls -la
-          
-          # The .sln file expects: ../../shared/common/src/
-          # So we need to create this exact structure
-          
-          # Create the directory where .sln expects to find shared projects
-          mkdir -p ../../shared/common
-          
-          # Copy shared content to the location expected by .sln
-          cp -r shared/common/* ../../shared/common/
-          
-          # Debug: Verify the shared content is in the right place
-          echo "✅ Shared projects location (where .sln expects):"
-          ls -la ../../shared/common/src/ || echo "❌ ../../shared/common/src/ not found"
-          
-          echo "📦 Available shared projects:"
-          ls -la ../../shared/common/src/TC.CloudGames.SharedKernel/ || echo "SharedKernel not found"
-          ls -la ../../shared/common/src/TC.CloudGames.Contracts/ || echo "Contracts not found"
-          
-          # Now the users-api directory structure
-          echo "📁 Users API structure:"
-          ls -la users-api/
+          # Recreate local development layout
+          mkdir -p ../shared
+          cp -r shared/common/src ../shared/common
+
+          echo "✅ Users API path:"
+          ls -la users/src/Adapters/Inbound/TC.CloudGames.Users.Api
+          echo "✅ Shared common path:"
+          ls -la ../shared/common/TC.CloudGames.SharedKernel
 
       - name: ⚙️ Setup .NET 9.0
         uses: actions/setup-dotnet@v4
@@ -88,15 +76,15 @@ jobs:
           dotnet-version: '9.0.x'
 
       - name: 📦 Restore dependencies
-        working-directory: users-api
+        working-directory: users
         run: dotnet restore ${{ env.SOLUTION_PATH }}
 
       - name: 🏗️ Build solution
-        working-directory: users-api
+        working-directory: users
         run: dotnet build ${{ env.SOLUTION_PATH }} --no-restore --configuration Release
 
       - name: 🧪 Run unit tests
-        working-directory: users-api
+        working-directory: users
         run: |
           dotnet test ${{ env.SOLUTION_PATH }} \
             --no-build \
@@ -111,7 +99,7 @@ jobs:
         if: always()
         with:
           name: 🧪 Unit Tests Results
-          path: users-api/test-results/*.trx
+          path: users/test-results/*.trx
           reporter: dotnet-trx
           fail-on-error: true
 
@@ -120,15 +108,17 @@ jobs:
         if: always()
         with:
           name: coverage-reports-${{ github.sha }}
-          path: users-api/test-results/**/coverage.cobertura.xml
+          path: users/test-results/**/coverage.cobertura.xml
           retention-days: 5
 
+  # ==================================================================
+  # GET FOUNDATION OUTPUTS
+  # ==================================================================
   get-foundation-outputs:
     name: 🔗 Get Foundation Infrastructure
     runs-on: ubuntu-latest
     needs: [check-trigger, unit-tests]
     if: needs.check-trigger.outputs.should-deploy == 'true'
-    
     outputs:
       resource-group: ${{ steps.outputs.outputs.resource-group }}
       acr-name: ${{ steps.outputs.outputs.acr-name }}
@@ -138,7 +128,6 @@ jobs:
       environment: ${{ steps.outputs.outputs.environment }}
       azure-environment: ${{ steps.outputs.outputs.azure-environment }}
       azure-subscription-id: ${{ steps.outputs.outputs.azure-subscription-id }}
-    
     steps:
       - name: 🔐 Azure Login
         uses: azure/login@v2
@@ -148,79 +137,63 @@ jobs:
       - name: 🔗 Get Foundation Infrastructure Outputs
         id: outputs
         run: |
-          # Extract Azure credentials from JSON
           AZURE_SUBSCRIPTION_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.subscriptionId')
-          
-          # Environment mapping
           GITHUB_ENVIRONMENT="${{ github.event.inputs.environment || 'dev-rodrigo' }}"
           AZURE_ENV_PREFIX=$(echo $GITHUB_ENVIRONMENT | cut -d'-' -f1)
           RESOURCE_GROUP="tc-cloudgames-solution-${AZURE_ENV_PREFIX}-rg"
-          
-          echo "🔍 Environment: $GITHUB_ENVIRONMENT → $AZURE_ENV_PREFIX → $RESOURCE_GROUP"
-          
-          # Discover resources with exact pattern matching (more resilient)
+
           ACR_NAME=$(az acr list --resource-group $RESOURCE_GROUP --query "[?starts_with(name, 'tccloudgames${AZURE_ENV_PREFIX}')].name" -o tsv | head -1)
           KEY_VAULT_NAME=$(az keyvault list --resource-group $RESOURCE_GROUP --query "[?starts_with(name, 'tccloudgames${AZURE_ENV_PREFIX}')].name" -o tsv | head -1)
           CONTAINER_APP_ENV_NAME=$(az containerapp env list --resource-group $RESOURCE_GROUP --query "[?starts_with(name, 'tc-cloudgames-${AZURE_ENV_PREFIX}-') && ends_with(name, '-env')].name" -o tsv | head -1)
-          
-          # ACR login server follows predictable pattern: {name}.azurecr.io
-          ACR_LOGIN_SERVER="${ACR_NAME}.azurecr.io"
-          
-          # Validate required resources
+
           if [ -z "$ACR_NAME" ] || [ -z "$KEY_VAULT_NAME" ] || [ -z "$CONTAINER_APP_ENV_NAME" ]; then
             echo "❌ Missing resources in $RESOURCE_GROUP. Found: ACR=$ACR_NAME, KV=$KEY_VAULT_NAME, ENV=$CONTAINER_APP_ENV_NAME"
             exit 1
           fi
-          
+
           echo "✅ Found: ACR=$ACR_NAME, KV=$KEY_VAULT_NAME, ENV=$CONTAINER_APP_ENV_NAME"
-          
-          # Set outputs
+
           echo "resource-group=$RESOURCE_GROUP" >> $GITHUB_OUTPUT
           echo "acr-name=$ACR_NAME" >> $GITHUB_OUTPUT
-          echo "acr-login-server=$ACR_LOGIN_SERVER" >> $GITHUB_OUTPUT
+          echo "acr-login-server=${ACR_NAME}.azurecr.io" >> $GITHUB_OUTPUT
           echo "key-vault-name=$KEY_VAULT_NAME" >> $GITHUB_OUTPUT
           echo "container-app-env-name=$CONTAINER_APP_ENV_NAME" >> $GITHUB_OUTPUT
           echo "environment=$GITHUB_ENVIRONMENT" >> $GITHUB_OUTPUT
           echo "azure-environment=$AZURE_ENV_PREFIX" >> $GITHUB_OUTPUT
           echo "azure-subscription-id=$AZURE_SUBSCRIPTION_ID" >> $GITHUB_OUTPUT
 
+  # ==================================================================
+  # DEPLOY JOB
+  # ==================================================================
   deploy:
     name: 🚀 Deploy Users API with AZD
     runs-on: ubuntu-latest
     needs: [check-trigger, unit-tests, get-foundation-outputs]
     if: needs.check-trigger.outputs.should-deploy == 'true'
     environment: ${{ needs.get-foundation-outputs.outputs.environment }}
-    
     outputs:
       container-app-name: ${{ steps.deploy.outputs.container-app-name }}
       container-app-url: ${{ steps.deploy.outputs.container-app-url }}
       image-tag: ${{ steps.deploy.outputs.image-tag }}
       image-uri: ${{ steps.deploy.outputs.image-uri }}
-    
     steps:
-      - name: 📥 Checkout repository (users-api)
+      - name: 📥 Checkout Users API repository
         uses: actions/checkout@v4
         with:
-          path: users-api
+          path: users
 
-      - name: 📥 Checkout shared common repository
+      - name: 📥 Checkout shared/common repository
         uses: actions/checkout@v4
         with:
           repository: rdpresser/tc-cloudgames-common
           path: shared/common
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 🗂️ Setup directory structure to match .sln expectations
+      - name: 🔗 Prepare local paths
         run: |
-          # The .sln file expects: ../../shared/common/src/
-          # Create this exact structure for deployment
-          
-          mkdir -p ../../shared/common
-          cp -r shared/common/* ../../shared/common/
-          
-          echo "✅ Directory structure for deployment ready"
-          ls -la ../../shared/common/src/
-          ls -la users-api/azd/
+          mkdir -p ../shared
+          cp -r shared/common/src ../shared/common
+          echo "✅ Shared content ready for deployment"
 
       - name: 🔐 Azure Login
         uses: azure/login@v2
@@ -232,25 +205,16 @@ jobs:
 
       - name: 🚀 Deploy Users API with AZD
         id: deploy
-        working-directory: users-api/azd
+        working-directory: users/azd
         run: |
-          # Generate image tag
           IMAGE_TAG="$(date +%Y%m%d-%H%M%S)-$(echo ${{ github.sha }} | cut -c1-8)"
           IMAGE_URI="${{ needs.get-foundation-outputs.outputs.acr-login-server }}/${{ env.SERVICE_NAME }}:${IMAGE_TAG}"
-          
-          echo "🏷️ Image: ${IMAGE_URI}"
-          echo "🔗 Using: ${{ needs.get-foundation-outputs.outputs.resource-group }}"
-          
-          # Initialize AZD environment (more semantic approach)
+
           ENVIRONMENT="${{ needs.get-foundation-outputs.outputs.environment }}"
           if [ ! -f ".azure/$ENVIRONMENT/.env" ]; then
-            echo "📝 Creating new AZD environment: $ENVIRONMENT"
             azd env new $ENVIRONMENT
-          else
-            echo "✅ AZD environment already exists: $ENVIRONMENT"
           fi
-          
-          # Configure AZD with foundation infrastructure
+
           azd env set AZURE_SUBSCRIPTION_ID ${{ needs.get-foundation-outputs.outputs.azure-subscription-id }}
           azd env set AZURE_RESOURCE_GROUP ${{ needs.get-foundation-outputs.outputs.resource-group }}
           azd env set AZURE_CONTAINER_REGISTRY_NAME ${{ needs.get-foundation-outputs.outputs.acr-name }}
@@ -260,25 +224,17 @@ jobs:
           azd env set AZURE_ENVIRONMENT ${{ needs.get-foundation-outputs.outputs.azure-environment }}
           azd env set CONTAINER_IMAGE_TAG $IMAGE_TAG
           azd env set CONTAINER_IMAGE_URI $IMAGE_URI
-          
-          # Deploy
-          echo "🚀 Starting AZD deployment..."
+
           azd up --no-prompt
-          echo "✅ AZD deployment completed!"
-          
-          # Get Container App details
+
           CONTAINER_APP_NAME=$(az containerapp list \
             --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
             --query "[?contains(name, '${{ env.SERVICE_NAME }}')].name" -o tsv)
-          
           CONTAINER_APP_URL=$(az containerapp show \
             --name $CONTAINER_APP_NAME \
             --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
             --query "properties.configuration.ingress.fqdn" -o tsv)
-          
-          echo "🌐 Container App: $CONTAINER_APP_NAME → https://$CONTAINER_APP_URL"
-          
-          # Set outputs
+
           echo "container-app-name=$CONTAINER_APP_NAME" >> $GITHUB_OUTPUT
           echo "container-app-url=https://$CONTAINER_APP_URL" >> $GITHUB_OUTPUT
           echo "image-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
@@ -286,10 +242,8 @@ jobs:
 
       - name: 🧪 Health Check
         run: |
-          echo "🧪 Testing deployment health..."
           HEALTH_URL="${{ steps.deploy.outputs.container-app-url }}/health"
           sleep 30
-          
           for i in {1..3}; do
             if curl -f "$HEALTH_URL" > /dev/null 2>&1; then
               echo "✅ Health check passed!"
@@ -300,40 +254,27 @@ jobs:
             fi
           done
 
+  # ==================================================================
+  # SUMMARY JOB
+  # ==================================================================
   summary:
     name: 📊 Deployment Summary
     runs-on: ubuntu-latest
     needs: [check-trigger, unit-tests, get-foundation-outputs, deploy]
     if: always() && needs.check-trigger.outputs.should-deploy == 'true'
-    
     steps:
       - name: 📊 Generate Deployment Summary
         run: |
           echo "# 🚀 Users API Deployment Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 📋 Deployment Details" >> $GITHUB_STEP_SUMMARY
           echo "- **Environment**: \`${{ needs.get-foundation-outputs.outputs.environment }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Service**: \`${{ env.SERVICE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Image**: \`${{ needs.deploy.outputs.image-tag }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Container App**: \`${{ needs.deploy.outputs.container-app-name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **URL**: [${{ needs.deploy.outputs.container-app-url }}](${{ needs.deploy.outputs.container-app-url }})" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          # Check job statuses
+
           if [ "${{ needs.unit-tests.result }}" = "success" ] && [ "${{ needs.get-foundation-outputs.result }}" = "success" ] && [ "${{ needs.deploy.result }}" = "success" ]; then
             echo "## ✅ Deployment Status: SUCCESS" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 🎉 Pipeline Features:" >> $GITHUB_STEP_SUMMARY
-            echo "- **🧪 Testing**: Unit tests passed" >> $GITHUB_STEP_SUMMARY
-            echo "- **📦 Multi-repo**: Shared dependencies resolved" >> $GITHUB_STEP_SUMMARY
-            echo "- **🔗 Infrastructure**: Foundation resources discovered" >> $GITHUB_STEP_SUMMARY
-            echo "- **🚀 AZD**: Single command deployment" >> $GITHUB_STEP_SUMMARY
-            echo "- **🔐 Security**: System Managed Identity + Key Vault" >> $GITHUB_STEP_SUMMARY
           else
             echo "## ❌ Deployment Status: FAILED" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 🔍 Status:" >> $GITHUB_STEP_SUMMARY
-            echo "- **Unit Tests**: ${{ needs.unit-tests.result }}" >> $GITHUB_STEP_SUMMARY
-            echo "- **Infrastructure**: ${{ needs.get-foundation-outputs.result }}" >> $GITHUB_STEP_SUMMARY
-            echo "- **Deployment**: ${{ needs.deploy.result }}" >> $GITHUB_STEP_SUMMARY
           fi
