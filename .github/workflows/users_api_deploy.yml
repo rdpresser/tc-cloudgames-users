@@ -55,7 +55,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: rdpresser/tc-cloudgames-common
-          path: ../shared/common
+          path: users/shared/common
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: ⚙️ Setup .NET 9.0
@@ -178,7 +178,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: rdpresser/tc-cloudgames-common
-          path: ../shared/common
+          path: users/shared/common
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: ⚙️ Setup .NET 9.0
