@@ -94,7 +94,54 @@ jobs:
           fail-on-error: true
           working-directory: tc-cloudgames-solution/services/users
 
-      - name: 📈 Upload coverage reports
+      - name: � Generate Coverage Report
+        if: always()
+        run: |
+          echo "🔧 Installing ReportGenerator..."
+          dotnet tool install -g dotnet-reportgenerator-globaltool
+          
+          echo "📊 Generating coverage reports..."
+          reportgenerator \
+            "-reports:tc-cloudgames-solution/services/users/test-results/**/coverage.cobertura.xml" \
+            "-targetdir:tc-cloudgames-solution/services/users/coverage-report" \
+            "-reporttypes:Html;Badges;TextSummary" \
+            "-verbosity:Info"
+          
+          echo "✅ Coverage report generated!"
+          ls -la tc-cloudgames-solution/services/users/coverage-report/
+
+      - name: 📈 Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report-${{ github.sha }}
+          path: tc-cloudgames-solution/services/users/coverage-report/
+          retention-days: 7
+
+      - name: 📊 Coverage Summary in PR
+        if: always()
+        run: |
+          if [ -f "tc-cloudgames-solution/services/users/coverage-report/Summary.txt" ]; then
+            echo "## 📊 Code Coverage Report" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 📈 Coverage Summary" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat tc-cloudgames-solution/services/users/coverage-report/Summary.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "📋 **Detailed HTML Report**: Download the \`coverage-report-${{ github.sha }}\` artifact" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Extract coverage percentage for quick view
+            if [ -f "tc-cloudgames-solution/services/users/coverage-report/index.html" ]; then
+              echo "🎯 **Quick Access**: Open the HTML report for detailed coverage analysis" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "## ⚠️ Coverage Report" >> $GITHUB_STEP_SUMMARY
+            echo "Coverage report could not be generated. Check test execution." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: �📈 Upload coverage reports
         uses: actions/upload-artifact@v4
         if: always()
         with:
