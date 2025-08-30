@@ -294,10 +294,18 @@ jobs:
           IMAGE_URI="${{ needs.get-foundation-outputs.outputs.acr-login-server }}/${{ env.SERVICE_NAME }}:${IMAGE_TAG}"
           ENVIRONMENT="${{ needs.get-foundation-outputs.outputs.environment }}"
 
+          echo "🔍 Checking AZD structure..."
+          ls -la
+          pwd
+          
           if [ ! -f ".azure/$ENVIRONMENT/.env" ]; then
+            echo "📝 Creating new AZD environment: $ENVIRONMENT"
             azd env new $ENVIRONMENT
+          else
+            echo "✅ AZD environment already exists: $ENVIRONMENT"
           fi
 
+          echo "⚙️ Configuring AZD environment variables..."
           azd env set AZURE_SUBSCRIPTION_ID ${{ needs.get-foundation-outputs.outputs.azure-subscription-id }}
           azd env set AZURE_RESOURCE_GROUP ${{ needs.get-foundation-outputs.outputs.resource-group }}
           azd env set AZURE_CONTAINER_REGISTRY_NAME ${{ needs.get-foundation-outputs.outputs.acr-name }}
@@ -308,16 +316,45 @@ jobs:
           azd env set CONTAINER_IMAGE_TAG $IMAGE_TAG
           azd env set CONTAINER_IMAGE_URI $IMAGE_URI
 
-          azd up --no-prompt
-
-          CONTAINER_APP_NAME=$(az containerapp list \
+          # Check if Container App already exists
+          EXISTING_CONTAINER_APP=$(az containerapp list \
             --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
             --query "[?contains(name, '${{ env.SERVICE_NAME }}')].name" -o tsv)
+          
+          if [ -n "$EXISTING_CONTAINER_APP" ]; then
+            echo "🔄 Container App $EXISTING_CONTAINER_APP already exists - updating with new image..."
+            
+            # Update existing Container App with new image
+            az containerapp update \
+              --name $EXISTING_CONTAINER_APP \
+              --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
+              --image $IMAGE_URI \
+              --registry-server ${{ needs.get-foundation-outputs.outputs.acr-login-server }} \
+              --registry-identity system \
+              --only-show-errors
+              
+            CONTAINER_APP_NAME=$EXISTING_CONTAINER_APP
+            echo "✅ Container App updated successfully!"
+            
+          else
+            echo "🚀 Starting AZD deployment (infrastructure will be created)..."
+            # Use azd up since no Container App exists yet
+            azd up --no-prompt
+            
+            CONTAINER_APP_NAME=$(az containerapp list \
+              --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
+              --query "[?contains(name, '${{ env.SERVICE_NAME }}')].name" -o tsv)
+            
+            echo "✅ AZD deployment completed!"
+          fi
 
+          # Get Container App URL
           CONTAINER_APP_URL=$(az containerapp show \
             --name $CONTAINER_APP_NAME \
             --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
             --query "properties.configuration.ingress.fqdn" -o tsv)
+
+          echo "🌐 Container App: $CONTAINER_APP_NAME → https://$CONTAINER_APP_URL"
 
           echo "container-app-name=$CONTAINER_APP_NAME" >> $GITHUB_OUTPUT
           echo "container-app-url=https://$CONTAINER_APP_URL" >> $GITHUB_OUTPUT

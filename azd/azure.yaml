@@ -62,11 +62,12 @@ services:
           type: SystemAssigned
 
 # Infrastructure configuration
-# AZD will create Container App using internal Bicep templates
-# No need to version any infrastructure files - they're generated automatically
-infra:
-  provider: bicep
-  path: ./infra
+# Since infrastructure is managed by Terraform (foundation), 
+# AZD will only handle application deployment to existing resources
+# Comment out infra section to prevent conflicts with Terraform
+# infra:
+#   provider: bicep
+#   path: ./infra
 
 # Hooks for additional configuration
 hooks:
