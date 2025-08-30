@@ -100,12 +100,12 @@ services:
 #   provider: bicep
 #   path: ./infra
 
-# Hooks for additional configuration
+# Hooks for Container App System MI configuration
 hooks:
   postdeploy:
     shell: sh
     run: |
-      echo "🔧 Configuring Container App post-deployment..."
+      echo "🔧 Configuring Container App System Managed Identity..."
       
       # Get Container App name (created by AZD)
       CONTAINER_APP_NAME=$(az containerapp list \
@@ -122,76 +122,29 @@ hooks:
       
       echo "🆔 System MI Principal ID: $PRINCIPAL_ID"
       
-      # ============================================================================
-      # RBAC CONFIGURATION - Service Principal and GitHub Actions for Key Vault
-      # ============================================================================
-      
-      echo "🔐 Configuring Key Vault RBAC permissions..."
-      
-      # Grant Service Principal Key Vault Administrator role (for Terraform)
-      echo "🔧 Granting Service Principal Key Vault Administrator access..."
-      az role assignment create \
-        --assignee $AZURE_CLIENT_ID \
-        --role "Key Vault Administrator" \
-        --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$AZURE_KEY_VAULT_NAME" \
-        --only-show-errors || echo "⚠️  Role assignment may already exist"
-      
-      # Grant Service Principal Key Vault Secrets User role
-      echo "🔧 Granting Service Principal Key Vault Secrets User access..."
-      az role assignment create \
-        --assignee $AZURE_CLIENT_ID \
-        --role "Key Vault Secrets User" \
-        --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$AZURE_KEY_VAULT_NAME" \
-        --only-show-errors || echo "⚠️  Role assignment may already exist"
-      
-      # Grant GitHub Actions Service Principal Key Vault Secrets User role (if exists)
-      if [ -n "$GITHUB_ACTIONS_CLIENT_ID" ]; then
-        echo "🔧 Granting GitHub Actions Key Vault Secrets User access..."
-        az role assignment create \
-          --assignee $GITHUB_ACTIONS_CLIENT_ID \
-          --role "Key Vault Secrets User" \
-          --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$AZURE_KEY_VAULT_NAME" \
-          --only-show-errors || echo "⚠️  Role assignment may already exist"
-      fi
-      
-      # Grant your user Key Vault Administrator role (if exists)
-      if [ -n "$USER_OBJECT_ID" ]; then
-        echo "🔧 Granting User Key Vault Administrator access..."
-        az role assignment create \
-          --assignee $USER_OBJECT_ID \
-          --role "Key Vault Administrator" \
-          --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$AZURE_KEY_VAULT_NAME" \
-          --only-show-errors || echo "⚠️  Role assignment may already exist"
-      fi
-      
-      # Grant Key Vault Secrets User role to System MI (idempotent)
-      echo "🔐 Ensuring Key Vault access..."
-      if az role assignment list --assignee $PRINCIPAL_ID --role "Key Vault Secrets User" --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$AZURE_KEY_VAULT_NAME" --query "[0].id" -o tsv | grep -q "roleAssignments"; then
-        echo "✅ Key Vault role assignment already exists"
-      else
-        az role assignment create \
-          --assignee $PRINCIPAL_ID \
-          --role "Key Vault Secrets User" \
-          --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$AZURE_KEY_VAULT_NAME" \
-          --only-show-errors \
-          --query "id" -o tsv
-        echo "✅ Key Vault role assignment created"
-      fi
+      # NOTE: Key Vault RBAC is managed by Terraform Foundation
+      # The foundation already grants Key Vault Secrets User to System MIs
+      # No additional Key Vault configuration needed here
       
       # Grant ACR Pull role for container image access (idempotent)
-      echo "📦 Ensuring ACR access..."
-      if az role assignment list --assignee $PRINCIPAL_ID --role "AcrPull" --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/providers/Microsoft.ContainerRegistry/registries/$AZURE_CONTAINER_REGISTRY_NAME" --query "[0].id" -o tsv | grep -q "roleAssignments"; then
+      echo "📦 Configuring ACR access for System MI..."
+      if az role assignment list \
+         --assignee $PRINCIPAL_ID \
+         --role "AcrPull" \
+         --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/providers/Microsoft.ContainerRegistry/registries/$AZURE_CONTAINER_REGISTRY_NAME" \
+         --query "[0].id" -o tsv > /dev/null 2>&1; then
         echo "✅ ACR role assignment already exists"
       else
+        echo "🔧 Creating ACR role assignment..."
         az role assignment create \
           --assignee $PRINCIPAL_ID \
           --role "AcrPull" \
           --scope "/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$AZURE_RESOURCE_GROUP/providers/Microsoft.ContainerRegistry/registries/$AZURE_CONTAINER_REGISTRY_NAME" \
-          --only-show-errors \
-          --query "id" -o tsv
+          --only-show-errors
         echo "✅ ACR role assignment created"
       fi
       
-      echo "✅ Post-deployment configuration completed!"
-      echo "🔑 Container App has System Managed Identity access to Key Vault and ACR"
-      echo "🚀 Application ready for production traffic!"
+      echo "✅ System Managed Identity configuration completed!"
+      echo "🔑 Key Vault access: Managed by Terraform Foundation"
+      echo "📦 ACR access: Configured for container pulls" 
+      echo "🚀 Container App ready for production!"
