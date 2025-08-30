@@ -76,7 +76,7 @@ services:
             secretRef: servicebus-namespace
           # Static environment variables
           - name: ASPNETCORE_ENVIRONMENT
-            value: Production
+            value: Development
           - name: ASPNETCORE_URLS
             value: http://+:8080
         scale:
