@@ -85,13 +85,14 @@ jobs:
           path: ./test-results/*.trx
           reporter: dotnet-trx
           fail-on-error: true
+          working-directory: tc-cloudgames-solution/services/users
 
       - name: 📈 Upload coverage reports
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: coverage-reports-${{ github.sha }}
-          path: ./test-results/**/coverage.cobertura.xml
+          path: tc-cloudgames-solution/services/users/test-results/**/coverage.cobertura.xml
           retention-days: 5
 
   get-foundation-outputs:
