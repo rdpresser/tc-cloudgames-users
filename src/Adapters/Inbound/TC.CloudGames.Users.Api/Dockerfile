@@ -15,6 +15,10 @@ WORKDIR /src
 # Copy Directory.Build.props first (build optimization)
 COPY Directory.Build.props ./
 
+# Copy shared common projects (required for ProjectReferences)
+COPY ["../shared/common/src/TC.CloudGames.SharedKernel/TC.CloudGames.SharedKernel.csproj", "../shared/common/src/TC.CloudGames.SharedKernel/"]
+COPY ["../shared/common/src/TC.CloudGames.Contracts/TC.CloudGames.Contracts.csproj", "../shared/common/src/TC.CloudGames.Contracts/"]
+
 # Copy project files maintaining directory structure (required for ProjectReferences)
 COPY ["src/Adapters/Inbound/TC.CloudGames.Users.Api/TC.CloudGames.Users.Api.csproj", "src/Adapters/Inbound/TC.CloudGames.Users.Api/"]
 COPY ["src/Core/TC.CloudGames.Users.Application/TC.CloudGames.Users.Application.csproj", "src/Core/TC.CloudGames.Users.Application/"]
