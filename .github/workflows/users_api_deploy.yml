@@ -271,116 +271,83 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64
 
-      - name:  Deploy to Azure Container App
+      - name: 🚀 Deploy to Azure Container App
         run: |
           CONTAINER_APP_NAME="${{ steps.build-vars.outputs.container-app-name }}"
           IMAGE_URI="${{ steps.build-vars.outputs.image-uri }}"
+          VAULT_URL="https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net"
           
-          echo "🚀 Deploying Container App: $CONTAINER_APP_NAME"
-          echo "📦 Image: $IMAGE_URI"
+          echo "🚀 Deploying $CONTAINER_APP_NAME with image $IMAGE_URI"
           
-          # Check if Container App exists
-          if az containerapp show --name "$CONTAINER_APP_NAME" --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} > /dev/null 2>&1; then
-            echo "🔄 Updating existing Container App..."
-            
-            # First update secrets using Key Vault references
-            echo "💾 Updating Container App secrets from Key Vault..."
-            az containerapp secret set \
-              --name "$CONTAINER_APP_NAME" \
-              --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
-              --secrets \
-                db-host=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-host,identityref:system \
-                db-port=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-port,identityref:system \
-                db-name-users=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-name-users,identityref:system \
-                db-admin-login=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-admin-login,identityref:system \
-                db-password=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-password,identityref:system \
-                cache-host=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/cache-host,identityref:system \
-                cache-port=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/cache-port,identityref:system \
-                cache-password=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/cache-password,identityref:system \
-                servicebus-namespace=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/servicebus-namespace,identityref:system
-            
-            # Then update the container with new image and environment variables
-            az containerapp update \
-              --name "$CONTAINER_APP_NAME" \
-              --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
-              --image "$IMAGE_URI" \
-              --set-env-vars \
-                ASPNETCORE_ENVIRONMENT=Development \
-                ASPNETCORE_URLS=http://+:8080 \
-                DB_HOST=secretref:db-host \
-                DB_PORT=secretref:db-port \
-                DB_NAME=secretref:db-name-users \
-                DB_USER=secretref:db-admin-login \
-                DB_PASSWORD=secretref:db-password \
-                CACHE_HOST=secretref:cache-host \
-                CACHE_PORT=secretref:cache-port \
-                CACHE_PASSWORD=secretref:cache-password \
-                SERVICEBUS_NAMESPACE=secretref:servicebus-namespace
-                
-            echo "✅ Container App updated successfully!"
-          else
-            echo "🆕 Creating new Container App..."
-            
-            # Create Container App with image and basic settings first
-            az containerapp create \
-              --name "$CONTAINER_APP_NAME" \
-              --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
-              --environment ${{ needs.get-foundation-outputs.outputs.container-app-env-name }} \
-              --image "$IMAGE_URI" \
-              --target-port 8080 \
-              --ingress external \
-              --registry-server ${{ needs.get-foundation-outputs.outputs.acr-login-server }} \
-              --env-vars \
-                ASPNETCORE_ENVIRONMENT=Development \
-                ASPNETCORE_URLS=http://+:8080
-            
-            echo "💾 Adding Key Vault secrets to Container App..."
-            # Add secrets from Key Vault
-            az containerapp secret set \
-              --name "$CONTAINER_APP_NAME" \
-              --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
-              --secrets \
-                db-host=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-host,identityref:system \
-                db-port=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-port,identityref:system \
-                db-name-users=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-name-users,identityref:system \
-                db-admin-login=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-admin-login,identityref:system \
-                db-password=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-password,identityref:system \
-                cache-host=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/cache-host,identityref:system \
-                cache-port=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/cache-port,identityref:system \
-                cache-password=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/cache-password,identityref:system \
-                servicebus-namespace=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/servicebus-namespace,identityref:system
-            
-            # Update environment variables to use the secrets
-            az containerapp update \
-              --name "$CONTAINER_APP_NAME" \
-              --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
-              --set-env-vars \
-                ASPNETCORE_ENVIRONMENT=Development \
-                ASPNETCORE_URLS=http://+:8080 \
-                DB_HOST=secretref:db-host \
-                DB_PORT=secretref:db-port \
-                DB_NAME=secretref:db-name-users \
-                DB_USER=secretref:db-admin-login \
-                DB_PASSWORD=secretref:db-password \
-                CACHE_HOST=secretref:cache-host \
-                CACHE_PORT=secretref:cache-port \
-                CACHE_PASSWORD=secretref:cache-password \
-                SERVICEBUS_NAMESPACE=secretref:servicebus-namespace
-                
-            echo "✅ Container App created successfully!"
-          fi
-
-      - name: 🔐 Configure System Managed Identity & Permissions
-        id: deploy
-        run: |
-          CONTAINER_APP_NAME="${{ steps.build-vars.outputs.container-app-name }}"
+          # Create or update Container App with new image and System Managed Identity
+          az containerapp up \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
+            --environment ${{ needs.get-foundation-outputs.outputs.container-app-env-name }} \
+            --image "$IMAGE_URI" \
+            --target-port 8080 \
+            --ingress external \
+            --registry-server ${{ needs.get-foundation-outputs.outputs.acr-login-server }} \
+            --system-assigned
           
           echo "🔧 Ensuring System Managed Identity is enabled..."
           az containerapp identity assign \
             --name "$CONTAINER_APP_NAME" \
             --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
             --system-assigned
+          
+          # Get System Managed Identity Principal ID for RBAC
+          PRINCIPAL_ID=$(az containerapp identity show \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
+            --query "principalId" -o tsv)
+          
+          echo "🔐 Granting Key Vault Secrets User role to Container App System MI: $PRINCIPAL_ID"
+          az role assignment create \
+            --assignee "$PRINCIPAL_ID" \
+            --role "Key Vault Secrets User" \
+            --scope "/subscriptions/${{ needs.get-foundation-outputs.outputs.azure-subscription-id }}/resourceGroups/${{ needs.get-foundation-outputs.outputs.resource-group }}/providers/Microsoft.KeyVault/vaults/${{ needs.get-foundation-outputs.outputs.key-vault-name }}" \
+            --only-show-errors || echo "✅ Key Vault role assignment already exists"
+          
+          # Configure secrets from Key Vault
+          az containerapp secret set \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
+            --secrets \
+              db-host=keyvaultref:${VAULT_URL}/secrets/db-host,identityref:system \
+              db-port=keyvaultref:${VAULT_URL}/secrets/db-port,identityref:system \
+              db-name-users=keyvaultref:${VAULT_URL}/secrets/db-name-users,identityref:system \
+              db-admin-login=keyvaultref:${VAULT_URL}/secrets/db-admin-login,identityref:system \
+              db-password=keyvaultref:${VAULT_URL}/secrets/db-password,identityref:system \
+              cache-host=keyvaultref:${VAULT_URL}/secrets/cache-host,identityref:system \
+              cache-port=keyvaultref:${VAULT_URL}/secrets/cache-port,identityref:system \
+              cache-password=keyvaultref:${VAULT_URL}/secrets/cache-password,identityref:system \
+              servicebus-namespace=keyvaultref:${VAULT_URL}/secrets/servicebus-namespace,identityref:system
+          
+          # Update environment variables to use secrets
+          az containerapp update \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
+            --set-env-vars \
+              ASPNETCORE_ENVIRONMENT=Development \
+              ASPNETCORE_URLS=http://+:8080 \
+              DB_HOST=secretref:db-host \
+              DB_PORT=secretref:db-port \
+              DB_NAME=secretref:db-name-users \
+              DB_USER=secretref:db-admin-login \
+              DB_PASSWORD=secretref:db-password \
+              CACHE_HOST=secretref:cache-host \
+              CACHE_PORT=secretref:cache-port \
+              CACHE_PASSWORD=secretref:cache-password \
+              SERVICEBUS_NAMESPACE=secretref:servicebus-namespace
+          
+          echo "✅ Container App deployed successfully!"
 
+      - name: 🌐 Get Container App URL & ACR Access
+        id: deploy
+        run: |
+          CONTAINER_APP_NAME="${{ steps.build-vars.outputs.container-app-name }}"
+          
           # Get System Managed Identity Principal ID
           PRINCIPAL_ID=$(az containerapp identity show \
             --name "$CONTAINER_APP_NAME" \
