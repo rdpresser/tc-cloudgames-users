@@ -243,8 +243,9 @@ jobs:
         id: build-vars
         run: |
           IMAGE_TAG="$(date +%Y%m%d-%H%M%S)-$(echo ${{ github.sha }} | cut -c1-8)"
-          IMAGE_URI="${{ needs.get-foundation-outputs.outputs.acr-login-server }}/${{ env.SERVICE_NAME }}:${IMAGE_TAG}"
-          CONTAINER_APP_NAME="${{ env.SERVICE_NAME }}-${{ needs.get-foundation-outputs.outputs.azure-environment }}"
+          SERVICE_NAME_WITH_ENV="${{ env.SERVICE_NAME }}-${{ needs.get-foundation-outputs.outputs.azure-environment }}"
+          IMAGE_URI="${{ needs.get-foundation-outputs.outputs.acr-login-server }}/${SERVICE_NAME_WITH_ENV}:${IMAGE_TAG}"
+          CONTAINER_APP_NAME="${SERVICE_NAME_WITH_ENV}"
           
           echo "container-app-name=$CONTAINER_APP_NAME" >> $GITHUB_OUTPUT
           echo "image-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
