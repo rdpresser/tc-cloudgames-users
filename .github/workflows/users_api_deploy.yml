@@ -41,6 +41,7 @@ jobs:
     needs: check-trigger
     if: needs.check-trigger.outputs.should-deploy == 'true'
     
+    # ✅ Permissões necessárias para o dorny/test-reporter
     permissions:
       contents: read
       actions: read
@@ -48,7 +49,7 @@ jobs:
       pull-requests: write
 
     steps:
-      - name: 📥 Checkout Users API repository
+      - name:  Checkout Users API repository
         uses: actions/checkout@v4
         with:
           path: tc-cloudgames-solution/services/users
@@ -65,7 +66,7 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - name: 🧪 Restore, Build & Test
+      - name: 🧪 Restore & Test
         run: |
           dotnet restore ${{ env.SOLUTION_PATH }}
           dotnet test ${{ env.SOLUTION_PATH }} \
@@ -80,7 +81,7 @@ jobs:
         if: always()
         with:
           name: 🧪 Unit Tests Results
-          path: tc-cloudgames-solution/services/users/test-results/*.trx
+          path: ./test-results/*.trx
           reporter: dotnet-trx
           fail-on-error: true
           working-directory: tc-cloudgames-solution/services/users
@@ -92,9 +93,11 @@ jobs:
           reportgenerator \
             "-reports:tc-cloudgames-solution/services/users/test-results/**/coverage.cobertura.xml" \
             "-targetdir:tc-cloudgames-solution/services/users/coverage-report" \
-            "-reporttypes:Html;Badges;TextSummary"
+            "-reporttypes:Html;Badges;TextSummary" \
+            "-verbosity:Info"
 
-      - uses: actions/upload-artifact@v4
+      - name: 📈 Upload Coverage Artifacts
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: coverage-${{ github.sha }}
@@ -102,6 +105,23 @@ jobs:
             tc-cloudgames-solution/services/users/coverage-report/
             tc-cloudgames-solution/services/users/test-results/**/coverage.cobertura.xml
           retention-days: 7
+
+      - name: 📊 Coverage Summary in PR
+        if: always()
+        run: |
+          if [ -f "tc-cloudgames-solution/services/users/coverage-report/Summary.txt" ]; then
+            echo "## 📊 Code Coverage Report" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 📈 Coverage Summary" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat tc-cloudgames-solution/services/users/coverage-report/Summary.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "📋 **Detailed Report**: Download the \`coverage-${{ github.sha }}\` artifact" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ⚠️ Coverage Report" >> $GITHUB_STEP_SUMMARY
+            echo "Coverage report could not be generated. Check test execution." >> $GITHUB_STEP_SUMMARY
+          fi
 
   get-foundation-outputs:
     name: 🔗 Get Foundation Infrastructure
@@ -139,6 +159,11 @@ jobs:
           CONTAINER_APP_ENV_NAME=$(az containerapp env list --resource-group $RESOURCE_GROUP --query "[?starts_with(name, 'tc-cloudgames-${AZURE_ENV_PREFIX}-') && ends_with(name, '-env')].name" -o tsv | head -1)
           ACR_LOGIN_SERVER="${ACR_NAME}.azurecr.io"
 
+          if [ -z "$ACR_NAME" ] || [ -z "$KEY_VAULT_NAME" ] || [ -z "$CONTAINER_APP_ENV_NAME" ]; then
+            echo "❌ Missing resources in $RESOURCE_GROUP. Found: ACR=$ACR_NAME, KV=$KEY_VAULT_NAME, ENV=$CONTAINER_APP_ENV_NAME"
+            exit 1
+          fi
+
           echo "resource-group=$RESOURCE_GROUP" >> $GITHUB_OUTPUT
           echo "acr-name=$ACR_NAME" >> $GITHUB_OUTPUT
           echo "acr-login-server=$ACR_LOGIN_SERVER" >> $GITHUB_OUTPUT
@@ -162,7 +187,7 @@ jobs:
       image-uri: ${{ steps.build-vars.outputs.image-uri }}
 
     steps:
-      - name: 📥 Checkout Users API repository
+      - name:  Checkout Users API repository
         uses: actions/checkout@v4
         with:
           path: tc-cloudgames-solution/services/users
@@ -196,13 +221,16 @@ jobs:
           echo "image-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "image-uri=$IMAGE_URI" >> $GITHUB_OUTPUT
 
-      - name: 🐳 Login to ACR
-        run: az acr login --name ${{ needs.get-foundation-outputs.outputs.acr-name }}
+      - name: 🐳 Login to Azure Container Registry (via Azure CLI)
+        run: |
+          echo "🔐 Logging into ACR using Azure CLI (Service Principal authentication)"
+          az acr login --name ${{ needs.get-foundation-outputs.outputs.acr-name }}
 
       - name: ⚙️ Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: 🏗️ Build and Push Docker Image
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: ./tc-cloudgames-solution
@@ -220,7 +248,9 @@ jobs:
           IMAGE_URI="${{ steps.build-vars.outputs.image-uri }}"
           VAULT_URL="https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net"
 
-          # 1. Cria ou atualiza o app com MI habilitada
+          echo "🚀 Deploying $CONTAINER_APP_NAME with image $IMAGE_URI"
+          
+          # 1. Cria ou atualiza Container App COM System Managed Identity
           az containerapp up \
             --name "$CONTAINER_APP_NAME" \
             --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
@@ -231,25 +261,38 @@ jobs:
             --registry-server ${{ needs.get-foundation-outputs.outputs.acr-login-server }} \
             --system-assigned
 
+          # 2. Força habilitação da Managed Identity (garantia)
+          echo "🔧 Ensuring System Managed Identity is active..."
           az containerapp identity assign \
             --name "$CONTAINER_APP_NAME" \
             --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }}
 
+          # 3. Obtém Principal ID da Managed Identity
           PRINCIPAL_ID=$(az containerapp identity show \
             --name "$CONTAINER_APP_NAME" \
             --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
             --query "principalId" -o tsv)
 
-          # 2. Permissões Key Vault + ACR
+          echo "🔐 System MI Principal ID: $PRINCIPAL_ID"
+
+          # 4. RBAC: Key Vault Secrets User
+          echo "🔐 Granting Key Vault Secrets User role..."
           az role assignment create --assignee "$PRINCIPAL_ID" --role "Key Vault Secrets User" \
             --scope "/subscriptions/${{ needs.get-foundation-outputs.outputs.azure-subscription-id }}/resourceGroups/${{ needs.get-foundation-outputs.outputs.resource-group }}/providers/Microsoft.KeyVault/vaults/${{ needs.get-foundation-outputs.outputs.key-vault-name }}" \
-            --only-show-errors || echo "✅ KV role exists"
+            --only-show-errors || echo "✅ KV role assignment exists"
 
+          # 5. RBAC: ACR Pull
+          echo "🔧 Granting ACR Pull role..."
           az role assignment create --assignee "$PRINCIPAL_ID" --role "AcrPull" \
             --scope "/subscriptions/${{ needs.get-foundation-outputs.outputs.azure-subscription-id }}/resourceGroups/${{ needs.get-foundation-outputs.outputs.resource-group }}/providers/Microsoft.ContainerRegistry/registries/${{ needs.get-foundation-outputs.outputs.acr-name }}" \
-            --only-show-errors || echo "✅ ACR role exists"
+            --only-show-errors || echo "✅ ACR role assignment exists"
 
-          # 3. Configura secrets
+          # 6. Aguarda propagação das permissões RBAC
+          echo "⏳ Waiting for RBAC propagation..."
+          sleep 15
+
+          # 7. Configura secrets do Key Vault
+          echo "💾 Setting up Key Vault secrets..."
           az containerapp secret set \
             --name "$CONTAINER_APP_NAME" \
             --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
@@ -264,7 +307,8 @@ jobs:
               cache-password=keyvaultref:${VAULT_URL}/secrets/cache-password,identityref:system \
               servicebus-namespace=keyvaultref:${VAULT_URL}/secrets/servicebus-namespace,identityref:system
 
-          # 4. Variáveis de ambiente
+          # 8. Configura variáveis de ambiente
+          echo "⚙️ Setting environment variables..."
           az containerapp update \
             --name "$CONTAINER_APP_NAME" \
             --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
@@ -281,29 +325,38 @@ jobs:
               CACHE_PASSWORD=secretref:cache-password \
               SERVICEBUS_NAMESPACE=secretref:servicebus-namespace
 
-          # 5. URL
+          # 9. Obtém URL da aplicação
           CONTAINER_APP_URL=$(az containerapp show \
             --name "$CONTAINER_APP_NAME" \
             --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
             --query "properties.configuration.ingress.fqdn" -o tsv)
 
+          echo "🌐 Container App URL: https://$CONTAINER_APP_URL"
+          echo "✅ Container App deployed successfully!"
+
+          # Outputs
           echo "container-app-name=$CONTAINER_APP_NAME" >> $GITHUB_OUTPUT
           echo "container-app-url=https://$CONTAINER_APP_URL" >> $GITHUB_OUTPUT
 
       - name: 🧪 Health Check
         run: |
           HEALTH_URL="${{ steps.deploy.outputs.container-app-url }}/health"
+          echo "🏥 Checking health endpoint: $HEALTH_URL"
           sleep 30
+          
           for i in {1..3}; do
             if curl -f "$HEALTH_URL" > /dev/null 2>&1; then
               echo "✅ Health check passed!" >> $GITHUB_STEP_SUMMARY
+              echo "✅ Health check passed!"
               exit 0
             else
               echo "⏳ Attempt $i failed, retrying..."
               sleep 20
             fi
           done
-          echo "❌ Health check failed" >> $GITHUB_STEP_SUMMARY
+          
+          echo "❌ Health check failed after 3 attempts" >> $GITHUB_STEP_SUMMARY
+          echo "❌ Health check failed"
           exit 1
 
   summary:
