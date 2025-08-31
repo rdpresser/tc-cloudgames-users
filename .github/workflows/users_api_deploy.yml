@@ -298,27 +298,57 @@ jobs:
           fi
 
       - name: 🚀 Deploy to Azure Container App
-        uses: azure/container-apps-deploy-action@v2
-        with:
-          acrName: ${{ needs.get-foundation-outputs.outputs.acr-name }}
-          containerAppName: ${{ steps.build-vars.outputs.container-app-name }}
-          resourceGroup: ${{ needs.get-foundation-outputs.outputs.resource-group }}
-          imageToDeploy: ${{ steps.build-vars.outputs.image-uri }}
-          containerAppEnvironment: ${{ needs.get-foundation-outputs.outputs.container-app-env-name }}
-          targetPort: 8080
-          ingress: external
-          environmentVariables: >-
-            ASPNETCORE_ENVIRONMENT=Development
-            ASPNETCORE_URLS=http://+:8080
-            DB_HOST=secretref:db-host
-            DB_PORT=secretref:db-port
-            DB_NAME=secretref:db-name-users
-            DB_USER=secretref:db-admin-login
-            DB_PASSWORD=secretref:db-password
-            CACHE_HOST=secretref:cache-host
-            CACHE_PORT=secretref:cache-port
-            CACHE_PASSWORD=secretref:cache-password
-            SERVICEBUS_NAMESPACE=secretref:servicebus-namespace
+        run: |
+          CONTAINER_APP_NAME="${{ steps.build-vars.outputs.container-app-name }}"
+          IMAGE_URI="${{ steps.build-vars.outputs.image-uri }}"
+          
+          echo "🚀 Deploying Container App: $CONTAINER_APP_NAME"
+          echo "📦 Image: $IMAGE_URI"
+          
+          # Check if Container App exists
+          if az containerapp show --name "$CONTAINER_APP_NAME" --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} > /dev/null 2>&1; then
+            echo "🔄 Updating existing Container App..."
+            az containerapp update \
+              --name "$CONTAINER_APP_NAME" \
+              --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
+              --image "$IMAGE_URI" \
+              --set-env-vars \
+                ASPNETCORE_ENVIRONMENT=Development \
+                ASPNETCORE_URLS=http://+:8080 \
+                DB_HOST=secretref:db-host \
+                DB_PORT=secretref:db-port \
+                DB_NAME=secretref:db-name-users \
+                DB_USER=secretref:db-admin-login \
+                DB_PASSWORD=secretref:db-password \
+                CACHE_HOST=secretref:cache-host \
+                CACHE_PORT=secretref:cache-port \
+                CACHE_PASSWORD=secretref:cache-password \
+                SERVICEBUS_NAMESPACE=secretref:servicebus-namespace
+            echo "✅ Container App updated successfully!"
+          else
+            echo "🆕 Creating new Container App..."
+            az containerapp create \
+              --name "$CONTAINER_APP_NAME" \
+              --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
+              --environment ${{ needs.get-foundation-outputs.outputs.container-app-env-name }} \
+              --image "$IMAGE_URI" \
+              --target-port 8080 \
+              --ingress external \
+              --registry-server ${{ needs.get-foundation-outputs.outputs.acr-login-server }} \
+              --env-vars \
+                ASPNETCORE_ENVIRONMENT=Development \
+                ASPNETCORE_URLS=http://+:8080 \
+                DB_HOST=secretref:db-host \
+                DB_PORT=secretref:db-port \
+                DB_NAME=secretref:db-name-users \
+                DB_USER=secretref:db-admin-login \
+                DB_PASSWORD=secretref:db-password \
+                CACHE_HOST=secretref:cache-host \
+                CACHE_PORT=secretref:cache-port \
+                CACHE_PASSWORD=secretref:cache-password \
+                SERVICEBUS_NAMESPACE=secretref:servicebus-namespace
+            echo "✅ Container App created successfully!"
+          fi
 
       - name: 🔐 Configure System Managed Identity & Permissions
         id: deploy
