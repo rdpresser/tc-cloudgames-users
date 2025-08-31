@@ -23,6 +23,7 @@ env:
 
 jobs:
   check-trigger:
+    name: 🔍 Validate Deployment Trigger
     if: (github.event.pull_request.merged == true) || (github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     outputs:
@@ -261,7 +262,7 @@ jobs:
         id: build
         uses: docker/build-push-action@v5
         with:
-          context: ./tc-cloudgames-solution/services/users
+          context: ./tc-cloudgames-solution
           file: ./tc-cloudgames-solution/services/users/src/Adapters/Inbound/TC.CloudGames.Users.Api/Dockerfile
           push: true
           tags: ${{ steps.build-vars.outputs.image-uri }}

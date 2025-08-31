@@ -13,26 +13,26 @@ ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 
 # Copy Directory.Build.props first (build optimization)
-COPY Directory.Build.props ./
+COPY services/users/Directory.Build.props ./
 
 # Copy shared common projects (required for ProjectReferences)
-COPY ["../shared/common/src/TC.CloudGames.SharedKernel/TC.CloudGames.SharedKernel.csproj", "../shared/common/src/TC.CloudGames.SharedKernel/"]
-COPY ["../shared/common/src/TC.CloudGames.Contracts/TC.CloudGames.Contracts.csproj", "../shared/common/src/TC.CloudGames.Contracts/"]
+COPY ["shared/common/src/TC.CloudGames.SharedKernel/TC.CloudGames.SharedKernel.csproj", "shared/common/src/TC.CloudGames.SharedKernel/"]
+COPY ["shared/common/src/TC.CloudGames.Contracts/TC.CloudGames.Contracts.csproj", "shared/common/src/TC.CloudGames.Contracts/"]
 
 # Copy project files maintaining directory structure (required for ProjectReferences)
-COPY ["src/Adapters/Inbound/TC.CloudGames.Users.Api/TC.CloudGames.Users.Api.csproj", "src/Adapters/Inbound/TC.CloudGames.Users.Api/"]
-COPY ["src/Core/TC.CloudGames.Users.Application/TC.CloudGames.Users.Application.csproj", "src/Core/TC.CloudGames.Users.Application/"]
-COPY ["src/Core/TC.CloudGames.Users.Domain/TC.CloudGames.Users.Domain.csproj", "src/Core/TC.CloudGames.Users.Domain/"]
-COPY ["src/Adapters/Outbound/TC.CloudGames.Users.Infrastructure/TC.CloudGames.Users.Infrastructure.csproj", "src/Adapters/Outbound/TC.CloudGames.Users.Infrastructure/"]
+COPY ["services/users/src/Adapters/Inbound/TC.CloudGames.Users.Api/TC.CloudGames.Users.Api.csproj", "services/users/src/Adapters/Inbound/TC.CloudGames.Users.Api/"]
+COPY ["services/users/src/Core/TC.CloudGames.Users.Application/TC.CloudGames.Users.Application.csproj", "services/users/src/Core/TC.CloudGames.Users.Application/"]
+COPY ["services/users/src/Core/TC.CloudGames.Users.Domain/TC.CloudGames.Users.Domain.csproj", "services/users/src/Core/TC.CloudGames.Users.Domain/"]
+COPY ["services/users/src/Adapters/Outbound/TC.CloudGames.Users.Infrastructure/TC.CloudGames.Users.Infrastructure.csproj", "services/users/src/Adapters/Outbound/TC.CloudGames.Users.Infrastructure/"]
 
 # Restore packages
-RUN dotnet restore "src/Adapters/Inbound/TC.CloudGames.Users.Api/TC.CloudGames.Users.Api.csproj"
+RUN dotnet restore "services/users/src/Adapters/Inbound/TC.CloudGames.Users.Api/TC.CloudGames.Users.Api.csproj"
 
 # Copy source code maintaining structure
 COPY . .
 
 # Build the application
-WORKDIR "/src/src/Adapters/Inbound/TC.CloudGames.Users.Api"
+WORKDIR "/src/services/users/src/Adapters/Inbound/TC.CloudGames.Users.Api"
 RUN dotnet build "TC.CloudGames.Users.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 # This stage is used to publish the service project to be copied to the final stage
