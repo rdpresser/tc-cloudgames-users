@@ -261,7 +261,7 @@ jobs:
         id: build
         uses: docker/build-push-action@v5
         with:
-          context: ./tc-cloudgames-solution/services/users/src
+          context: ./tc-cloudgames-solution/services/users
           file: ./tc-cloudgames-solution/services/users/src/Adapters/Inbound/TC.CloudGames.Users.Api/Dockerfile
           push: true
           tags: ${{ steps.build-vars.outputs.image-uri }}
