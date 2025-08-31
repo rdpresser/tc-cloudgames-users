@@ -41,7 +41,6 @@ jobs:
     needs: check-trigger
     if: needs.check-trigger.outputs.should-deploy == 'true'
     
-    # ✅ Permissões necessárias para o dorny/test-reporter
     permissions:
       contents: read
       actions: read
@@ -49,9 +48,6 @@ jobs:
       pull-requests: write
 
     steps:
-      - name: 📂 Prepare workspace
-        run: mkdir -p tc-cloudgames-solution/services/users
-
       - name: 📥 Checkout Users API repository
         uses: actions/checkout@v4
         with:
@@ -69,16 +65,10 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - name: 📦 Restore dependencies
-        run: dotnet restore tc-cloudgames-solution/services/users/TC.CloudGames.Users.sln
-
-      - name: 🏗️ Build solution
-        run: dotnet build tc-cloudgames-solution/services/users/TC.CloudGames.Users.sln --no-restore --configuration Release
-
-      - name: 🧪 Run unit tests
+      - name: 🧪 Restore, Build & Test
         run: |
-          dotnet test tc-cloudgames-solution/services/users/TC.CloudGames.Users.sln \
-            --no-build \
+          dotnet restore ${{ env.SOLUTION_PATH }}
+          dotnet test ${{ env.SOLUTION_PATH }} \
             --configuration Release \
             --logger trx \
             --collect:"XPlat Code Coverage" \
@@ -90,65 +80,28 @@ jobs:
         if: always()
         with:
           name: 🧪 Unit Tests Results
-          path: ./test-results/*.trx
+          path: tc-cloudgames-solution/services/users/test-results/*.trx
           reporter: dotnet-trx
           fail-on-error: true
           working-directory: tc-cloudgames-solution/services/users
 
-      - name: 📊 Generate Coverage Report
+      - name: 📊 Generate & Upload Coverage
         if: always()
         run: |
-          echo "🔧 Installing ReportGenerator..."
           dotnet tool install -g dotnet-reportgenerator-globaltool
-          
-          echo "📊 Generating coverage reports..."
           reportgenerator \
             "-reports:tc-cloudgames-solution/services/users/test-results/**/coverage.cobertura.xml" \
             "-targetdir:tc-cloudgames-solution/services/users/coverage-report" \
-            "-reporttypes:Html;Badges;TextSummary" \
-            "-verbosity:Info"
-          
-          echo "✅ Coverage report generated!"
-          ls -la tc-cloudgames-solution/services/users/coverage-report/
+            "-reporttypes:Html;Badges;TextSummary"
 
-      - name: 📈 Upload Coverage Report
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: coverage-report-${{ github.sha }}
-          path: tc-cloudgames-solution/services/users/coverage-report/
+          name: coverage-${{ github.sha }}
+          path: |
+            tc-cloudgames-solution/services/users/coverage-report/
+            tc-cloudgames-solution/services/users/test-results/**/coverage.cobertura.xml
           retention-days: 7
-
-      - name: 📊 Coverage Summary in PR
-        if: always()
-        run: |
-          if [ -f "tc-cloudgames-solution/services/users/coverage-report/Summary.txt" ]; then
-            echo "## 📊 Code Coverage Report" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 📈 Coverage Summary" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            cat tc-cloudgames-solution/services/users/coverage-report/Summary.txt >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "📋 **Detailed HTML Report**: Download the \`coverage-report-${{ github.sha }}\` artifact" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            
-            # Extract coverage percentage for quick view
-            if [ -f "tc-cloudgames-solution/services/users/coverage-report/index.html" ]; then
-              echo "🎯 **Quick Access**: Open the HTML report for detailed coverage analysis" >> $GITHUB_STEP_SUMMARY
-            fi
-          else
-            echo "## ⚠️ Coverage Report" >> $GITHUB_STEP_SUMMARY
-            echo "Coverage report could not be generated. Check test execution." >> $GITHUB_STEP_SUMMARY
-          fi
-
-      - name: 📈 Upload coverage reports
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: coverage-reports-${{ github.sha }}
-          path: tc-cloudgames-solution/services/users/test-results/**/coverage.cobertura.xml
-          retention-days: 5
 
   get-foundation-outputs:
     name: 🔗 Get Foundation Infrastructure
@@ -186,11 +139,6 @@ jobs:
           CONTAINER_APP_ENV_NAME=$(az containerapp env list --resource-group $RESOURCE_GROUP --query "[?starts_with(name, 'tc-cloudgames-${AZURE_ENV_PREFIX}-') && ends_with(name, '-env')].name" -o tsv | head -1)
           ACR_LOGIN_SERVER="${ACR_NAME}.azurecr.io"
 
-          if [ -z "$ACR_NAME" ] || [ -z "$KEY_VAULT_NAME" ] || [ -z "$CONTAINER_APP_ENV_NAME" ]; then
-            echo "❌ Missing resources in $RESOURCE_GROUP. Found: ACR=$ACR_NAME, KV=$KEY_VAULT_NAME, ENV=$CONTAINER_APP_ENV_NAME"
-            exit 1
-          fi
-
           echo "resource-group=$RESOURCE_GROUP" >> $GITHUB_OUTPUT
           echo "acr-name=$ACR_NAME" >> $GITHUB_OUTPUT
           echo "acr-login-server=$ACR_LOGIN_SERVER" >> $GITHUB_OUTPUT
@@ -214,9 +162,6 @@ jobs:
       image-uri: ${{ steps.build-vars.outputs.image-uri }}
 
     steps:
-      - name: 📂 Prepare workspace
-        run: mkdir -p tc-cloudgames-solution/services/users
-
       - name: 📥 Checkout Users API repository
         uses: actions/checkout@v4
         with:
@@ -251,16 +196,13 @@ jobs:
           echo "image-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "image-uri=$IMAGE_URI" >> $GITHUB_OUTPUT
 
-      - name: 🐳 Login to Azure Container Registry (via Azure CLI)
-        run: |
-          echo "🔐 Logging into ACR using Azure CLI (Service Principal authentication)"
-          az acr login --name ${{ needs.get-foundation-outputs.outputs.acr-name }}
+      - name: 🐳 Login to ACR
+        run: az acr login --name ${{ needs.get-foundation-outputs.outputs.acr-name }}
 
       - name: ⚙️ Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: 🏗️ Build and Push Docker Image
-        id: build
         uses: docker/build-push-action@v5
         with:
           context: ./tc-cloudgames-solution
@@ -271,15 +213,14 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64
 
-      - name: 🚀 Deploy to Azure Container App
+      - name: 🚀 Deploy Container App
+        id: deploy
         run: |
           CONTAINER_APP_NAME="${{ steps.build-vars.outputs.container-app-name }}"
           IMAGE_URI="${{ steps.build-vars.outputs.image-uri }}"
           VAULT_URL="https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net"
-          
-          echo "🚀 Deploying $CONTAINER_APP_NAME with image $IMAGE_URI"
-          
-          # Create or update Container App with new image and System Managed Identity
+
+          # 1. Cria ou atualiza o app com MI habilitada
           az containerapp up \
             --name "$CONTAINER_APP_NAME" \
             --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
@@ -289,27 +230,26 @@ jobs:
             --ingress external \
             --registry-server ${{ needs.get-foundation-outputs.outputs.acr-login-server }} \
             --system-assigned
-          
-          echo "🔧 Ensuring System Managed Identity is enabled..."
+
           az containerapp identity assign \
             --name "$CONTAINER_APP_NAME" \
-            --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
-            --system-assigned
-          
-          # Get System Managed Identity Principal ID for RBAC
+            --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }}
+
           PRINCIPAL_ID=$(az containerapp identity show \
             --name "$CONTAINER_APP_NAME" \
             --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
             --query "principalId" -o tsv)
-          
-          echo "🔐 Granting Key Vault Secrets User role to Container App System MI: $PRINCIPAL_ID"
-          az role assignment create \
-            --assignee "$PRINCIPAL_ID" \
-            --role "Key Vault Secrets User" \
+
+          # 2. Permissões Key Vault + ACR
+          az role assignment create --assignee "$PRINCIPAL_ID" --role "Key Vault Secrets User" \
             --scope "/subscriptions/${{ needs.get-foundation-outputs.outputs.azure-subscription-id }}/resourceGroups/${{ needs.get-foundation-outputs.outputs.resource-group }}/providers/Microsoft.KeyVault/vaults/${{ needs.get-foundation-outputs.outputs.key-vault-name }}" \
-            --only-show-errors || echo "✅ Key Vault role assignment already exists"
-          
-          # Configure secrets from Key Vault
+            --only-show-errors || echo "✅ KV role exists"
+
+          az role assignment create --assignee "$PRINCIPAL_ID" --role "AcrPull" \
+            --scope "/subscriptions/${{ needs.get-foundation-outputs.outputs.azure-subscription-id }}/resourceGroups/${{ needs.get-foundation-outputs.outputs.resource-group }}/providers/Microsoft.ContainerRegistry/registries/${{ needs.get-foundation-outputs.outputs.acr-name }}" \
+            --only-show-errors || echo "✅ ACR role exists"
+
+          # 3. Configura secrets
           az containerapp secret set \
             --name "$CONTAINER_APP_NAME" \
             --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
@@ -323,8 +263,8 @@ jobs:
               cache-port=keyvaultref:${VAULT_URL}/secrets/cache-port,identityref:system \
               cache-password=keyvaultref:${VAULT_URL}/secrets/cache-password,identityref:system \
               servicebus-namespace=keyvaultref:${VAULT_URL}/secrets/servicebus-namespace,identityref:system
-          
-          # Update environment variables to use secrets
+
+          # 4. Variáveis de ambiente
           az containerapp update \
             --name "$CONTAINER_APP_NAME" \
             --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
@@ -340,36 +280,13 @@ jobs:
               CACHE_PORT=secretref:cache-port \
               CACHE_PASSWORD=secretref:cache-password \
               SERVICEBUS_NAMESPACE=secretref:servicebus-namespace
-          
-          echo "✅ Container App deployed successfully!"
 
-      - name: 🌐 Get Container App URL & ACR Access
-        id: deploy
-        run: |
-          CONTAINER_APP_NAME="${{ steps.build-vars.outputs.container-app-name }}"
-          
-          # Get System Managed Identity Principal ID
-          PRINCIPAL_ID=$(az containerapp identity show \
-            --name "$CONTAINER_APP_NAME" \
-            --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
-            --query "principalId" -o tsv)
-          
-          echo "🔧 Configuring ACR Pull access for System MI: $PRINCIPAL_ID"
-          az role assignment create \
-            --assignee "$PRINCIPAL_ID" \
-            --role "AcrPull" \
-            --scope "/subscriptions/${{ needs.get-foundation-outputs.outputs.azure-subscription-id }}/resourceGroups/${{ needs.get-foundation-outputs.outputs.resource-group }}/providers/Microsoft.ContainerRegistry/registries/${{ needs.get-foundation-outputs.outputs.acr-name }}" \
-            --only-show-errors || echo "✅ ACR role assignment already exists"
-
-          # Get Container App URL
+          # 5. URL
           CONTAINER_APP_URL=$(az containerapp show \
             --name "$CONTAINER_APP_NAME" \
             --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
             --query "properties.configuration.ingress.fqdn" -o tsv)
 
-          echo "🌐 Container App: $CONTAINER_APP_NAME → https://$CONTAINER_APP_URL"
-          
-          # Set outputs for other steps
           echo "container-app-name=$CONTAINER_APP_NAME" >> $GITHUB_OUTPUT
           echo "container-app-url=https://$CONTAINER_APP_URL" >> $GITHUB_OUTPUT
 
@@ -379,13 +296,15 @@ jobs:
           sleep 30
           for i in {1..3}; do
             if curl -f "$HEALTH_URL" > /dev/null 2>&1; then
-              echo "✅ Health check passed!"
-              break
+              echo "✅ Health check passed!" >> $GITHUB_STEP_SUMMARY
+              exit 0
             else
               echo "⏳ Attempt $i failed, retrying..."
               sleep 20
             fi
           done
+          echo "❌ Health check failed" >> $GITHUB_STEP_SUMMARY
+          exit 1
 
   summary:
     name: 📊 Deployment Summary
