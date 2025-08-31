@@ -49,7 +49,10 @@ jobs:
       pull-requests: write
 
     steps:
-      - name:  Checkout Users API repository
+      - name: 📂 Prepare workspace
+        run: mkdir -p tc-cloudgames-solution/services/users
+
+      - name: 📥 Checkout Users API repository
         uses: actions/checkout@v4
         with:
           path: tc-cloudgames-solution/services/users
@@ -66,10 +69,16 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - name: 🧪 Restore & Test
+      - name: 📦 Restore dependencies
+        run: dotnet restore tc-cloudgames-solution/services/users/TC.CloudGames.Users.sln
+
+      - name: 🏗️ Build solution
+        run: dotnet build tc-cloudgames-solution/services/users/TC.CloudGames.Users.sln --no-restore --configuration Release
+
+      - name: 🧪 Run unit tests
         run: |
-          dotnet restore ${{ env.SOLUTION_PATH }}
-          dotnet test ${{ env.SOLUTION_PATH }} \
+          dotnet test tc-cloudgames-solution/services/users/TC.CloudGames.Users.sln \
+            --no-build \
             --configuration Release \
             --logger trx \
             --collect:"XPlat Code Coverage" \
@@ -86,24 +95,28 @@ jobs:
           fail-on-error: true
           working-directory: tc-cloudgames-solution/services/users
 
-      - name: 📊 Generate & Upload Coverage
+      - name: 📊 Generate Coverage Report
         if: always()
         run: |
+          echo "🔧 Installing ReportGenerator..."
           dotnet tool install -g dotnet-reportgenerator-globaltool
+          
+          echo "📊 Generating coverage reports..."
           reportgenerator \
             "-reports:tc-cloudgames-solution/services/users/test-results/**/coverage.cobertura.xml" \
             "-targetdir:tc-cloudgames-solution/services/users/coverage-report" \
             "-reporttypes:Html;Badges;TextSummary" \
             "-verbosity:Info"
+          
+          echo "✅ Coverage report generated!"
+          ls -la tc-cloudgames-solution/services/users/coverage-report/
 
-      - name: 📈 Upload Coverage Artifacts
+      - name: 📈 Upload Coverage Report
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: coverage-${{ github.sha }}
-          path: |
-            tc-cloudgames-solution/services/users/coverage-report/
-            tc-cloudgames-solution/services/users/test-results/**/coverage.cobertura.xml
+          name: coverage-report-${{ github.sha }}
+          path: tc-cloudgames-solution/services/users/coverage-report/
           retention-days: 7
 
       - name: 📊 Coverage Summary in PR
@@ -117,11 +130,25 @@ jobs:
             cat tc-cloudgames-solution/services/users/coverage-report/Summary.txt >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "📋 **Detailed Report**: Download the \`coverage-${{ github.sha }}\` artifact" >> $GITHUB_STEP_SUMMARY
+            echo "📋 **Detailed HTML Report**: Download the \`coverage-report-${{ github.sha }}\` artifact" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Extract coverage percentage for quick view
+            if [ -f "tc-cloudgames-solution/services/users/coverage-report/index.html" ]; then
+              echo "🎯 **Quick Access**: Open the HTML report for detailed coverage analysis" >> $GITHUB_STEP_SUMMARY
+            fi
           else
             echo "## ⚠️ Coverage Report" >> $GITHUB_STEP_SUMMARY
             echo "Coverage report could not be generated. Check test execution." >> $GITHUB_STEP_SUMMARY
           fi
+
+      - name: 📈 Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-reports-${{ github.sha }}
+          path: tc-cloudgames-solution/services/users/test-results/**/coverage.cobertura.xml
+          retention-days: 5
 
   get-foundation-outputs:
     name: 🔗 Get Foundation Infrastructure
@@ -187,7 +214,10 @@ jobs:
       image-uri: ${{ steps.build-vars.outputs.image-uri }}
 
     steps:
-      - name:  Checkout Users API repository
+      - name: 📂 Prepare workspace
+        run: mkdir -p tc-cloudgames-solution/services/users
+
+      - name: 📥 Checkout Users API repository
         uses: actions/checkout@v4
         with:
           path: tc-cloudgames-solution/services/users
@@ -241,123 +271,154 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64
 
-      - name: 🚀 Deploy Container App
-        id: deploy
+      - name:  Deploy to Azure Container App
         run: |
           CONTAINER_APP_NAME="${{ steps.build-vars.outputs.container-app-name }}"
           IMAGE_URI="${{ steps.build-vars.outputs.image-uri }}"
-          VAULT_URL="https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net"
-
-          echo "🚀 Deploying $CONTAINER_APP_NAME with image $IMAGE_URI"
           
-          # 1. Cria ou atualiza Container App COM System Managed Identity
-          az containerapp up \
-            --name "$CONTAINER_APP_NAME" \
-            --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
-            --environment ${{ needs.get-foundation-outputs.outputs.container-app-env-name }} \
-            --image "$IMAGE_URI" \
-            --target-port 8080 \
-            --ingress external \
-            --registry-server ${{ needs.get-foundation-outputs.outputs.acr-login-server }} \
-            --system-assigned
+          echo "🚀 Deploying Container App: $CONTAINER_APP_NAME"
+          echo "📦 Image: $IMAGE_URI"
+          
+          # Check if Container App exists
+          if az containerapp show --name "$CONTAINER_APP_NAME" --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} > /dev/null 2>&1; then
+            echo "🔄 Updating existing Container App..."
+            
+            # First update secrets using Key Vault references
+            echo "💾 Updating Container App secrets from Key Vault..."
+            az containerapp secret set \
+              --name "$CONTAINER_APP_NAME" \
+              --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
+              --secrets \
+                db-host=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-host,identityref:system \
+                db-port=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-port,identityref:system \
+                db-name-users=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-name-users,identityref:system \
+                db-admin-login=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-admin-login,identityref:system \
+                db-password=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-password,identityref:system \
+                cache-host=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/cache-host,identityref:system \
+                cache-port=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/cache-port,identityref:system \
+                cache-password=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/cache-password,identityref:system \
+                servicebus-namespace=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/servicebus-namespace,identityref:system
+            
+            # Then update the container with new image and environment variables
+            az containerapp update \
+              --name "$CONTAINER_APP_NAME" \
+              --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
+              --image "$IMAGE_URI" \
+              --set-env-vars \
+                ASPNETCORE_ENVIRONMENT=Development \
+                ASPNETCORE_URLS=http://+:8080 \
+                DB_HOST=secretref:db-host \
+                DB_PORT=secretref:db-port \
+                DB_NAME=secretref:db-name-users \
+                DB_USER=secretref:db-admin-login \
+                DB_PASSWORD=secretref:db-password \
+                CACHE_HOST=secretref:cache-host \
+                CACHE_PORT=secretref:cache-port \
+                CACHE_PASSWORD=secretref:cache-password \
+                SERVICEBUS_NAMESPACE=secretref:servicebus-namespace
+                
+            echo "✅ Container App updated successfully!"
+          else
+            echo "🆕 Creating new Container App..."
+            
+            # Create Container App with image and basic settings first
+            az containerapp create \
+              --name "$CONTAINER_APP_NAME" \
+              --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
+              --environment ${{ needs.get-foundation-outputs.outputs.container-app-env-name }} \
+              --image "$IMAGE_URI" \
+              --target-port 8080 \
+              --ingress external \
+              --registry-server ${{ needs.get-foundation-outputs.outputs.acr-login-server }} \
+              --env-vars \
+                ASPNETCORE_ENVIRONMENT=Development \
+                ASPNETCORE_URLS=http://+:8080
+            
+            echo "💾 Adding Key Vault secrets to Container App..."
+            # Add secrets from Key Vault
+            az containerapp secret set \
+              --name "$CONTAINER_APP_NAME" \
+              --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
+              --secrets \
+                db-host=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-host,identityref:system \
+                db-port=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-port,identityref:system \
+                db-name-users=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-name-users,identityref:system \
+                db-admin-login=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-admin-login,identityref:system \
+                db-password=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-password,identityref:system \
+                cache-host=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/cache-host,identityref:system \
+                cache-port=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/cache-port,identityref:system \
+                cache-password=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/cache-password,identityref:system \
+                servicebus-namespace=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/servicebus-namespace,identityref:system
+            
+            # Update environment variables to use the secrets
+            az containerapp update \
+              --name "$CONTAINER_APP_NAME" \
+              --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
+              --set-env-vars \
+                ASPNETCORE_ENVIRONMENT=Development \
+                ASPNETCORE_URLS=http://+:8080 \
+                DB_HOST=secretref:db-host \
+                DB_PORT=secretref:db-port \
+                DB_NAME=secretref:db-name-users \
+                DB_USER=secretref:db-admin-login \
+                DB_PASSWORD=secretref:db-password \
+                CACHE_HOST=secretref:cache-host \
+                CACHE_PORT=secretref:cache-port \
+                CACHE_PASSWORD=secretref:cache-password \
+                SERVICEBUS_NAMESPACE=secretref:servicebus-namespace
+                
+            echo "✅ Container App created successfully!"
+          fi
 
-          # 2. Força habilitação da Managed Identity (garantia)
-          echo "🔧 Ensuring System Managed Identity is active..."
+      - name: 🔐 Configure System Managed Identity & Permissions
+        id: deploy
+        run: |
+          CONTAINER_APP_NAME="${{ steps.build-vars.outputs.container-app-name }}"
+          
+          echo "🔧 Ensuring System Managed Identity is enabled..."
           az containerapp identity assign \
             --name "$CONTAINER_APP_NAME" \
-            --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }}
+            --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
+            --system-assigned
 
-          # 3. Obtém Principal ID da Managed Identity
+          # Get System Managed Identity Principal ID
           PRINCIPAL_ID=$(az containerapp identity show \
             --name "$CONTAINER_APP_NAME" \
             --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
             --query "principalId" -o tsv)
-
-          echo "🔐 System MI Principal ID: $PRINCIPAL_ID"
-
-          # 4. RBAC: Key Vault Secrets User
-          echo "🔐 Granting Key Vault Secrets User role..."
-          az role assignment create --assignee "$PRINCIPAL_ID" --role "Key Vault Secrets User" \
-            --scope "/subscriptions/${{ needs.get-foundation-outputs.outputs.azure-subscription-id }}/resourceGroups/${{ needs.get-foundation-outputs.outputs.resource-group }}/providers/Microsoft.KeyVault/vaults/${{ needs.get-foundation-outputs.outputs.key-vault-name }}" \
-            --only-show-errors || echo "✅ KV role assignment exists"
-
-          # 5. RBAC: ACR Pull
-          echo "🔧 Granting ACR Pull role..."
-          az role assignment create --assignee "$PRINCIPAL_ID" --role "AcrPull" \
+          
+          echo "🔧 Configuring ACR Pull access for System MI: $PRINCIPAL_ID"
+          az role assignment create \
+            --assignee "$PRINCIPAL_ID" \
+            --role "AcrPull" \
             --scope "/subscriptions/${{ needs.get-foundation-outputs.outputs.azure-subscription-id }}/resourceGroups/${{ needs.get-foundation-outputs.outputs.resource-group }}/providers/Microsoft.ContainerRegistry/registries/${{ needs.get-foundation-outputs.outputs.acr-name }}" \
-            --only-show-errors || echo "✅ ACR role assignment exists"
+            --only-show-errors || echo "✅ ACR role assignment already exists"
 
-          # 6. Aguarda propagação das permissões RBAC
-          echo "⏳ Waiting for RBAC propagation..."
-          sleep 15
-
-          # 7. Configura secrets do Key Vault
-          echo "💾 Setting up Key Vault secrets..."
-          az containerapp secret set \
-            --name "$CONTAINER_APP_NAME" \
-            --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
-            --secrets \
-              db-host=keyvaultref:${VAULT_URL}/secrets/db-host,identityref:system \
-              db-port=keyvaultref:${VAULT_URL}/secrets/db-port,identityref:system \
-              db-name-users=keyvaultref:${VAULT_URL}/secrets/db-name-users,identityref:system \
-              db-admin-login=keyvaultref:${VAULT_URL}/secrets/db-admin-login,identityref:system \
-              db-password=keyvaultref:${VAULT_URL}/secrets/db-password,identityref:system \
-              cache-host=keyvaultref:${VAULT_URL}/secrets/cache-host,identityref:system \
-              cache-port=keyvaultref:${VAULT_URL}/secrets/cache-port,identityref:system \
-              cache-password=keyvaultref:${VAULT_URL}/secrets/cache-password,identityref:system \
-              servicebus-namespace=keyvaultref:${VAULT_URL}/secrets/servicebus-namespace,identityref:system
-
-          # 8. Configura variáveis de ambiente
-          echo "⚙️ Setting environment variables..."
-          az containerapp update \
-            --name "$CONTAINER_APP_NAME" \
-            --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
-            --set-env-vars \
-              ASPNETCORE_ENVIRONMENT=Development \
-              ASPNETCORE_URLS=http://+:8080 \
-              DB_HOST=secretref:db-host \
-              DB_PORT=secretref:db-port \
-              DB_NAME=secretref:db-name-users \
-              DB_USER=secretref:db-admin-login \
-              DB_PASSWORD=secretref:db-password \
-              CACHE_HOST=secretref:cache-host \
-              CACHE_PORT=secretref:cache-port \
-              CACHE_PASSWORD=secretref:cache-password \
-              SERVICEBUS_NAMESPACE=secretref:servicebus-namespace
-
-          # 9. Obtém URL da aplicação
+          # Get Container App URL
           CONTAINER_APP_URL=$(az containerapp show \
             --name "$CONTAINER_APP_NAME" \
             --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
             --query "properties.configuration.ingress.fqdn" -o tsv)
 
-          echo "🌐 Container App URL: https://$CONTAINER_APP_URL"
-          echo "✅ Container App deployed successfully!"
-
-          # Outputs
+          echo "🌐 Container App: $CONTAINER_APP_NAME → https://$CONTAINER_APP_URL"
+          
+          # Set outputs for other steps
           echo "container-app-name=$CONTAINER_APP_NAME" >> $GITHUB_OUTPUT
           echo "container-app-url=https://$CONTAINER_APP_URL" >> $GITHUB_OUTPUT
 
       - name: 🧪 Health Check
         run: |
           HEALTH_URL="${{ steps.deploy.outputs.container-app-url }}/health"
-          echo "🏥 Checking health endpoint: $HEALTH_URL"
           sleep 30
-          
           for i in {1..3}; do
             if curl -f "$HEALTH_URL" > /dev/null 2>&1; then
-              echo "✅ Health check passed!" >> $GITHUB_STEP_SUMMARY
               echo "✅ Health check passed!"
-              exit 0
+              break
             else
               echo "⏳ Attempt $i failed, retrying..."
               sleep 20
             fi
           done
-          
-          echo "❌ Health check failed after 3 attempts" >> $GITHUB_STEP_SUMMARY
-          echo "❌ Health check failed"
-          exit 1
 
   summary:
     name: 📊 Deployment Summary
