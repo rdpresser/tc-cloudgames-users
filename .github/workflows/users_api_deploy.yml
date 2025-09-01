@@ -48,10 +48,10 @@ jobs:
       pull-requests: write
 
     steps:
-      - name: � Prepare workspace
+      - name: 📂 Prepare workspace
         run: mkdir -p tc-cloudgames-solution/services/users
 
-      - name: �📥 Checkout Users API repository
+      - name: 📥 Checkout Users API repository
         uses: actions/checkout@v4
         with:
           path: tc-cloudgames-solution/services/users
@@ -104,17 +104,7 @@ jobs:
             "-reporttypes:Html;Badges;TextSummary" \
             "-verbosity:Info"
 
-      - name: � Generate & Upload Coverage
-        if: always()
-        run: |
-          dotnet tool install -g dotnet-reportgenerator-globaltool
-          reportgenerator \
-            "-reports:tc-cloudgames-solution/services/users/test-results/**/coverage.cobertura.xml" \
-            "-targetdir:tc-cloudgames-solution/services/users/coverage-report" \
-            "-reporttypes:Html;Badges;TextSummary" \
-            "-verbosity:Info"
-
-      - name: �📈 Upload Coverage Artifacts
+      - name: 📈 Upload Coverage Artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -205,10 +195,10 @@ jobs:
       image-uri: ${{ steps.build-vars.outputs.image-uri }}
 
     steps:
-      - name: � Prepare workspace
+      - name: 📂 Prepare workspace
         run: mkdir -p tc-cloudgames-solution/services/users
 
-      - name: �📥 Checkout Users API repository
+      - name: 📥 Checkout Users API repository
         uses: actions/checkout@v4
         with:
           path: tc-cloudgames-solution/services/users
