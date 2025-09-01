@@ -48,7 +48,10 @@ jobs:
       pull-requests: write
 
     steps:
-      - name: 📥 Checkout Users API repository
+      - name: � Prepare workspace
+        run: mkdir -p tc-cloudgames-solution/services/users
+
+      - name: �📥 Checkout Users API repository
         uses: actions/checkout@v4
         with:
           path: tc-cloudgames-solution/services/users
@@ -65,10 +68,16 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - name: 🧪 Restore & Test
+      - name: 📦 Restore dependencies
+        run: dotnet restore tc-cloudgames-solution/services/users/TC.CloudGames.Users.sln
+
+      - name: 🏗️ Build solution
+        run: dotnet build tc-cloudgames-solution/services/users/TC.CloudGames.Users.sln --no-restore --configuration Release
+
+      - name: 🧪 Run unit tests
         run: |
-          dotnet restore ${{ env.SOLUTION_PATH }}
-          dotnet test ${{ env.SOLUTION_PATH }} \
+          dotnet test tc-cloudgames-solution/services/users/TC.CloudGames.Users.sln \
+            --no-build \
             --configuration Release \
             --logger trx \
             --collect:"XPlat Code Coverage" \
@@ -80,7 +89,7 @@ jobs:
         if: always()
         with:
           name: 🧪 Unit Tests Results
-          path: tc-cloudgames-solution/services/users/test-results/*.trx
+          path: ./test-results/*.trx
           reporter: dotnet-trx
           fail-on-error: true
           working-directory: tc-cloudgames-solution/services/users
@@ -95,7 +104,17 @@ jobs:
             "-reporttypes:Html;Badges;TextSummary" \
             "-verbosity:Info"
 
-      - name: 📈 Upload Coverage Artifacts
+      - name: � Generate & Upload Coverage
+        if: always()
+        run: |
+          dotnet tool install -g dotnet-reportgenerator-globaltool
+          reportgenerator \
+            "-reports:tc-cloudgames-solution/services/users/test-results/**/coverage.cobertura.xml" \
+            "-targetdir:tc-cloudgames-solution/services/users/coverage-report" \
+            "-reporttypes:Html;Badges;TextSummary" \
+            "-verbosity:Info"
+
+      - name: �📈 Upload Coverage Artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -104,6 +123,23 @@ jobs:
             tc-cloudgames-solution/services/users/coverage-report/
             tc-cloudgames-solution/services/users/test-results/**/coverage.cobertura.xml
           retention-days: 7
+
+      - name: 📊 Coverage Summary in PR
+        if: always()
+        run: |
+          if [ -f "tc-cloudgames-solution/services/users/coverage-report/Summary.txt" ]; then
+            echo "## 📊 Code Coverage Report" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 📈 Coverage Summary" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat tc-cloudgames-solution/services/users/coverage-report/Summary.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "📋 **Detailed HTML Report**: Download the \`coverage-${{ github.sha }}\` artifact" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ⚠️ Coverage Report" >> $GITHUB_STEP_SUMMARY
+            echo "Coverage report could not be generated. Check test execution." >> $GITHUB_STEP_SUMMARY
+          fi
 
   get-foundation-outputs:
     name: 🔗 Get Foundation Infrastructure
@@ -169,7 +205,10 @@ jobs:
       image-uri: ${{ steps.build-vars.outputs.image-uri }}
 
     steps:
-      - name: 📥 Checkout Users API repository
+      - name: � Prepare workspace
+        run: mkdir -p tc-cloudgames-solution/services/users
+
+      - name: �📥 Checkout Users API repository
         uses: actions/checkout@v4
         with:
           path: tc-cloudgames-solution/services/users
