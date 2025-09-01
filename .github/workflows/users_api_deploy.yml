@@ -1,4 +1,4 @@
-name: 🚀 Users API CI/CD Pipeline
+name: 🚀 Users API CI/CD Pipeline (Simplificado)
 
 on:
   pull_request:
@@ -41,7 +41,6 @@ jobs:
     needs: check-trigger
     if: needs.check-trigger.outputs.should-deploy == 'true'
     
-    # ✅ Permissões necessárias para o dorny/test-reporter
     permissions:
       contents: read
       actions: read
@@ -49,9 +48,6 @@ jobs:
       pull-requests: write
 
     steps:
-      - name: 📂 Prepare workspace
-        run: mkdir -p tc-cloudgames-solution/services/users
-
       - name: 📥 Checkout Users API repository
         uses: actions/checkout@v4
         with:
@@ -69,16 +65,10 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - name: 📦 Restore dependencies
-        run: dotnet restore tc-cloudgames-solution/services/users/TC.CloudGames.Users.sln
-
-      - name: 🏗️ Build solution
-        run: dotnet build tc-cloudgames-solution/services/users/TC.CloudGames.Users.sln --no-restore --configuration Release
-
-      - name: 🧪 Run unit tests
+      - name: 🧪 Restore & Test
         run: |
-          dotnet test tc-cloudgames-solution/services/users/TC.CloudGames.Users.sln \
-            --no-build \
+          dotnet restore ${{ env.SOLUTION_PATH }}
+          dotnet test ${{ env.SOLUTION_PATH }} \
             --configuration Release \
             --logger trx \
             --collect:"XPlat Code Coverage" \
@@ -90,65 +80,30 @@ jobs:
         if: always()
         with:
           name: 🧪 Unit Tests Results
-          path: ./test-results/*.trx
+          path: tc-cloudgames-solution/services/users/test-results/*.trx
           reporter: dotnet-trx
           fail-on-error: true
           working-directory: tc-cloudgames-solution/services/users
 
-      - name: 📊 Generate Coverage Report
+      - name: 📊 Generate & Upload Coverage
         if: always()
         run: |
-          echo "🔧 Installing ReportGenerator..."
           dotnet tool install -g dotnet-reportgenerator-globaltool
-          
-          echo "📊 Generating coverage reports..."
           reportgenerator \
             "-reports:tc-cloudgames-solution/services/users/test-results/**/coverage.cobertura.xml" \
             "-targetdir:tc-cloudgames-solution/services/users/coverage-report" \
             "-reporttypes:Html;Badges;TextSummary" \
             "-verbosity:Info"
-          
-          echo "✅ Coverage report generated!"
-          ls -la tc-cloudgames-solution/services/users/coverage-report/
 
-      - name: 📈 Upload Coverage Report
+      - name: 📈 Upload Coverage Artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: coverage-report-${{ github.sha }}
-          path: tc-cloudgames-solution/services/users/coverage-report/
+          name: coverage-${{ github.sha }}
+          path: |
+            tc-cloudgames-solution/services/users/coverage-report/
+            tc-cloudgames-solution/services/users/test-results/**/coverage.cobertura.xml
           retention-days: 7
-
-      - name: 📊 Coverage Summary in PR
-        if: always()
-        run: |
-          if [ -f "tc-cloudgames-solution/services/users/coverage-report/Summary.txt" ]; then
-            echo "## 📊 Code Coverage Report" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 📈 Coverage Summary" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            cat tc-cloudgames-solution/services/users/coverage-report/Summary.txt >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "📋 **Detailed HTML Report**: Download the \`coverage-report-${{ github.sha }}\` artifact" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            
-            # Extract coverage percentage for quick view
-            if [ -f "tc-cloudgames-solution/services/users/coverage-report/index.html" ]; then
-              echo "🎯 **Quick Access**: Open the HTML report for detailed coverage analysis" >> $GITHUB_STEP_SUMMARY
-            fi
-          else
-            echo "## ⚠️ Coverage Report" >> $GITHUB_STEP_SUMMARY
-            echo "Coverage report could not be generated. Check test execution." >> $GITHUB_STEP_SUMMARY
-          fi
-
-      - name: 📈 Upload coverage reports
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: coverage-reports-${{ github.sha }}
-          path: tc-cloudgames-solution/services/users/test-results/**/coverage.cobertura.xml
-          retention-days: 5
 
   get-foundation-outputs:
     name: 🔗 Get Foundation Infrastructure
@@ -214,9 +169,6 @@ jobs:
       image-uri: ${{ steps.build-vars.outputs.image-uri }}
 
     steps:
-      - name: 📂 Prepare workspace
-        run: mkdir -p tc-cloudgames-solution/services/users
-
       - name: 📥 Checkout Users API repository
         uses: actions/checkout@v4
         with:
@@ -245,22 +197,19 @@ jobs:
           IMAGE_TAG="$(date +%Y%m%d-%H%M%S)-$(echo ${{ github.sha }} | cut -c1-8)"
           SERVICE_NAME_WITH_ENV="${{ env.SERVICE_NAME }}-${{ needs.get-foundation-outputs.outputs.azure-environment }}"
           IMAGE_URI="${{ needs.get-foundation-outputs.outputs.acr-login-server }}/${SERVICE_NAME_WITH_ENV}:${IMAGE_TAG}"
-          CONTAINER_APP_NAME="${SERVICE_NAME_WITH_ENV}"
           
-          echo "container-app-name=$CONTAINER_APP_NAME" >> $GITHUB_OUTPUT
           echo "image-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "image-uri=$IMAGE_URI" >> $GITHUB_OUTPUT
 
-      - name: 🐳 Login to Azure Container Registry (via Azure CLI)
+      - name: 🐳 Login to Azure Container Registry
         run: |
-          echo "🔐 Logging into ACR using Azure CLI (Service Principal authentication)"
+          echo "🔐 Logging into ACR using Azure CLI"
           az acr login --name ${{ needs.get-foundation-outputs.outputs.acr-name }}
 
       - name: ⚙️ Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: 🏗️ Build and Push Docker Image
-        id: build
         uses: docker/build-push-action@v5
         with:
           context: ./tc-cloudgames-solution
@@ -271,154 +220,70 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64
 
-      - name:  Deploy to Azure Container App
+      - name: 🔍 Get Container App Name from Terraform
+        id: get-container-app
         run: |
-          CONTAINER_APP_NAME="${{ steps.build-vars.outputs.container-app-name }}"
-          IMAGE_URI="${{ steps.build-vars.outputs.image-uri }}"
+          # Container App criado pelo Terraform segue o padrão: {name_prefix}-users-api
+          CONTAINER_APP_NAME=$(az containerapp list \
+            --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
+            --query "[?contains(name, 'users-api')].name" -o tsv | head -1)
           
-          echo "🚀 Deploying Container App: $CONTAINER_APP_NAME"
-          echo "📦 Image: $IMAGE_URI"
-          
-          # Check if Container App exists
-          if az containerapp show --name "$CONTAINER_APP_NAME" --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} > /dev/null 2>&1; then
-            echo "🔄 Updating existing Container App..."
-            
-            # First update secrets using Key Vault references
-            echo "💾 Updating Container App secrets from Key Vault..."
-            az containerapp secret set \
-              --name "$CONTAINER_APP_NAME" \
-              --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
-              --secrets \
-                db-host=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-host,identityref:system \
-                db-port=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-port,identityref:system \
-                db-name-users=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-name-users,identityref:system \
-                db-admin-login=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-admin-login,identityref:system \
-                db-password=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-password,identityref:system \
-                cache-host=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/cache-host,identityref:system \
-                cache-port=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/cache-port,identityref:system \
-                cache-password=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/cache-password,identityref:system \
-                servicebus-namespace=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/servicebus-namespace,identityref:system
-            
-            # Then update the container with new image and environment variables
-            az containerapp update \
-              --name "$CONTAINER_APP_NAME" \
-              --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
-              --image "$IMAGE_URI" \
-              --set-env-vars \
-                ASPNETCORE_ENVIRONMENT=Development \
-                ASPNETCORE_URLS=http://+:8080 \
-                DB_HOST=secretref:db-host \
-                DB_PORT=secretref:db-port \
-                DB_NAME=secretref:db-name-users \
-                DB_USER=secretref:db-admin-login \
-                DB_PASSWORD=secretref:db-password \
-                CACHE_HOST=secretref:cache-host \
-                CACHE_PORT=secretref:cache-port \
-                CACHE_PASSWORD=secretref:cache-password \
-                SERVICEBUS_NAMESPACE=secretref:servicebus-namespace
-                
-            echo "✅ Container App updated successfully!"
-          else
-            echo "🆕 Creating new Container App..."
-            
-            # Create Container App with image and basic settings first
-            az containerapp create \
-              --name "$CONTAINER_APP_NAME" \
-              --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
-              --environment ${{ needs.get-foundation-outputs.outputs.container-app-env-name }} \
-              --image "$IMAGE_URI" \
-              --target-port 8080 \
-              --ingress external \
-              --registry-server ${{ needs.get-foundation-outputs.outputs.acr-login-server }} \
-              --env-vars \
-                ASPNETCORE_ENVIRONMENT=Development \
-                ASPNETCORE_URLS=http://+:8080
-            
-            echo "💾 Adding Key Vault secrets to Container App..."
-            # Add secrets from Key Vault
-            az containerapp secret set \
-              --name "$CONTAINER_APP_NAME" \
-              --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
-              --secrets \
-                db-host=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-host,identityref:system \
-                db-port=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-port,identityref:system \
-                db-name-users=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-name-users,identityref:system \
-                db-admin-login=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-admin-login,identityref:system \
-                db-password=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/db-password,identityref:system \
-                cache-host=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/cache-host,identityref:system \
-                cache-port=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/cache-port,identityref:system \
-                cache-password=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/cache-password,identityref:system \
-                servicebus-namespace=keyvaultref:https://${{ needs.get-foundation-outputs.outputs.key-vault-name }}.vault.azure.net/secrets/servicebus-namespace,identityref:system
-            
-            # Update environment variables to use the secrets
-            az containerapp update \
-              --name "$CONTAINER_APP_NAME" \
-              --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
-              --set-env-vars \
-                ASPNETCORE_ENVIRONMENT=Development \
-                ASPNETCORE_URLS=http://+:8080 \
-                DB_HOST=secretref:db-host \
-                DB_PORT=secretref:db-port \
-                DB_NAME=secretref:db-name-users \
-                DB_USER=secretref:db-admin-login \
-                DB_PASSWORD=secretref:db-password \
-                CACHE_HOST=secretref:cache-host \
-                CACHE_PORT=secretref:cache-port \
-                CACHE_PASSWORD=secretref:cache-password \
-                SERVICEBUS_NAMESPACE=secretref:servicebus-namespace
-                
-            echo "✅ Container App created successfully!"
+          if [ -z "$CONTAINER_APP_NAME" ]; then
+            echo "❌ Container App 'users-api' not found! Check if Terraform created it."
+            exit 1
           fi
+          
+          echo "📦 Found Container App: $CONTAINER_APP_NAME"
+          echo "container-app-name=$CONTAINER_APP_NAME" >> $GITHUB_OUTPUT
 
-      - name: 🔐 Configure System Managed Identity & Permissions
+      - name: 🚀 Deploy New Image to Container App
         id: deploy
         run: |
-          CONTAINER_APP_NAME="${{ steps.build-vars.outputs.container-app-name }}"
+          CONTAINER_APP_NAME="${{ steps.get-container-app.outputs.container-app-name }}"
+          IMAGE_URI="${{ steps.build-vars.outputs.image-uri }}"
+
+          echo "🚀 Deploying new image to existing Container App: $CONTAINER_APP_NAME"
+          echo "📦 New image: $IMAGE_URI"
           
-          echo "🔧 Ensuring System Managed Identity is enabled..."
-          az containerapp identity assign \
+          # ✅ ATUALIZA APENAS A IMAGEM (infraestrutura, secrets, env vars já configurados via Terraform)
+          az containerapp update \
             --name "$CONTAINER_APP_NAME" \
             --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
-            --system-assigned
+            --image "$IMAGE_URI"
 
-          # Get System Managed Identity Principal ID
-          PRINCIPAL_ID=$(az containerapp identity show \
-            --name "$CONTAINER_APP_NAME" \
-            --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
-            --query "principalId" -o tsv)
-          
-          echo "🔧 Configuring ACR Pull access for System MI: $PRINCIPAL_ID"
-          az role assignment create \
-            --assignee "$PRINCIPAL_ID" \
-            --role "AcrPull" \
-            --scope "/subscriptions/${{ needs.get-foundation-outputs.outputs.azure-subscription-id }}/resourceGroups/${{ needs.get-foundation-outputs.outputs.resource-group }}/providers/Microsoft.ContainerRegistry/registries/${{ needs.get-foundation-outputs.outputs.acr-name }}" \
-            --only-show-errors || echo "✅ ACR role assignment already exists"
-
-          # Get Container App URL
+          # Obtém URL da aplicação
           CONTAINER_APP_URL=$(az containerapp show \
             --name "$CONTAINER_APP_NAME" \
             --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
             --query "properties.configuration.ingress.fqdn" -o tsv)
 
-          echo "🌐 Container App: $CONTAINER_APP_NAME → https://$CONTAINER_APP_URL"
-          
-          # Set outputs for other steps
+          echo "🌐 Container App URL: https://$CONTAINER_APP_URL"
+          echo "✅ Image deployment successful!"
+
+          # Outputs
           echo "container-app-name=$CONTAINER_APP_NAME" >> $GITHUB_OUTPUT
           echo "container-app-url=https://$CONTAINER_APP_URL" >> $GITHUB_OUTPUT
 
       - name: 🧪 Health Check
         run: |
           HEALTH_URL="${{ steps.deploy.outputs.container-app-url }}/health"
+          echo "🏥 Checking health endpoint: $HEALTH_URL"
           sleep 30
+          
           for i in {1..3}; do
             if curl -f "$HEALTH_URL" > /dev/null 2>&1; then
+              echo "✅ Health check passed!" >> $GITHUB_STEP_SUMMARY
               echo "✅ Health check passed!"
-              break
+              exit 0
             else
               echo "⏳ Attempt $i failed, retrying..."
               sleep 20
             fi
           done
+          
+          echo "❌ Health check failed after 3 attempts" >> $GITHUB_STEP_SUMMARY
+          echo "❌ Health check failed"
+          exit 1
 
   summary:
     name: 📊 Deployment Summary
@@ -435,3 +300,4 @@ jobs:
           echo "- **Image**: \`${{ needs.deploy.outputs.image-tag }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **Container App**: \`${{ needs.deploy.outputs.container-app-name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- **URL**: [${{ needs.deploy.outputs.container-app-url }}](${{ needs.deploy.outputs.container-app-url }})" >> $GITHUB_STEP_SUMMARY
+          echo "- **Infrastructure**: Managed by Terraform 🏗️" >> $GITHUB_STEP_SUMMARY
