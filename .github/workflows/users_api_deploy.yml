@@ -1,4 +1,4 @@
-name: 🚀 Users API CI/CD Pipeline (Simplificado)
+name: 🚀 Users API CI/CD Pipeline
 
 on:
   pull_request:
