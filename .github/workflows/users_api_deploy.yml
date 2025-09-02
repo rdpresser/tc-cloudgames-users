@@ -18,7 +18,7 @@ on:
           - dev-rodrigo
 
 env:
-  SERVICE_NAME: users-api-container-app
+  SERVICE_NAME: users-api
   SOLUTION_PATH: services/users/TC.CloudGames.Users.sln
   SOLUTION_FILE: TC.CloudGames.Users.sln
   SERVICE_PATH: services/users
