@@ -289,6 +289,7 @@ namespace TC.CloudGames.Users.Api.Extensions
         public static IServiceCollection ConfigureAppSettings(this IServiceCollection services, IConfiguration configuration)
         {
             services.Configure<RabbitMqOptions>(configuration.GetSection("RabbitMq"));
+            services.Configure<AzureServiceBusOptions>(configuration.GetSection("AzureServiceBus"));
             services.Configure<PostgresOptions>(configuration.GetSection("Database"));
             services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
             services.Configure<CacheProviderSettings>(configuration.GetSection("Cache"));
