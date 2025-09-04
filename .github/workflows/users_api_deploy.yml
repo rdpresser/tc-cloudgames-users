@@ -11,7 +11,15 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Target environment for deployment'
+        description: 'Target environmen          # ✅ UPDATE ONLY IMAGE using revision copy (preserves ALL configuration)
+          echo "🔧 Creating new revision with only image update..."
+          az containerapp revision copy \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
+            --image "$IMAGE_URI_LATEST" \
+            --revision-suffix $(date +%s)
+          
+          echo "✅ New revision created successfully!"oyment'
         default: 'dev-rodrigo'
         type: choice
         options:
