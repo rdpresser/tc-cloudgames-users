@@ -286,11 +286,10 @@ jobs:
           echo "🏷️ Specific tag: $IMAGE_URI_SPECIFIC"
           
           # ✅ UPDATE ONLY THE CONTAINER IMAGE (preserves all Terraform configuration)
-          echo "� Updating only the container image using targeted update..."
+          echo "🔄 Updating only the container image..."
           az containerapp update \
             --name "$CONTAINER_APP_NAME" \
             --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
-            --container-name "${{ env.SERVICE_NAME }}" \
             --image "$IMAGE_URI_LATEST" \
             --output none
           
