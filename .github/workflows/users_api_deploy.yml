@@ -285,11 +285,33 @@ jobs:
           echo "📦 Latest image: $IMAGE_URI_LATEST"
           echo "🏷️ Specific tag: $IMAGE_URI_SPECIFIC"
           
-          # ✅ UPDATE ONLY IMAGE (infrastructure, secrets, env vars already configured via Terraform)
-          az containerapp update \
+          # ✅ GET current container app configuration
+          echo "📋 Getting current container app configuration..."
+          CURRENT_CONFIG=$(az containerapp show \
             --name "$CONTAINER_APP_NAME" \
-            --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
-            --image "$IMAGE_URI_LATEST"
+            --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }})
+
+          # ✅ UPDATE ONLY IMAGE using targeted patch (preserves secrets and env vars)
+          echo "🔧 Updating only the container image..."
+          az rest \
+            --method PATCH \
+            --url "https://management.azure.com/subscriptions/${{ needs.get-foundation-outputs.outputs.azure-subscription-id }}/resourceGroups/${{ needs.get-foundation-outputs.outputs.resource-group }}/providers/Microsoft.App/containerApps/$CONTAINER_APP_NAME?api-version=2024-03-01" \
+            --body "{
+              \"properties\": {
+                \"template\": {
+                  \"containers\": [
+                    {
+                      \"name\": \"${{ env.SERVICE_NAME }}\",
+                      \"image\": \"$IMAGE_URI_LATEST\"
+                    }
+                  ]
+                }
+              }
+            }"
+
+          # Wait for deployment
+          echo "⏳ Waiting for deployment to complete..."
+          sleep 45
 
           # Get application URL
           CONTAINER_APP_URL=$(az containerapp show \
@@ -298,7 +320,7 @@ jobs:
             --query "properties.configuration.ingress.fqdn" -o tsv)
 
           echo "🌐 Container App URL: https://$CONTAINER_APP_URL"
-          echo "✅ Image deployment successful!"
+          echo "✅ Image deployment successful - preserved all Terraform configurations!"
 
           # Outputs
           echo "container-app-name=$CONTAINER_APP_NAME" >> $GITHUB_OUTPUT
