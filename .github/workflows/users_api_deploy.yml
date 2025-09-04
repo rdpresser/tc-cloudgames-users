@@ -285,29 +285,16 @@ jobs:
           echo "📦 Latest image: $IMAGE_URI_LATEST"
           echo "🏷️ Specific tag: $IMAGE_URI_SPECIFIC"
           
-          # ✅ GET current container app configuration
-          echo "📋 Getting current container app configuration..."
-          CURRENT_CONFIG=$(az containerapp show \
+          # ✅ UPDATE ONLY THE CONTAINER IMAGE (preserves all Terraform configuration)
+          echo "� Updating only the container image using targeted update..."
+          az containerapp update \
             --name "$CONTAINER_APP_NAME" \
-            --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }})
-
-          # ✅ UPDATE ONLY IMAGE using targeted patch (preserves secrets and env vars)
-          echo "🔧 Updating only the container image..."
-          az rest \
-            --method PATCH \
-            --url "https://management.azure.com/subscriptions/${{ needs.get-foundation-outputs.outputs.azure-subscription-id }}/resourceGroups/${{ needs.get-foundation-outputs.outputs.resource-group }}/providers/Microsoft.App/containerApps/$CONTAINER_APP_NAME?api-version=2024-03-01" \
-            --body "{
-              \"properties\": {
-                \"template\": {
-                  \"containers\": [
-                    {
-                      \"name\": \"${{ env.SERVICE_NAME }}\",
-                      \"image\": \"$IMAGE_URI_LATEST\"
-                    }
-                  ]
-                }
-              }
-            }"
+            --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
+            --container-name "${{ env.SERVICE_NAME }}" \
+            --image "$IMAGE_URI_LATEST" \
+            --output none
+          
+          echo "✅ Container image updated successfully!"
 
           # Wait for deployment
           echo "⏳ Waiting for deployment to complete..."
