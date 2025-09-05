@@ -53,13 +53,11 @@ jobs:
       - name: 📂 Prepare workspace
         run: mkdir -p ${{ env.WORKSPACE_PATH }}
 
-      # Checkout API
       - name: 📥 Checkout API repository
         uses: actions/checkout@v4
         with:
           path: ${{ env.WORKSPACE_PATH }}
 
-      # Checkout common repository no caminho correto relativo ao sln
       - name: 📥 Checkout shared common repository
         uses: actions/checkout@v4
         with:
@@ -167,9 +165,9 @@ jobs:
     needs: [unit-tests, get-foundation-outputs]
     if: needs.check-trigger.outputs.should-deploy == 'true'
     with:
-      service-name: ${{ env.SERVICE_NAME }}
-      workspace-path: ${{ env.WORKSPACE_PATH }}
-      dockerfile-path: ${{ env.DOCKERFILE_PATH }}
+      service-name: users-api
+      workspace-path: tc-cloudgames-solution/services/users
+      dockerfile-path: services/users/src/Adapters/Inbound/TC.CloudGames.Users.Api/Dockerfile
       environment: ${{ github.event.inputs.environment || 'dev-rodrigo' }}
     secrets:
       AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
