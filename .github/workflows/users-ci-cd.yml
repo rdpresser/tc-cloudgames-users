@@ -18,10 +18,7 @@ on:
           - dev-rodrigo
 
 env:
-  SERVICE_NAME: users-api
   SOLUTION_FILE: TC.CloudGames.Users.sln
-  WORKSPACE_PATH: services/users
-  DOCKERFILE_PATH: services/users/src/Adapters/Inbound/TC.CloudGames.Users.Api/Dockerfile
 
 jobs:
   check-trigger:
@@ -48,12 +45,12 @@ jobs:
       pull-requests: write
     steps:
       - name: 📂 Prepare workspace
-        run: mkdir -p ${{ env.WORKSPACE_PATH }}
+        run: mkdir -p services/users
 
       - name: 📥 Checkout API repository
         uses: actions/checkout@v4
         with:
-          path: ${{ env.WORKSPACE_PATH }}
+          path: services/users
 
       - name: 📥 Checkout shared common repository
         uses: actions/checkout@v4
@@ -68,19 +65,19 @@ jobs:
           dotnet-version: '9.0.x'
 
       - name: 📦 Restore dependencies
-        run: dotnet restore ${{ env.WORKSPACE_PATH }}/${{ env.SOLUTION_FILE }}
+        run: dotnet restore services/users/${{ env.SOLUTION_FILE }}
 
       - name: 🏗️ Build solution
-        run: dotnet build ${{ env.WORKSPACE_PATH }}/${{ env.SOLUTION_FILE }} --no-restore --configuration Release
+        run: dotnet build services/users/${{ env.SOLUTION_FILE }} --no-restore --configuration Release
 
       - name: 🧪 Run unit tests with coverage
         run: |
-          dotnet test ${{ env.WORKSPACE_PATH }}/${{ env.SOLUTION_FILE }} \
+          dotnet test services/users/${{ env.SOLUTION_FILE }} \
             --no-build \
             --configuration Release \
             --logger trx \
             --collect:"XPlat Code Coverage" \
-            --results-directory ${{ env.WORKSPACE_PATH }}/test-results \
+            --results-directory services/users/test-results \
             --verbosity normal
 
       - name: 📊 Publish test results
@@ -88,18 +85,18 @@ jobs:
         if: always()
         with:
           name: 🧪 Unit Tests Results
-          path: ${{ env.WORKSPACE_PATH }}/test-results/*.trx
+          path: services/users/test-results/*.trx
           reporter: dotnet-trx
           fail-on-error: true
-          working-directory: ${{ env.WORKSPACE_PATH }}
+          working-directory: services/users
 
       - name: 📊 Generate & Upload Coverage
         if: always()
         run: |
           dotnet tool install -g dotnet-reportgenerator-globaltool
           reportgenerator \
-            "-reports:${{ env.WORKSPACE_PATH }}/test-results/**/coverage.cobertura.xml" \
-            "-targetdir:${{ env.WORKSPACE_PATH }}/coverage-report" \
+            "-reports:services/users/test-results/**/coverage.cobertura.xml" \
+            "-targetdir:services/users/coverage-report" \
             "-reporttypes:Html;Badges;TextSummary" \
             "-verbosity:Info"
 
@@ -109,19 +106,19 @@ jobs:
         with:
           name: coverage-${{ github.sha }}
           path: |
-            ${{ env.WORKSPACE_PATH }}/coverage-report/
-            ${{ env.WORKSPACE_PATH }}/test-results/**/coverage.cobertura.xml
+            services/users/coverage-report/
+            services/users/test-results/**/coverage.cobertura.xml
           retention-days: 7
 
       - name: 📊 Coverage Summary in PR
         if: always()
         run: |
-          if [ -f "${{ env.WORKSPACE_PATH }}/coverage-report/Summary.txt" ]; then
+          if [ -f "services/users/coverage-report/Summary.txt" ]; then
             echo "## 📊 Code Coverage Report" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 📈 Coverage Summary" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            cat ${{ env.WORKSPACE_PATH }}/coverage-report/Summary.txt >> $GITHUB_STEP_SUMMARY
+            cat services/users/coverage-report/Summary.txt >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "📋 **Detailed HTML Report**: Download the \`coverage-${{ github.sha }}\` artifact" >> $GITHUB_STEP_SUMMARY
@@ -136,9 +133,9 @@ jobs:
     needs: unit-tests
     if: needs.check-trigger.outputs.should-deploy == 'true'
     with:
-      service-name: ${{ env.SERVICE_NAME }}
-      workspace-path: ${{ env.WORKSPACE_PATH }}
-      dockerfile-path: ${{ env.DOCKERFILE_PATH }}
+      service-name: users-api
+      workspace-path: services/users
+      dockerfile-path: services/users/src/Adapters/Inbound/TC.CloudGames.Users.Api/Dockerfile
       environment: ${{ github.event.inputs.environment || 'dev-rodrigo' }}
     secrets:
       AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
