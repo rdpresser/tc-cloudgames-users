@@ -51,12 +51,12 @@ jobs:
       pull-requests: write
     steps:
       - name: 📂 Prepare workspace
-        run: mkdir -p ${{ env.WORKSPACE_PATH }}
+        run: mkdir -p $WORKSPACE_PATH
 
       - name: 📥 Checkout API repository
         uses: actions/checkout@v4
         with:
-          path: ${{ env.WORKSPACE_PATH }}
+          path: $WORKSPACE_PATH
 
       - name: 📥 Checkout shared common repository
         uses: actions/checkout@v4
@@ -71,19 +71,19 @@ jobs:
           dotnet-version: '9.0.x'
 
       - name: 📦 Restore dependencies
-        run: dotnet restore ${{ env.WORKSPACE_PATH }}/${{ env.SOLUTION_FILE }}
+        run: dotnet restore $WORKSPACE_PATH/${{ env.SOLUTION_FILE }}
 
       - name: 🏗️ Build solution
-        run: dotnet build ${{ env.WORKSPACE_PATH }}/${{ env.SOLUTION_FILE }} --no-restore --configuration Release
+        run: dotnet build $WORKSPACE_PATH/${{ env.SOLUTION_FILE }} --no-restore --configuration Release
 
       - name: 🧪 Run unit tests with coverage
         run: |
-          dotnet test ${{ env.WORKSPACE_PATH }}/${{ env.SOLUTION_FILE }} \
+          dotnet test $WORKSPACE_PATH/${{ env.SOLUTION_FILE }} \
             --no-build \
             --configuration Release \
             --logger trx \
             --collect:"XPlat Code Coverage" \
-            --results-directory ${{ env.WORKSPACE_PATH }}/test-results \
+            --results-directory $WORKSPACE_PATH/test-results \
             --verbosity normal
 
       - name: 📊 Publish test results
