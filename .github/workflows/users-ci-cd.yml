@@ -81,7 +81,7 @@ jobs:
           dotnet test ${{ env.WORKSPACE_PATH }}/${{ env.SOLUTION_FILE }} \
             --no-build \
             --configuration Release \
-            --logger trx \
+            --logger "trx;LogFileName=unit-tests.trx" \
             --collect:"XPlat Code Coverage" \
             --results-directory ${{ env.WORKSPACE_PATH }}/test-results \
             --verbosity normal
@@ -91,7 +91,7 @@ jobs:
         if: always()
         with:
           name: 🧪 Unit Tests Results
-          path: ${{ env.WORKSPACE_PATH }}/test-results/**/*.trx
+          path: ./test-results/*.trx
           reporter: dotnet-trx
           fail-on-error: true
           working-directory: ${{ env.WORKSPACE_PATH }}
@@ -113,7 +113,7 @@ jobs:
           name: coverage-and-tests-${{ github.sha }}
           path: |
             ${{ env.WORKSPACE_PATH }}/coverage-report/
-            ${{ env.WORKSPACE_PATH }}/test-results/**/*.trx
+            ${{ env.WORKSPACE_PATH }}/test-results/*.trx
             ${{ env.WORKSPACE_PATH }}/test-results/**/coverage.cobertura.xml
           retention-days: 7
 
@@ -167,8 +167,8 @@ jobs:
     if: needs.check-trigger.outputs.should-deploy == 'true'
     with:
       service-name: users-api
-      workspace-path: tc-cloudgames-solution/services/users
-      dockerfile-path: services/users/src/Adapters/Inbound/TC.CloudGames.Users.Api/Dockerfile
+      workspace-path: ${{ env.WORKSPACE_PATH }}
+      dockerfile-path: ${{ env.DOCKERFILE_PATH }}
       environment: ${{ github.event.inputs.environment || 'dev-rodrigo' }}
     secrets:
       AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
