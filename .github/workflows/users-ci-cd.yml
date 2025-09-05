@@ -1,0 +1,144 @@
+name: 🚀 Users API CI/CD Pipeline
+
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+    paths:
+      - 'services/users/**'
+      - '.github/workflows/**'
+      - 'azd/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        default: 'dev-rodrigo'
+        type: choice
+        options:
+          - dev-rodrigo
+
+env:
+  SERVICE_NAME: users-api
+  SOLUTION_FILE: TC.CloudGames.Users.sln
+  WORKSPACE_PATH: services/users
+  DOCKERFILE_PATH: services/users/src/Adapters/Inbound/TC.CloudGames.Users.Api/Dockerfile
+
+jobs:
+  check-trigger:
+    name: 🔍 Validate Deployment Trigger
+    if: (github.event.pull_request.merged == true) || (github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    outputs:
+      should-deploy: ${{ steps.check.outputs.should-deploy }}
+    steps:
+      - id: check
+        run: |
+          echo "should-deploy=true" >> $GITHUB_OUTPUT
+          echo "🚀 Deployment triggered by: ${{ github.event_name }}"
+
+  unit-tests:
+    name: 🧪 Unit Tests
+    runs-on: ubuntu-latest
+    needs: check-trigger
+    if: needs.check-trigger.outputs.should-deploy == 'true'
+    permissions:
+      contents: read
+      actions: read
+      checks: write
+      pull-requests: write
+    steps:
+      - name: 📂 Prepare workspace
+        run: mkdir -p ${{ env.WORKSPACE_PATH }}
+
+      - name: 📥 Checkout API repository
+        uses: actions/checkout@v4
+        with:
+          path: ${{ env.WORKSPACE_PATH }}
+
+      - name: 📥 Checkout shared common repository
+        uses: actions/checkout@v4
+        with:
+          repository: rdpresser/tc-cloudgames-common
+          path: tc-cloudgames-solution/shared/common
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: ⚙️ Setup .NET 9.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: 📦 Restore dependencies
+        run: dotnet restore ${{ env.WORKSPACE_PATH }}/${{ env.SOLUTION_FILE }}
+
+      - name: 🏗️ Build solution
+        run: dotnet build ${{ env.WORKSPACE_PATH }}/${{ env.SOLUTION_FILE }} --no-restore --configuration Release
+
+      - name: 🧪 Run unit tests with coverage
+        run: |
+          dotnet test ${{ env.WORKSPACE_PATH }}/${{ env.SOLUTION_FILE }} \
+            --no-build \
+            --configuration Release \
+            --logger trx \
+            --collect:"XPlat Code Coverage" \
+            --results-directory ${{ env.WORKSPACE_PATH }}/test-results \
+            --verbosity normal
+
+      - name: 📊 Publish test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: 🧪 Unit Tests Results
+          path: ${{ env.WORKSPACE_PATH }}/test-results/*.trx
+          reporter: dotnet-trx
+          fail-on-error: true
+          working-directory: ${{ env.WORKSPACE_PATH }}
+
+      - name: 📊 Generate & Upload Coverage
+        if: always()
+        run: |
+          dotnet tool install -g dotnet-reportgenerator-globaltool
+          reportgenerator \
+            "-reports:${{ env.WORKSPACE_PATH }}/test-results/**/coverage.cobertura.xml" \
+            "-targetdir:${{ env.WORKSPACE_PATH }}/coverage-report" \
+            "-reporttypes:Html;Badges;TextSummary" \
+            "-verbosity:Info"
+
+      - name: 📈 Upload Coverage Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-${{ github.sha }}
+          path: |
+            ${{ env.WORKSPACE_PATH }}/coverage-report/
+            ${{ env.WORKSPACE_PATH }}/test-results/**/coverage.cobertura.xml
+          retention-days: 7
+
+      - name: 📊 Coverage Summary in PR
+        if: always()
+        run: |
+          if [ -f "${{ env.WORKSPACE_PATH }}/coverage-report/Summary.txt" ]; then
+            echo "## 📊 Code Coverage Report" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 📈 Coverage Summary" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat ${{ env.WORKSPACE_PATH }}/coverage-report/Summary.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "📋 **Detailed HTML Report**: Download the \`coverage-${{ github.sha }}\` artifact" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ⚠️ Coverage Report" >> $GITHUB_STEP_SUMMARY
+            echo "Coverage report could not be generated. Check test execution." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  deploy:
+    name: 🚀 Deploy Container App
+    uses: ./.github/workflows/deploy-container-app.yml
+    needs: unit-tests
+    if: needs.check-trigger.outputs.should-deploy == 'true'
+    with:
+      service-name: ${{ env.SERVICE_NAME }}
+      workspace-path: ${{ env.WORKSPACE_PATH }}
+      dockerfile-path: ${{ env.DOCKERFILE_PATH }}
+      environment: ${{ github.event.inputs.environment || 'dev-rodrigo' }}
+    secrets:
+      AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
