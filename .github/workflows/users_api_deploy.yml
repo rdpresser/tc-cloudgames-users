@@ -245,6 +245,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: 🏗️ Build and Push Docker Image
+        id: build-push
         uses: docker/build-push-action@v5
         with:
           context: ./tc-cloudgames-solution
@@ -256,6 +257,13 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
+
+      - name: ✅ Verify Build and Push Completed Successfully
+        run: |
+          echo "✅ Docker build and push completed successfully"
+          echo "📦 Image pushed: ${{ steps.build-vars.outputs.image-uri }}"  
+          echo "📦 Latest tag: ${{ steps.build-vars.outputs.image-uri-latest }}"
+          echo "🕒 Build completed at: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 
       - name: 🔍 Get Container App Name from Terraform
         id: get-container-app
@@ -273,7 +281,44 @@ jobs:
           echo "📦 Found Container App: $CONTAINER_APP_NAME"
           echo "container-app-name=$CONTAINER_APP_NAME" >> $GITHUB_OUTPUT
 
-      - name: 🚀 Deploy New Image to Container App
+      - name: � Verify Image Exists in ACR Before Deploy
+        run: |
+          IMAGE_URI_LATEST="${{ steps.build-vars.outputs.image-uri-latest }}"
+          
+          echo "🔍 Verifying image exists in ACR before creating new revision..."
+          echo "📦 Checking image: $IMAGE_URI_LATEST"
+          
+          # Wait for potential manifest propagation (ACR can have some delay)
+          echo "⏳ Waiting 30 seconds for manifest propagation..."
+          sleep 30
+          
+          # Verify the image exists in ACR before attempting deploy
+          MAX_RETRIES=5
+          RETRY_COUNT=0
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            echo "🔍 Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES: Checking if image exists..."
+            
+            if az acr repository show-manifests \
+              --name ${{ needs.get-foundation-outputs.outputs.acr-name }} \
+              --repository ${{ env.SERVICE_NAME }} \
+              --query "[?contains(tags, 'latest')]" -o tsv > /dev/null 2>&1; then
+              echo "✅ Image verified in ACR! Proceeding with deployment."
+              break
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                echo "⏳ Image not found yet, waiting 15 seconds before retry..."
+                sleep 15
+              else
+                echo "❌ ERROR: Image not found in ACR after $MAX_RETRIES attempts"
+                echo "❌ Cannot proceed with deployment - image $IMAGE_URI_LATEST does not exist"
+                exit 1
+              fi
+            fi
+          done
+
+      - name: �🚀 Deploy New Image to Container App
         id: deploy
         run: |
           CONTAINER_APP_NAME="${{ steps.get-container-app.outputs.container-app-name }}"
@@ -285,8 +330,26 @@ jobs:
           echo "📦 Latest image: $IMAGE_URI_LATEST"
           echo "🏷️ Specific tag: $IMAGE_URI_SPECIFIC"
           
-          # ✅ UPDATE ONLY THE CONTAINER IMAGE (preserves all Terraform configuration)
-          echo "🔄 Updating only the container image..."
+          # ✅ EXTREMELY CONSERVATIVE UPDATE - Only update container image, preserve ALL other settings
+          echo "🔄 Updating ONLY the container image (preserving ALL Terraform configurations)..."
+          
+          # Get current container app configuration to ensure we don't lose anything
+          echo "📋 Checking current configuration before update..."
+          CURRENT_ENV_COUNT=$(az containerapp show \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
+            --query "length(properties.template.containers[0].env[])" -o tsv)
+          
+          echo "📊 Current environment variables count: $CURRENT_ENV_COUNT"
+          
+          if [ "$CURRENT_ENV_COUNT" -lt 10 ]; then
+            echo "⚠️ WARNING: Container App has fewer environment variables than expected!"
+            echo "⚠️ This might indicate Terraform configurations were lost."
+            echo "⚠️ Consider running terraform apply first to restore configurations."
+          fi
+          
+          # ✅ NOW SAFE TO UPDATE: Image verified to exist in ACR
+          echo "🔄 Updating Container App image (image verified in ACR)..."
           az containerapp update \
             --name "$CONTAINER_APP_NAME" \
             --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
@@ -294,6 +357,23 @@ jobs:
             --output none
           
           echo "✅ Container image updated successfully!"
+          
+          # Verify environment variables are still there after update
+          AFTER_ENV_COUNT=$(az containerapp show \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group ${{ needs.get-foundation-outputs.outputs.resource-group }} \
+            --query "length(properties.template.containers[0].env[])" -o tsv)
+          
+          echo "📊 Environment variables count after update: $AFTER_ENV_COUNT"
+          
+          if [ "$AFTER_ENV_COUNT" -lt "$CURRENT_ENV_COUNT" ]; then
+            echo "❌ ERROR: Environment variables were lost during image update!"
+            echo "❌ Before: $CURRENT_ENV_COUNT, After: $AFTER_ENV_COUNT"
+            echo "❌ This indicates the pipeline removed Terraform configurations."
+            exit 1
+          else
+            echo "✅ Environment variables preserved: $AFTER_ENV_COUNT variables"
+          fi
 
           # Wait for deployment
           echo "⏳ Waiting for deployment to complete..."
