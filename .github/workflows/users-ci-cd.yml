@@ -17,40 +17,33 @@ on:
         options:
           - dev-rodrigo
 
-jobs:
-  setup-vars:
-    name: ⚙️ Setup Service Variables
-    runs-on: ubuntu-latest
-    outputs:
-      service-name: ${{ steps.set-vars.outputs.service-name }}
-      solution-file: ${{ steps.set-vars.outputs.solution-file }}
-      workspace-path: ${{ steps.set-vars.outputs.workspace-path }}
-      dockerfile-path: ${{ steps.set-vars.outputs.dockerfile-path }}
-    steps:
-      - id: set-vars
-        run: |
-          echo "service-name=users-api" >> $GITHUB_OUTPUT
-          echo "solution-file=TC.CloudGames.Users.sln" >> $GITHUB_OUTPUT
-          echo "workspace-path=services/users" >> $GITHUB_OUTPUT
-          echo "dockerfile-path=services/users/src/Adapters/Inbound/TC.CloudGames.Users.Api/Dockerfile" >> $GITHUB_OUTPUT
+env:
+  SERVICE_NAME: users-api
+  SOLUTION_PATH: services/users/TC.CloudGames.Users.sln
+  SOLUTION_FILE: TC.CloudGames.Users.sln
+  SERVICE_PATH: services/users
+  DOCKERFILE_PATH: services/users/src/Adapters/Inbound/TC.CloudGames.Users.Api/Dockerfile
+  WORKSPACE_PATH: tc-cloudgames-solution/services/users
 
+jobs:
   check-trigger:
     name: 🔍 Validate Deployment Trigger
-    needs: setup-vars
+    if: (github.event.pull_request.merged == true) || (github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     outputs:
       should-deploy: ${{ steps.check.outputs.should-deploy }}
     steps:
-      - id: check
+      - name: ✅ Check deployment trigger
+        id: check
         run: |
           echo "should-deploy=true" >> $GITHUB_OUTPUT
           echo "🚀 Deployment triggered by: ${{ github.event_name }}"
 
   unit-tests:
     name: 🧪 Unit Tests
-    needs: [setup-vars, check-trigger]
-    if: needs.check-trigger.outputs.should-deploy == 'true'
     runs-on: ubuntu-latest
+    needs: check-trigger
+    if: needs.check-trigger.outputs.should-deploy == 'true'
     permissions:
       contents: read
       actions: read
@@ -58,13 +51,15 @@ jobs:
       pull-requests: write
     steps:
       - name: 📂 Prepare workspace
-        run: mkdir -p ${{ needs.setup-vars.outputs.workspace-path }}
+        run: mkdir -p ${{ env.WORKSPACE_PATH }}
 
+      # Checkout API
       - name: 📥 Checkout API repository
         uses: actions/checkout@v4
         with:
-          path: ${{ needs.setup-vars.outputs.workspace-path }}
+          path: ${{ env.WORKSPACE_PATH }}
 
+      # Checkout common repository no caminho correto relativo ao sln
       - name: 📥 Checkout shared common repository
         uses: actions/checkout@v4
         with:
@@ -78,19 +73,19 @@ jobs:
           dotnet-version: '9.0.x'
 
       - name: 📦 Restore dependencies
-        run: dotnet restore ${{ needs.setup-vars.outputs.workspace-path }}/${{ needs.setup-vars.outputs.solution-file }}
+        run: dotnet restore ${{ env.WORKSPACE_PATH }}/${{ env.SOLUTION_FILE }}
 
       - name: 🏗️ Build solution
-        run: dotnet build ${{ needs.setup-vars.outputs.workspace-path }}/${{ needs.setup-vars.outputs.solution-file }} --no-restore --configuration Release
+        run: dotnet build ${{ env.WORKSPACE_PATH }}/${{ env.SOLUTION_FILE }} --no-restore --configuration Release
 
       - name: 🧪 Run unit tests with coverage
         run: |
-          dotnet test ${{ needs.setup-vars.outputs.workspace-path }}/${{ needs.setup-vars.outputs.solution-file }} \
+          dotnet test ${{ env.WORKSPACE_PATH }}/${{ env.SOLUTION_FILE }} \
             --no-build \
             --configuration Release \
             --logger trx \
             --collect:"XPlat Code Coverage" \
-            --results-directory ${{ needs.setup-vars.outputs.workspace-path }}/test-results \
+            --results-directory ${{ env.WORKSPACE_PATH }}/test-results \
             --verbosity normal
 
       - name: 📊 Publish test results
@@ -98,18 +93,18 @@ jobs:
         if: always()
         with:
           name: 🧪 Unit Tests Results
-          path: ${{ needs.setup-vars.outputs.workspace-path }}/test-results/*.trx
+          path: ${{ env.WORKSPACE_PATH }}/test-results/*.trx
           reporter: dotnet-trx
           fail-on-error: true
-          working-directory: ${{ needs.setup-vars.outputs.workspace-path }}
+          working-directory: ${{ env.WORKSPACE_PATH }}
 
       - name: 📊 Generate & Upload Coverage
         if: always()
         run: |
           dotnet tool install -g dotnet-reportgenerator-globaltool
           reportgenerator \
-            "-reports:${{ needs.setup-vars.outputs.workspace-path }}/test-results/**/coverage.cobertura.xml" \
-            "-targetdir:${{ needs.setup-vars.outputs.workspace-path }}/coverage-report" \
+            "-reports:${{ env.WORKSPACE_PATH }}/test-results/**/coverage.cobertura.xml" \
+            "-targetdir:${{ env.WORKSPACE_PATH }}/coverage-report" \
             "-reporttypes:Html;Badges;TextSummary" \
             "-verbosity:Info"
 
@@ -119,14 +114,14 @@ jobs:
         with:
           name: coverage-${{ github.sha }}
           path: |
-            ${{ needs.setup-vars.outputs.workspace-path }}/coverage-report/
-            ${{ needs.setup-vars.outputs.workspace-path }}/test-results/**/coverage.cobertura.xml
+            ${{ env.WORKSPACE_PATH }}/coverage-report/
+            ${{ env.WORKSPACE_PATH }}/test-results/**/coverage.cobertura.xml
           retention-days: 7
 
   get-foundation-outputs:
     name: 🔗 Get Foundation Infrastructure
     runs-on: ubuntu-latest
-    needs: [check-trigger, unit-tests, setup-vars]
+    needs: [check-trigger, unit-tests]
     if: needs.check-trigger.outputs.should-deploy == 'true'
     environment: ${{ github.event.inputs.environment || 'dev-rodrigo' }}
     outputs:
@@ -169,12 +164,12 @@ jobs:
   deploy:
     name: 🚀 Deploy Container App
     uses: ./.github/workflows/deploy-container-app.yml
-    needs: [unit-tests, get-foundation-outputs, setup-vars]
+    needs: [unit-tests, get-foundation-outputs]
     if: needs.check-trigger.outputs.should-deploy == 'true'
     with:
-      service-name: ${{ needs.setup-vars.outputs.service-name }}
-      workspace-path: ${{ needs.setup-vars.outputs.workspace-path }}
-      dockerfile-path: ${{ needs.setup-vars.outputs.dockerfile-path }}
+      service-name: ${{ env.SERVICE_NAME }}
+      workspace-path: ${{ env.WORKSPACE_PATH }}
+      dockerfile-path: ${{ env.DOCKERFILE_PATH }}
       environment: ${{ github.event.inputs.environment || 'dev-rodrigo' }}
     secrets:
       AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
