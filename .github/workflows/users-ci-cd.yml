@@ -51,12 +51,12 @@ jobs:
       pull-requests: write
     steps:
       - name: 📂 Prepare workspace
-        run: mkdir -p $WORKSPACE_PATH
+        run: mkdir -p ${{ env.WORKSPACE_PATH }}
 
       - name: 📥 Checkout API repository
         uses: actions/checkout@v4
         with:
-          path: $WORKSPACE_PATH
+          path: ${{ env.WORKSPACE_PATH }}
 
       - name: 📥 Checkout shared common repository
         uses: actions/checkout@v4
@@ -71,19 +71,19 @@ jobs:
           dotnet-version: '9.0.x'
 
       - name: 📦 Restore dependencies
-        run: dotnet restore $WORKSPACE_PATH/${{ env.SOLUTION_FILE }}
+        run: dotnet restore ${{ env.WORKSPACE_PATH }}/${{ env.SOLUTION_FILE }}
 
       - name: 🏗️ Build solution
-        run: dotnet build $WORKSPACE_PATH/${{ env.SOLUTION_FILE }} --no-restore --configuration Release
+        run: dotnet build ${{ env.WORKSPACE_PATH }}/${{ env.SOLUTION_FILE }} --no-restore --configuration Release
 
       - name: 🧪 Run unit tests with coverage
         run: |
-          dotnet test $WORKSPACE_PATH/${{ env.SOLUTION_FILE }} \
+          dotnet test ${{ env.WORKSPACE_PATH }}/${{ env.SOLUTION_FILE }} \
             --no-build \
             --configuration Release \
             --logger trx \
             --collect:"XPlat Code Coverage" \
-            --results-directory $WORKSPACE_PATH/test-results \
+            --results-directory ${{ env.WORKSPACE_PATH }}/test-results \
             --verbosity normal
 
       - name: 📊 Publish test results
@@ -91,18 +91,18 @@ jobs:
         if: always()
         with:
           name: 🧪 Unit Tests Results
-          path: $WORKSPACE_PATH/test-results/**/*.trx
+          path: ${{ env.WORKSPACE_PATH }}/test-results/**/*.trx
           reporter: dotnet-trx
           fail-on-error: true
-          working-directory: $WORKSPACE_PATH
+          working-directory: ${{ env.WORKSPACE_PATH }}
 
       - name: 📊 Generate & Upload Coverage
         if: always()
         run: |
           dotnet tool install -g dotnet-reportgenerator-globaltool
           reportgenerator \
-            "-reports:$WORKSPACE_PATH/test-results/**/coverage.cobertura.xml" \
-            "-targetdir:$WORKSPACE_PATH/coverage-report" \
+            "-reports:${{ env.WORKSPACE_PATH }}/test-results/**/coverage.cobertura.xml" \
+            "-targetdir:${{ env.WORKSPACE_PATH }}/coverage-report" \
             "-reporttypes:Html;Badges;TextSummary" \
             "-verbosity:Info"
 
@@ -112,9 +112,9 @@ jobs:
         with:
           name: coverage-and-tests-${{ github.sha }}
           path: |
-            $WORKSPACE_PATH/coverage-report/
-            $WORKSPACE_PATH/test-results/**/*.trx
-            $WORKSPACE_PATH/test-results/**/coverage.cobertura.xml
+            ${{ env.WORKSPACE_PATH }}/coverage-report/
+            ${{ env.WORKSPACE_PATH }}/test-results/**/*.trx
+            ${{ env.WORKSPACE_PATH }}/test-results/**/coverage.cobertura.xml
           retention-days: 7
 
   get-foundation-outputs:
