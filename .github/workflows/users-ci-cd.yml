@@ -17,13 +17,26 @@ on:
         options:
           - dev-rodrigo
 
-env:
-  SOLUTION_FILE: TC.CloudGames.Users.sln
-
 jobs:
+  setup-vars:
+    name: ⚙️ Setup Service Variables
+    runs-on: ubuntu-latest
+    outputs:
+      service-name: ${{ steps.set-vars.outputs.service-name }}
+      solution-file: ${{ steps.set-vars.outputs.solution-file }}
+      workspace-path: ${{ steps.set-vars.outputs.workspace-path }}
+      dockerfile-path: ${{ steps.set-vars.outputs.dockerfile-path }}
+    steps:
+      - id: set-vars
+        run: |
+          echo "service-name=users-api" >> $GITHUB_OUTPUT
+          echo "solution-file=TC.CloudGames.Users.sln" >> $GITHUB_OUTPUT
+          echo "workspace-path=services/users" >> $GITHUB_OUTPUT
+          echo "dockerfile-path=services/users/src/Adapters/Inbound/TC.CloudGames.Users.Api/Dockerfile" >> $GITHUB_OUTPUT
+
   check-trigger:
     name: 🔍 Validate Deployment Trigger
-    if: (github.event.pull_request.merged == true) || (github.event_name == 'workflow_dispatch')
+    needs: setup-vars
     runs-on: ubuntu-latest
     outputs:
       should-deploy: ${{ steps.check.outputs.should-deploy }}
@@ -35,9 +48,9 @@ jobs:
 
   unit-tests:
     name: 🧪 Unit Tests
-    runs-on: ubuntu-latest
-    needs: check-trigger
+    needs: [setup-vars, check-trigger]
     if: needs.check-trigger.outputs.should-deploy == 'true'
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       actions: read
@@ -45,12 +58,12 @@ jobs:
       pull-requests: write
     steps:
       - name: 📂 Prepare workspace
-        run: mkdir -p services/users
+        run: mkdir -p ${{ needs.setup-vars.outputs.workspace-path }}
 
       - name: 📥 Checkout API repository
         uses: actions/checkout@v4
         with:
-          path: services/users
+          path: ${{ needs.setup-vars.outputs.workspace-path }}
 
       - name: 📥 Checkout shared common repository
         uses: actions/checkout@v4
@@ -65,19 +78,19 @@ jobs:
           dotnet-version: '9.0.x'
 
       - name: 📦 Restore dependencies
-        run: dotnet restore services/users/${{ env.SOLUTION_FILE }}
+        run: dotnet restore ${{ needs.setup-vars.outputs.workspace-path }}/${{ needs.setup-vars.outputs.solution-file }}
 
       - name: 🏗️ Build solution
-        run: dotnet build services/users/${{ env.SOLUTION_FILE }} --no-restore --configuration Release
+        run: dotnet build ${{ needs.setup-vars.outputs.workspace-path }}/${{ needs.setup-vars.outputs.solution-file }} --no-restore --configuration Release
 
       - name: 🧪 Run unit tests with coverage
         run: |
-          dotnet test services/users/${{ env.SOLUTION_FILE }} \
+          dotnet test ${{ needs.setup-vars.outputs.workspace-path }}/${{ needs.setup-vars.outputs.solution-file }} \
             --no-build \
             --configuration Release \
             --logger trx \
             --collect:"XPlat Code Coverage" \
-            --results-directory services/users/test-results \
+            --results-directory ${{ needs.setup-vars.outputs.workspace-path }}/test-results \
             --verbosity normal
 
       - name: 📊 Publish test results
@@ -85,18 +98,18 @@ jobs:
         if: always()
         with:
           name: 🧪 Unit Tests Results
-          path: services/users/test-results/*.trx
+          path: ${{ needs.setup-vars.outputs.workspace-path }}/test-results/*.trx
           reporter: dotnet-trx
           fail-on-error: true
-          working-directory: services/users
+          working-directory: ${{ needs.setup-vars.outputs.workspace-path }}
 
       - name: 📊 Generate & Upload Coverage
         if: always()
         run: |
           dotnet tool install -g dotnet-reportgenerator-globaltool
           reportgenerator \
-            "-reports:services/users/test-results/**/coverage.cobertura.xml" \
-            "-targetdir:services/users/coverage-report" \
+            "-reports:${{ needs.setup-vars.outputs.workspace-path }}/test-results/**/coverage.cobertura.xml" \
+            "-targetdir:${{ needs.setup-vars.outputs.workspace-path }}/coverage-report" \
             "-reporttypes:Html;Badges;TextSummary" \
             "-verbosity:Info"
 
@@ -106,36 +119,62 @@ jobs:
         with:
           name: coverage-${{ github.sha }}
           path: |
-            services/users/coverage-report/
-            services/users/test-results/**/coverage.cobertura.xml
+            ${{ needs.setup-vars.outputs.workspace-path }}/coverage-report/
+            ${{ needs.setup-vars.outputs.workspace-path }}/test-results/**/coverage.cobertura.xml
           retention-days: 7
 
-      - name: 📊 Coverage Summary in PR
-        if: always()
+  get-foundation-outputs:
+    name: 🔗 Get Foundation Infrastructure
+    runs-on: ubuntu-latest
+    needs: [check-trigger, unit-tests, setup-vars]
+    if: needs.check-trigger.outputs.should-deploy == 'true'
+    environment: ${{ github.event.inputs.environment || 'dev-rodrigo' }}
+    outputs:
+      resource-group: ${{ steps.outputs.outputs.resource-group }}
+      acr-name: ${{ steps.outputs.outputs.acr-name }}
+      acr-login-server: ${{ steps.outputs.outputs.acr-login-server }}
+      key-vault-name: ${{ steps.outputs.outputs.key-vault-name }}
+      container-app-env-name: ${{ steps.outputs.outputs.container-app-env-name }}
+      environment: ${{ steps.outputs.outputs.environment }}
+      azure-environment: ${{ steps.outputs.outputs.azure-environment }}
+      azure-subscription-id: ${{ steps.outputs.outputs.azure-subscription-id }}
+    steps:
+      - name: 🔐 Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 🔗 Get Foundation Infrastructure Outputs
+        id: outputs
         run: |
-          if [ -f "services/users/coverage-report/Summary.txt" ]; then
-            echo "## 📊 Code Coverage Report" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 📈 Coverage Summary" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            cat services/users/coverage-report/Summary.txt >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "📋 **Detailed HTML Report**: Download the \`coverage-${{ github.sha }}\` artifact" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "## ⚠️ Coverage Report" >> $GITHUB_STEP_SUMMARY
-            echo "Coverage report could not be generated. Check test execution." >> $GITHUB_STEP_SUMMARY
-          fi
+          AZURE_SUBSCRIPTION_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.subscriptionId')
+          GITHUB_ENVIRONMENT="${{ github.event.inputs.environment || 'dev-rodrigo' }}"
+          AZURE_ENV_PREFIX=$(echo $GITHUB_ENVIRONMENT | cut -d'-' -f1)
+          RESOURCE_GROUP="tc-cloudgames-solution-${AZURE_ENV_PREFIX}-rg"
+
+          ACR_NAME=$(az acr list --resource-group $RESOURCE_GROUP --query "[?starts_with(name, 'tccloudgames${AZURE_ENV_PREFIX}')].name" -o tsv | head -1)
+          KEY_VAULT_NAME=$(az keyvault list --resource-group $RESOURCE_GROUP --query "[?starts_with(name, 'tccloudgames${AZURE_ENV_PREFIX}')].name" -o tsv | head -1)
+          CONTAINER_APP_ENV_NAME=$(az containerapp env list --resource-group $RESOURCE_GROUP --query "[?starts_with(name, 'tc-cloudgames-${AZURE_ENV_PREFIX}-') && ends_with(name, '-env')].name" -o tsv | head -1)
+          ACR_LOGIN_SERVER="${ACR_NAME}.azurecr.io"
+
+          echo "resource-group=$RESOURCE_GROUP" >> $GITHUB_OUTPUT
+          echo "acr-name=$ACR_NAME" >> $GITHUB_OUTPUT
+          echo "acr-login-server=$ACR_LOGIN_SERVER" >> $GITHUB_OUTPUT
+          echo "key-vault-name=$KEY_VAULT_NAME" >> $GITHUB_OUTPUT
+          echo "container-app-env-name=$CONTAINER_APP_ENV_NAME" >> $GITHUB_OUTPUT
+          echo "environment=$GITHUB_ENVIRONMENT" >> $GITHUB_OUTPUT
+          echo "azure-environment=$AZURE_ENV_PREFIX" >> $GITHUB_OUTPUT
+          echo "azure-subscription-id=$AZURE_SUBSCRIPTION_ID" >> $GITHUB_OUTPUT
 
   deploy:
     name: 🚀 Deploy Container App
     uses: ./.github/workflows/deploy-container-app.yml
-    needs: unit-tests
+    needs: [unit-tests, get-foundation-outputs, setup-vars]
     if: needs.check-trigger.outputs.should-deploy == 'true'
     with:
-      service-name: users-api
-      workspace-path: services/users
-      dockerfile-path: services/users/src/Adapters/Inbound/TC.CloudGames.Users.Api/Dockerfile
+      service-name: ${{ needs.setup-vars.outputs.service-name }}
+      workspace-path: ${{ needs.setup-vars.outputs.workspace-path }}
+      dockerfile-path: ${{ needs.setup-vars.outputs.dockerfile-path }}
       environment: ${{ github.event.inputs.environment || 'dev-rodrigo' }}
     secrets:
       AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
