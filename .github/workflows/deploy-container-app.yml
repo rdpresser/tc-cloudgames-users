@@ -86,17 +86,23 @@ jobs:
       - name: 🚀 Deploy to Azure Container App
         id: deploy
         run: |
-          CONTAINER_APP_NAME=$(az containerapp list \
-            --query "[?contains(name, '${{ inputs.service-name }}')].name" -o tsv | head -1)
+          # Busca nome e resource group do container app
+          CONTAINER_APP_INFO=$(az containerapp list \
+            --query "[?contains(name, '${{ inputs.service-name }}')].[name, resourceGroup]" -o tsv | head -1)
 
-          echo "🚀 Updating $CONTAINER_APP_NAME with image ${{ steps.build-vars.outputs.image-uri-latest }}"
+          CONTAINER_APP_NAME=$(echo "$CONTAINER_APP_INFO" | awk '{print $1}')
+          RESOURCE_GROUP=$(echo "$CONTAINER_APP_INFO" | awk '{print $2}')
+
+          echo "🚀 Updating $CONTAINER_APP_NAME in RG $RESOURCE_GROUP with image ${{ steps.build-vars.outputs.image-uri-latest }}"
           az containerapp update \
             --name "$CONTAINER_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
             --image "${{ steps.build-vars.outputs.image-uri-latest }}" \
             --output none
 
           APP_URL=$(az containerapp show \
             --name "$CONTAINER_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
             --query "properties.configuration.ingress.fqdn" -o tsv)
 
           echo "container-app-name=$CONTAINER_APP_NAME" >> $GITHUB_OUTPUT
