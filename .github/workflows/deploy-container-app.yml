@@ -17,7 +17,6 @@ on:
         type: string
       acr-name:
         required: true
-        type: string
     secrets:
       AZURE_CREDENTIALS:
         required: true
@@ -28,17 +27,16 @@ jobs:
     environment: ${{ inputs.environment }}
 
     steps:
-      # Prepare the local workspace path (keeps behaviour consistent with your caller workflow)
+      # 1️⃣ Prepare workspace
       - name: 📂 Prepare workspace
         run: mkdir -p ${{ inputs.workspace-path }}
 
-      # Checkout the API repo at the provided workspace path
+      # 2️⃣ Checkout repositories
       - name: 📥 Checkout API repository
         uses: actions/checkout@v4
         with:
           path: ${{ inputs.workspace-path }}
 
-      # Checkout the shared common repository used by the solution
       - name: 📥 Checkout shared common repository
         uses: actions/checkout@v4
         with:
@@ -46,24 +44,22 @@ jobs:
           path: tc-cloudgames-solution/shared/common
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Install .NET (keeps parity with your build pipeline)
+      # 3️⃣ Setup .NET
       - name: ⚙️ Setup .NET 9.0
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
 
-      # Login to Azure using the provided service principal credentials
+      # 4️⃣ Azure login
       - name: 🔐 Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Prepare build variables: immutable image tag + "latest" tag.
-      # We will deploy using the immutable tag (image-uri) to force a new revision.
+      # 5️⃣ Build variables and immutable image tag
       - name: 🏗️ Prepare Build Variables
         id: build-vars
         run: |
-          # generate an immutable tag (timestamp + short sha)
           IMAGE_TAG="$(date +%Y%m%d-%H%M%S)-$(echo ${{ github.sha }} | cut -c1-8)"
           IMAGE_URI="${{ inputs.acr-name }}.azurecr.io/${{ inputs.service-name }}:${IMAGE_TAG}"
           IMAGE_URI_LATEST="${{ inputs.acr-name }}.azurecr.io/${{ inputs.service-name }}:latest"
@@ -72,14 +68,14 @@ jobs:
           echo "image-uri=$IMAGE_URI" >> $GITHUB_OUTPUT
           echo "image-uri-latest=$IMAGE_URI_LATEST" >> $GITHUB_OUTPUT
 
-      # Login to ACR to be able to push images
+      # 6️⃣ Login to ACR
       - name: 🐳 Login to Azure Container Registry
         run: az acr login --name ${{ inputs.acr-name }}
 
-      - name: ⚙️ Set up Docker Buildx
+      - name: ⚙️ Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Build and push both tags: immutable and latest.
+      # 7️⃣ Build and push Docker image
       - name: 🏗️ Build and Push Docker Image
         uses: docker/build-push-action@v5
         id: build-push
@@ -94,81 +90,139 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64
 
-      # Wait for the immutable tag to appear in ACR before proceeding to deploy.
-      # This avoids race conditions where 'az containerapp update' runs before the image is available.
+      # 8️⃣ Wait for image tag in ACR
       - name: 🔎 Wait for image tag in ACR
         run: |
           ACR_NAME="${{ inputs.acr-name }}"
           REPO="${{ inputs.service-name }}"
           IMAGE_TAG="${{ steps.build-vars.outputs.image-tag }}"
-
-          echo "Waiting for tag '$IMAGE_TAG' to appear in ACR $ACR_NAME (repo: $REPO)..."
           found=0
           for i in $(seq 1 10); do
             if az acr repository show-tags --name "$ACR_NAME" --repository "$REPO" -o tsv | grep -q "^${IMAGE_TAG}$"; then
-              echo "✅ Found tag $IMAGE_TAG in ACR"
               found=1
               break
             fi
-            echo "⏳ Tag not found yet (attempt $i/10). Sleeping 6s..."
             sleep 6
           done
-
           if [ "$found" -ne 1 ]; then
-            echo "⚠️ Tag $IMAGE_TAG not found in ACR after retries. Listing recent tags for debugging:"
-            az acr repository show-tags --name "$ACR_NAME" --repository "$REPO" --top 20 -o tsv || true
-            exit 1
+            echo "Tag $IMAGE_TAG not found in ACR"; exit 1
           fi
 
-      # Deploy to Azure Container Apps using the immutable image tag (image-uri).
-      # IMPORTANT: Using the immutable tag ensures Azure creates a new revision.
-      - name: 🚀 Deploy to Azure Container App (immutable tag)
-        id: deploy
+      # 9️⃣ Find container app
+      - name: 🔎 Get Container App Info
+        id: container-app
         run: |
-          # find the container app name and resource group for the service-name
           CONTAINER_APP_INFO=$(az containerapp list \
             --query "[?contains(name, '${{ inputs.service-name }}')].[name, resourceGroup]" -o tsv | head -1)
-
           if [ -z "$CONTAINER_APP_INFO" ]; then
-            echo "❌ Could not find a Container App containing name '${{ inputs.service-name }}' - aborting."
-            az containerapp list -o table
-            exit 1
+            echo "Container App not found"; exit 1
           fi
-
           CONTAINER_APP_NAME=$(echo "$CONTAINER_APP_INFO" | awk '{print $1}')
           RESOURCE_GROUP=$(echo "$CONTAINER_APP_INFO" | awk '{print $2}')
-          IMAGE_TO_DEPLOY="${{ steps.build-vars.outputs.image-uri }}"  # immutable tag
-
-          echo "🚀 Updating $CONTAINER_APP_NAME in RG $RESOURCE_GROUP with image $IMAGE_TO_DEPLOY"
-
-          # Update the container app image. Using the immutable tag forces a new revision.
-          az containerapp update \
-            --name "$CONTAINER_APP_NAME" \
-            --resource-group "$RESOURCE_GROUP" \
-            --image "$IMAGE_TO_DEPLOY" \
-            --output none
-
-          # Get FQDN to return to caller
-          APP_URL=$(az containerapp show \
-            --name "$CONTAINER_APP_NAME" \
-            --resource-group "$RESOURCE_GROUP" \
-            --query "properties.configuration.ingress.fqdn" -o tsv)
 
           echo "container-app-name=$CONTAINER_APP_NAME" >> $GITHUB_OUTPUT
+          echo "resource-group=$RESOURCE_GROUP" >> $GITHUB_OUTPUT
+
+      # 🔐 10️⃣ Set secrets in Container App (from KeyVault)
+      - name: 🔑 Set secrets
+        run: |
+          CONTAINER_APP=${{ steps.container-app.outputs.container-app-name }}
+          RG=${{ steps.container-app.outputs.resource-group }}
+
+          # Map of env vars to KeyVault secret names
+          declare -A SECRETS=(
+            ["db-host"]="DB_HOST"
+            ["db-port"]="DB_PORT"
+            ["db-name-users"]="DB_NAME"
+            ["db-admin-login"]="DB_USER"
+            ["db-password"]="DB_PASSWORD"
+            ["db-name-maintenance"]="DB_MAINTENANCE_NAME"
+            ["db-schema"]="DB_SCHEMA"
+            ["db-connection-timeout"]="DB_CONNECTION_TIMEOUT"
+            ["cache-host"]="CACHE_HOST"
+            ["cache-port"]="CACHE_PORT"
+            ["cache-password"]="CACHE_PASSWORD"
+            ["cache-secure"]="CACHE_SECURE"
+            ["servicebus-connection-string"]="AZURE_SERVICEBUS_CONNECTIONSTRING"
+            ["servicebus-auto-provision"]="AZURE_SERVICEBUS_AUTO_PROVISION"
+            ["servicebus-max-delivery-count"]="AZURE_SERVICEBUS_MAX_DELIVERY_COUNT"
+            ["servicebus-enable-dead-lettering"]="AZURE_SERVICEBUS_ENABLE_DEAD_LETTERING"
+            ["servicebus-auto-purge-on-startup"]="AZURE_SERVICEBUS_AUTO_PURGE_ON_STARTUP"
+            ["servicebus-use-control-queues"]="AZURE_SERVICEBUS_USE_CONTROL_QUEUES"
+          )
+
+          for SECRET_NAME in "${!SECRETS[@]}"; do
+            az containerapp secret set \
+              --name "$CONTAINER_APP" \
+              --resource-group "$RG" \
+              --secrets "$SECRET_NAME=$(az keyvault secret show --vault-name ${{ inputs.environment }} --name $SECRET_NAME --query value -o tsv)"
+          done
+
+      # 🌱 11️⃣ Set env vars referencing secrets
+      - name: 🌱 Set environment variables via secretRef
+        run: |
+          CONTAINER_APP=${{ steps.container-app.outputs.container-app-name }}
+          RG=${{ steps.container-app.outputs.resource-group }}
+
+          declare -A SECRETS=(
+            ["db-host"]="DB_HOST"
+            ["db-port"]="DB_PORT"
+            ["db-name-users"]="DB_NAME"
+            ["db-admin-login"]="DB_USER"
+            ["db-password"]="DB_PASSWORD"
+            ["db-name-maintenance"]="DB_MAINTENANCE_NAME"
+            ["db-schema"]="DB_SCHEMA"
+            ["db-connection-timeout"]="DB_CONNECTION_TIMEOUT"
+            ["cache-host"]="CACHE_HOST"
+            ["cache-port"]="CACHE_PORT"
+            ["cache-password"]="CACHE_PASSWORD"
+            ["cache-secure"]="CACHE_SECURE"
+            ["servicebus-connection-string"]="AZURE_SERVICEBUS_CONNECTIONSTRING"
+            ["servicebus-auto-provision"]="AZURE_SERVICEBUS_AUTO_PROVISION"
+            ["servicebus-max-delivery-count"]="AZURE_SERVICEBUS_MAX_DELIVERY_COUNT"
+            ["servicebus-enable-dead-lettering"]="AZURE_SERVICEBUS_ENABLE_DEAD_LETTERING"
+            ["servicebus-auto-purge-on-startup"]="AZURE_SERVICEBUS_AUTO_PURGE_ON_STARTUP"
+            ["servicebus-use-control-queues"]="AZURE_SERVICEBUS_USE_CONTROL_QUEUES"
+          )
+
+          for SECRET_NAME in "${!SECRETS[@]}"; do
+            ENV_VAR_NAME=${SECRETS[$SECRET_NAME]}
+            az containerapp env var set \
+              --name "$CONTAINER_APP" \
+              --resource-group "$RG" \
+              --secret-ref "$ENV_VAR_NAME=$SECRET_NAME"
+          done
+
+      # 🚀 12️⃣ Deploy image immutable tag
+      - name: 🚀 Update Container App Image
+        run: |
+          CONTAINER_APP=${{ steps.container-app.outputs.container-app-name }}
+          RG=${{ steps.container-app.outputs.resource-group }}
+          IMAGE_URI="${{ steps.build-vars.outputs.image-uri }}"
+
+          az containerapp update \
+            --name "$CONTAINER_APP" \
+            --resource-group "$RG" \
+            --image "$IMAGE_URI"
+
+          # Get FQDN for health check
+          APP_URL=$(az containerapp show \
+            --name "$CONTAINER_APP" \
+            --resource-group "$RG" \
+            --query "properties.configuration.ingress.fqdn" -o tsv)
+
           echo "container-app-url=https://$APP_URL" >> $GITHUB_OUTPUT
 
-      # Perform a simple health check after deployment (3 attempts).
+      # 🧪 13️⃣ Health check
       - name: 🧪 Health Check
         run: |
           HEALTH_URL="${{ steps.deploy.outputs.container-app-url }}/health"
-          echo "Checking health endpoint: $HEALTH_URL"
           sleep 20
           for i in {1..3}; do
             if curl -fsS "$HEALTH_URL" > /dev/null 2>&1; then
               echo "✅ Health check passed!"
               exit 0
             fi
-            echo "⏳ Health check attempt $i failed, retrying..."
             sleep 15
           done
           echo "❌ Health check failed after 3 attempts"
