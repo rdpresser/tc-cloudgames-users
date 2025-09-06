@@ -18,6 +18,9 @@ on:
       acr-name:
         required: true
         type: string
+      key-vault-name:
+        required: true
+        type: string
     secrets:
       AZURE_CREDENTIALS:
         required: true
@@ -57,7 +60,7 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # 5️⃣ Build variables and immutable image tag
+      # 5️⃣ Prepare Build Variables
       - name: 🏗️ Prepare Build Variables
         id: build-vars
         run: |
@@ -109,7 +112,7 @@ jobs:
             echo "Tag $IMAGE_TAG not found in ACR"; exit 1
           fi
 
-      # 9️⃣ Find container app
+      # 9️⃣ Get Container App info
       - name: 🔎 Get Container App Info
         id: container-app
         run: |
@@ -124,11 +127,12 @@ jobs:
           echo "container-app-name=$CONTAINER_APP_NAME" >> $GITHUB_OUTPUT
           echo "resource-group=$RESOURCE_GROUP" >> $GITHUB_OUTPUT
 
-      # 🔐 10️⃣ Set secrets in Container App (from KeyVault)
+      # 🔑 10️⃣ Set secrets from Key Vault
       - name: 🔑 Set secrets
         run: |
           CONTAINER_APP=${{ steps.container-app.outputs.container-app-name }}
           RG=${{ steps.container-app.outputs.resource-group }}
+          KEYVAULT_NAME=${{ inputs.key-vault-name }}
 
           declare -A SECRETS=(
             ["db-host"]="DB_HOST"
@@ -155,7 +159,7 @@ jobs:
             az containerapp secret set \
               --name "$CONTAINER_APP" \
               --resource-group "$RG" \
-              --secrets "$SECRET_NAME=$(az keyvault secret show --vault-name ${{ inputs.environment }} --name $SECRET_NAME --query value -o tsv)"
+              --secrets "$SECRET_NAME=@https://${KEYVAULT_NAME}.vault.azure.net/secrets/${SECRET_NAME}"
           done
 
       # 🌱 11️⃣ Set env vars referencing secrets
@@ -195,7 +199,6 @@ jobs:
 
       # 🚀 12️⃣ Deploy image immutable tag
       - name: 🚀 Update Container App Image
-        id: deploy
         run: |
           CONTAINER_APP=${{ steps.container-app.outputs.container-app-name }}
           RG=${{ steps.container-app.outputs.resource-group }}
@@ -206,12 +209,10 @@ jobs:
             --resource-group "$RG" \
             --image "$IMAGE_URI"
 
-          # Get FQDN for health check
           APP_URL=$(az containerapp show \
             --name "$CONTAINER_APP" \
             --resource-group "$RG" \
             --query "properties.configuration.ingress.fqdn" -o tsv)
-
           echo "container-app-url=https://$APP_URL" >> $GITHUB_OUTPUT
 
       # 🧪 13️⃣ Health check
