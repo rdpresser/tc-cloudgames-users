@@ -170,5 +170,6 @@ jobs:
       workspace-path: tc-cloudgames-solution/services/users
       dockerfile-path: services/users/src/Adapters/Inbound/TC.CloudGames.Users.Api/Dockerfile
       environment: ${{ github.event.inputs.environment || 'dev-rodrigo' }}
+      acr-name: ${{ needs.get-foundation-outputs.outputs.acr-name }}
     secrets:
       AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
