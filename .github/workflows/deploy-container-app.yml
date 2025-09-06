@@ -17,6 +17,7 @@ on:
         type: string
       acr-name:
         required: true
+        type: string
     secrets:
       AZURE_CREDENTIALS:
         required: true
@@ -129,7 +130,6 @@ jobs:
           CONTAINER_APP=${{ steps.container-app.outputs.container-app-name }}
           RG=${{ steps.container-app.outputs.resource-group }}
 
-          # Map of env vars to KeyVault secret names
           declare -A SECRETS=(
             ["db-host"]="DB_HOST"
             ["db-port"]="DB_PORT"
@@ -195,6 +195,7 @@ jobs:
 
       # 🚀 12️⃣ Deploy image immutable tag
       - name: 🚀 Update Container App Image
+        id: deploy
         run: |
           CONTAINER_APP=${{ steps.container-app.outputs.container-app-name }}
           RG=${{ steps.container-app.outputs.resource-group }}
