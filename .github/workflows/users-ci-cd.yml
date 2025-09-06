@@ -160,17 +160,17 @@ jobs:
           echo "azure-environment=$AZURE_ENV_PREFIX" >> $GITHUB_OUTPUT
           echo "azure-subscription-id=$AZURE_SUBSCRIPTION_ID" >> $GITHUB_OUTPUT
 
-deploy:
-  name: 🚀 Deploy Container App
-  uses: ./.github/workflows/deploy-container-app.yml
-  needs: [unit-tests, get-foundation-outputs]
-  if: needs.check-trigger.outputs.should-deploy == 'true'
-  with:
-    service-name: users-api
-    workspace-path: tc-cloudgames-solution/services/users
-    dockerfile-path: services/users/src/Adapters/Inbound/TC.CloudGames.Users.Api/Dockerfile
-    environment: ${{ github.event.inputs.environment || 'dev-rodrigo' }}
-    acr-name: ${{ needs.get-foundation-outputs.outputs.acr-name }}
-    key-vault-name: ${{ needs.get-foundation-outputs.outputs.key-vault-name }}
-  secrets:
-    AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+  deploy:
+    name: 🚀 Deploy Container App
+    uses: ./.github/workflows/deploy-container-app.yml
+    needs: [unit-tests, get-foundation-outputs]
+    if: needs.check-trigger.outputs.should-deploy == 'true'
+    with:
+      service-name: users-api
+      workspace-path: tc-cloudgames-solution/services/users
+      dockerfile-path: services/users/src/Adapters/Inbound/TC.CloudGames.Users.Api/Dockerfile
+      environment: ${{ github.event.inputs.environment || 'dev-rodrigo' }}
+      acr-name: ${{ needs.get-foundation-outputs.outputs.acr-name }}
+      key-vault-name: ${{ needs.get-foundation-outputs.outputs.key-vault-name }}
+    secrets:
+      AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
