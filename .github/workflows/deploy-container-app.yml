@@ -29,8 +29,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
-
     steps:
+
       # 1️⃣ Prepare workspace
       - name: 📂 Prepare workspace
         run: mkdir -p ${{ inputs.workspace-path }}
@@ -41,7 +41,7 @@ jobs:
         with:
           path: ${{ inputs.workspace-path }}
 
-      - name: 📥 Checkout shared common repository
+      - name: 📥 Checkout shared repository
         uses: actions/checkout@v4
         with:
           repository: rdpresser/tc-cloudgames-common
@@ -54,7 +54,7 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      # 4️⃣ Azure login
+      # 4️⃣ Azure Login
       - name: 🔐 Azure Login
         uses: azure/login@v2
         with:
@@ -71,13 +71,12 @@ jobs:
           echo "image-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
           echo "image-uri=$IMAGE_URI" >> $GITHUB_OUTPUT
           echo "image-uri-latest=$IMAGE_URI_LATEST" >> $GITHUB_OUTPUT
+        shell: bash
 
       # 6️⃣ Login to ACR
       - name: 🐳 Login to Azure Container Registry
         run: az acr login --name ${{ inputs.acr-name }}
-
-      - name: ⚙️ Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        shell: bash
 
       # 7️⃣ Build and push Docker image
       - name: 🏗️ Build and Push Docker Image
@@ -94,25 +93,7 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64
 
-      # 8️⃣ Wait for image tag in ACR
-      - name: 🔎 Wait for image tag in ACR
-        run: |
-          ACR_NAME="${{ inputs.acr-name }}"
-          REPO="${{ inputs.service-name }}"
-          IMAGE_TAG="${{ steps.build-vars.outputs.image-tag }}"
-          found=0
-          for i in $(seq 1 10); do
-            if az acr repository show-tags --name "$ACR_NAME" --repository "$REPO" -o tsv | grep -q "^${IMAGE_TAG}$"; then
-              found=1
-              break
-            fi
-            sleep 6
-          done
-          if [ "$found" -ne 1 ]; then
-            echo "Tag $IMAGE_TAG not found in ACR"; exit 1
-          fi
-
-      # 9️⃣ Get Container App info
+      # 8️⃣ Get Container App info
       - name: 🔎 Get Container App Info
         id: container-app
         run: |
@@ -126,9 +107,11 @@ jobs:
 
           echo "container-app-name=$CONTAINER_APP_NAME" >> $GITHUB_OUTPUT
           echo "resource-group=$RESOURCE_GROUP" >> $GITHUB_OUTPUT
+        shell: bash
 
-      # 🔑 10️⃣ Set secrets from Key Vault
-      - name: 🔑 Set secrets
+      # 9️⃣ Set secrets from Key Vault
+      - name: 🔑 Set secrets from Key Vault
+        shell: bash
         run: |
           CONTAINER_APP=${{ steps.container-app.outputs.container-app-name }}
           RG=${{ steps.container-app.outputs.resource-group }}
@@ -159,11 +142,12 @@ jobs:
             az containerapp secret set \
               --name "$CONTAINER_APP" \
               --resource-group "$RG" \
-              --secrets "$SECRET_NAME=@https://${KEYVAULT_NAME}.vault.azure.net/secrets/${SECRET_NAME}"
+              --secrets "${SECRET_NAME}=@https://${KEYVAULT_NAME}.vault.azure.net/secrets/${SECRET_NAME}?identity=system"
           done
 
-      # 🌱 11️⃣ Set env vars referencing secrets
+      # 🔟 Set env vars referencing secrets
       - name: 🌱 Set environment variables via secretRef
+        shell: bash
         run: |
           CONTAINER_APP=${{ steps.container-app.outputs.container-app-name }}
           RG=${{ steps.container-app.outputs.resource-group }}
@@ -197,8 +181,9 @@ jobs:
               --secret-ref "$ENV_VAR_NAME=$SECRET_NAME"
           done
 
-      # 🚀 12️⃣ Deploy image immutable tag
+      # 1️⃣1️⃣ Deploy image immutable tag
       - name: 🚀 Update Container App Image
+        shell: bash
         run: |
           CONTAINER_APP=${{ steps.container-app.outputs.container-app-name }}
           RG=${{ steps.container-app.outputs.resource-group }}
@@ -215,8 +200,9 @@ jobs:
             --query "properties.configuration.ingress.fqdn" -o tsv)
           echo "container-app-url=https://$APP_URL" >> $GITHUB_OUTPUT
 
-      # 🧪 13️⃣ Health check
+      # 1️⃣2️⃣ Health check
       - name: 🧪 Health Check
+        shell: bash
         run: |
           HEALTH_URL="${{ steps.deploy.outputs.container-app-url }}/health"
           sleep 20
