@@ -127,7 +127,6 @@ jobs:
       resource-group: ${{ steps.outputs.outputs.resource-group }}
       acr-name: ${{ steps.outputs.outputs.acr-name }}
       acr-login-server: ${{ steps.outputs.outputs.acr-login-server }}
-      key-vault-name: ${{ steps.outputs.outputs.key-vault-name }}
       container-app-env-name: ${{ steps.outputs.outputs.container-app-env-name }}
       environment: ${{ steps.outputs.outputs.environment }}
       azure-environment: ${{ steps.outputs.outputs.azure-environment }}
@@ -147,14 +146,12 @@ jobs:
           RESOURCE_GROUP="tc-cloudgames-solution-${AZURE_ENV_PREFIX}-rg"
 
           ACR_NAME=$(az acr list --resource-group $RESOURCE_GROUP --query "[?starts_with(name, 'tccloudgames${AZURE_ENV_PREFIX}')].name" -o tsv | head -1)
-          KEY_VAULT_NAME=$(az keyvault list --resource-group $RESOURCE_GROUP --query "[?starts_with(name, 'tccloudgames${AZURE_ENV_PREFIX}')].name" -o tsv | head -1)
           CONTAINER_APP_ENV_NAME=$(az containerapp env list --resource-group $RESOURCE_GROUP --query "[?starts_with(name, 'tc-cloudgames-${AZURE_ENV_PREFIX}-') && ends_with(name, '-env')].name" -o tsv | head -1)
           ACR_LOGIN_SERVER="${ACR_NAME}.azurecr.io"
 
           echo "resource-group=$RESOURCE_GROUP" >> $GITHUB_OUTPUT
           echo "acr-name=$ACR_NAME" >> $GITHUB_OUTPUT
           echo "acr-login-server=$ACR_LOGIN_SERVER" >> $GITHUB_OUTPUT
-          echo "key-vault-name=$KEY_VAULT_NAME" >> $GITHUB_OUTPUT
           echo "container-app-env-name=$CONTAINER_APP_ENV_NAME" >> $GITHUB_OUTPUT
           echo "environment=$GITHUB_ENVIRONMENT" >> $GITHUB_OUTPUT
           echo "azure-environment=$AZURE_ENV_PREFIX" >> $GITHUB_OUTPUT
@@ -171,6 +168,5 @@ jobs:
       dockerfile-path: services/users/src/Adapters/Inbound/TC.CloudGames.Users.Api/Dockerfile
       environment: ${{ github.event.inputs.environment || 'dev-rodrigo' }}
       acr-name: ${{ needs.get-foundation-outputs.outputs.acr-name }}
-      key-vault-name: ${{ needs.get-foundation-outputs.outputs.key-vault-name }}
     secrets:
       AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
