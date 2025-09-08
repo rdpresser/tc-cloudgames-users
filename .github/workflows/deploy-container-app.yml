@@ -18,9 +18,6 @@ on:
       acr-name:
         required: true
         type: string
-      key-vault-name:
-        required: true
-        type: string
     secrets:
       AZURE_CREDENTIALS:
         required: true
@@ -78,7 +75,7 @@ jobs:
           echo "image-uri-latest=$IMAGE_URI_LATEST" >> $GITHUB_OUTPUT
         shell: bash
 
-      # 6️⃣ Login to ACR
+      # 6️⃣ Login to ACR (for Docker build/push)
       - name: 🐳 Login to Azure Container Registry
         run: az acr login --name ${{ inputs.acr-name }}
         shell: bash
@@ -157,7 +154,20 @@ jobs:
           done
         shell: bash
 
-      # 1️⃣1️⃣ Deploy to Azure Container App with Environment Variables
+      # 1️⃣1️⃣ Wait for RBAC Propagation
+      - name: ⏳ Wait for RBAC Propagation
+        run: |
+          echo "⏳ Waiting for RBAC permissions to propagate..."
+          echo "🔍 Ensuring Container App System Identity has AcrPull access"
+          echo "📋 This prevents 'UNAUTHORIZED: authentication required' errors"
+          
+          # Wait 2 minutes for RBAC propagation
+          sleep 120
+          
+          echo "✅ RBAC propagation wait completed"
+        shell: bash
+
+      # 1️⃣2️⃣ Deploy to Azure Container App
       - name: 🚀 Deploy to Azure Container App
         uses: azure/container-apps-deploy-action@v2
         with:
@@ -165,6 +175,8 @@ jobs:
           containerAppName: ${{ steps.container-app.outputs.container-app-name }}
           resourceGroup: ${{ steps.container-app.outputs.resource-group }}
           imageToDeploy: ${{ steps.build-vars.outputs.image-uri }}
+          # Environment variables with Key Vault secret references
+          # Note: secrets must exist in Container App (created via Terraform)
           environmentVariables: >-
             ASPNETCORE_ENVIRONMENT=Production
             ASPNETCORE_URLS=http://+:8080
@@ -187,7 +199,7 @@ jobs:
             AZURE_SERVICEBUS_AUTO_PURGE_ON_STARTUP=secretref:servicebus-auto-purge-on-startup
             AZURE_SERVICEBUS_USE_CONTROL_QUEUES=secretref:servicebus-use-control-queues
 
-      # 1️⃣2️⃣ Get Container App URL
+      # 1️⃣3️⃣ Get Container App URL
       - name: 🌐 Get Container App URL
         id: get-url
         run: |
@@ -199,7 +211,7 @@ jobs:
           echo "🌐 Container App URL: https://$APP_URL"
         shell: bash
 
-      # 1️⃣3️⃣ Health check
+      # 1️⃣4️⃣ Health check
       - name: 🧪 Health Check
         shell: bash
         run: |
