@@ -154,7 +154,64 @@ jobs:
           done
         shell: bash
 
-      # 1️⃣1️⃣ Deploy to Azure Container App using Azure CLI
+      # 1️⃣1️⃣ Verify RBAC Permissions Before Deploy
+      - name: 🔐 Verify Container App has ACR Pull permissions
+        run: |
+          echo "🔍 Verifying Container App System Identity has AcrPull permissions..."
+          
+          CONTAINER_APP_NAME="${{ steps.container-app.outputs.container-app-name }}"
+          RESOURCE_GROUP="${{ steps.container-app.outputs.resource-group }}"
+          ACR_NAME="${{ inputs.acr-name }}"
+          
+          # Get Container App System Identity Principal ID
+          PRINCIPAL_ID=$(az containerapp show \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "identity.principalId" -o tsv)
+          
+          if [ -z "$PRINCIPAL_ID" ] || [ "$PRINCIPAL_ID" = "null" ]; then
+            echo "❌ ERROR: Container App does not have System Managed Identity configured"
+            exit 1
+          fi
+          
+          echo "📋 Container App System Identity: $PRINCIPAL_ID"
+          
+          # Get ACR Resource ID for scope verification
+          ACR_SCOPE=$(az acr show --name "$ACR_NAME" --query "id" -o tsv)
+          echo "📋 ACR Scope: $ACR_SCOPE"
+          
+          # Check if Container App Identity has AcrPull role on ACR
+          echo "🔍 Checking AcrPull role assignment..."
+          ROLE_ASSIGNMENTS=$(az role assignment list \
+            --assignee "$PRINCIPAL_ID" \
+            --scope "$ACR_SCOPE" \
+            --query "[?roleDefinitionName=='AcrPull'].{role:roleDefinitionName,scope:scope}" -o tsv)
+          
+          if [ -z "$ROLE_ASSIGNMENTS" ]; then
+            echo "❌ ERROR: Container App System Identity does not have AcrPull permissions on ACR"
+            echo "❌ This should be configured by Terraform. Please check:"
+            echo "   1. Terraform apply completed successfully"
+            echo "   2. RBAC propagation wait time is sufficient"
+            echo "   3. Role assignment exists in Azure portal"
+            echo ""
+            echo "🔧 Manual fix (emergency only):"
+            echo "   az role assignment create --assignee $PRINCIPAL_ID --role AcrPull --scope $ACR_SCOPE"
+            exit 1
+          fi
+          
+          echo "✅ Container App System Identity has AcrPull permissions!"
+          echo "📋 Role Assignment: $ROLE_ASSIGNMENTS"
+          
+          # Additional verification: Test ACR access
+          echo "🧪 Testing ACR authentication..."
+          if az acr repository list --name "$ACR_NAME" --output none 2>/dev/null; then
+            echo "✅ ACR authentication test passed"
+          else
+            echo "⚠️ Warning: Could not test ACR authentication (may be normal for GitHub Actions runner)"
+          fi
+        shell: bash
+
+      # 1️⃣2️⃣ Deploy to Azure Container App using Azure CLI
       - name: 🚀 Deploy to Azure Container App
         run: |
           echo "🚀 Deploying Container App using System Managed Identity..."
@@ -219,7 +276,7 @@ jobs:
           
         shell: bash
 
-      # 1️⃣2️⃣ Get Container App URL
+      # 1️⃣3️⃣ Get Container App URL
       - name: 🌐 Get Container App URL
         id: get-url
         run: |
@@ -231,7 +288,7 @@ jobs:
           echo "🌐 Container App URL: https://$APP_URL"
         shell: bash
 
-      # 1️⃣3️⃣ Health check
+      # 1️⃣4️⃣ Health check
       - name: 🧪 Health Check
         shell: bash
         run: |
