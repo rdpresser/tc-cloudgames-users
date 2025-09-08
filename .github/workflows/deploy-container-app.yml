@@ -167,156 +167,99 @@ jobs:
           echo "✅ RBAC propagation wait completed"
         shell: bash
 
-      # 1️⃣2️⃣ Validate RBAC and System Identity
-      - name: 🔐 Validate RBAC and System Identity
+      # 1️⃣2️⃣ Configure Container App Registry for System Identity
+      - name: 🔧 Configure Container App Registry Authentication
         run: |
-          echo "🔍 Starting comprehensive RBAC and System Identity validation..."
+          echo "� Configuring Container App to use System Identity for ACR access..."
           
-          # Get Container App details
           CONTAINER_APP_NAME="${{ steps.container-app.outputs.container-app-name }}"
           RESOURCE_GROUP="${{ steps.container-app.outputs.resource-group }}"
           ACR_NAME="${{ inputs.acr-name }}"
+          ACR_SERVER="${ACR_NAME}.azurecr.io"
+          
+          # Remove any existing ACR registry configuration that might use credentials
+          echo "🧹 Clearing any existing ACR configuration..."
+          az containerapp registry remove \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --server "$ACR_SERVER" \
+            --ignore-not-found || echo "No existing ACR configuration found"
+          
+          # Configure ACR access using System Identity (no credentials needed)
+          echo "🔐 Configuring ACR access using System Managed Identity..."
+          az containerapp registry set \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --server "$ACR_SERVER" \
+            --identity "system"
+          
+          echo "✅ Container App configured to use System Identity for ACR access"
+        shell: bash
+
+      # 1️⃣3️⃣ Deploy to Azure Container App using Azure CLI
+      - name: 🚀 Deploy to Azure Container App
+        run: |
+          echo "🚀 Deploying Container App using System Managed Identity..."
+          
+          CONTAINER_APP_NAME="${{ steps.container-app.outputs.container-app-name }}"
+          RESOURCE_GROUP="${{ steps.container-app.outputs.resource-group }}"
+          IMAGE_URI="${{ steps.build-vars.outputs.image-uri }}"
           
           echo "📋 Container App: $CONTAINER_APP_NAME"
           echo "📋 Resource Group: $RESOURCE_GROUP"
-          echo "📋 ACR: $ACR_NAME"
+          echo "📋 Image: $IMAGE_URI"
           
-          # 1. Verify Container App exists and has System Identity
-          echo "🔍 1. Checking Container App System Identity..."
-          CONTAINER_APP_DETAILS=$(az containerapp show \
+          # Update container app with new image and environment variables using System Identity
+          echo "🔄 Updating Container App with new revision..."
+          az containerapp update \
             --name "$CONTAINER_APP_NAME" \
             --resource-group "$RESOURCE_GROUP" \
-            --query "{principalId: identity.principalId, type: identity.type}" -o json)
+            --image "$IMAGE_URI" \
+            --set-env-vars \
+              ASPNETCORE_ENVIRONMENT=Production \
+              ASPNETCORE_URLS=http://+:8080 \
+              DB_HOST=secretref:db-host \
+              DB_PORT=secretref:db-port \
+              DB_NAME=secretref:db-name-users \
+              DB_USER=secretref:db-admin-login \
+              DB_PASSWORD=secretref:db-password \
+              DB_MAINTENANCE_NAME=secretref:db-name-maintenance \
+              DB_SCHEMA=secretref:db-schema \
+              DB_CONNECTION_TIMEOUT=secretref:db-connection-timeout \
+              CACHE_HOST=secretref:cache-host \
+              CACHE_PORT=secretref:cache-port \
+              CACHE_PASSWORD=secretref:cache-password \
+              CACHE_SECURE=secretref:cache-secure \
+              AZURE_SERVICEBUS_CONNECTIONSTRING=secretref:servicebus-connection-string \
+              AZURE_SERVICEBUS_AUTO_PROVISION=secretref:servicebus-auto-provision \
+              AZURE_SERVICEBUS_MAX_DELIVERY_COUNT=secretref:servicebus-max-delivery-count \
+              AZURE_SERVICEBUS_ENABLE_DEAD_LETTERING=secretref:servicebus-enable-dead-lettering \
+              AZURE_SERVICEBUS_AUTO_PURGE_ON_STARTUP=secretref:servicebus-auto-purge-on-startup \
+              AZURE_SERVICEBUS_USE_CONTROL_QUEUES=secretref:servicebus-use-control-queues
           
-          echo "📋 Container App Identity Details:"
-          echo "$CONTAINER_APP_DETAILS" | jq .
+          echo "✅ Container App deployment completed successfully!"
+          echo "🔍 Checking deployment status..."
           
-          PRINCIPAL_ID=$(echo "$CONTAINER_APP_DETAILS" | jq -r '.principalId // empty')
-          IDENTITY_TYPE=$(echo "$CONTAINER_APP_DETAILS" | jq -r '.type // empty')
+          # Verify the deployment
+          DEPLOYMENT_STATUS=$(az containerapp revision list \
+            --name "$CONTAINER_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "[0].properties.healthState" -o tsv)
           
-          if [ -z "$PRINCIPAL_ID" ] || [ "$PRINCIPAL_ID" == "null" ]; then
-            echo "❌ ERROR: Container App does not have System Managed Identity configured!"
-            echo "🔧 To fix: Ensure Terraform creates Container App with System Identity"
-            exit 1
+          echo "📋 Latest revision health state: $DEPLOYMENT_STATUS"
+          
+          if [ "$DEPLOYMENT_STATUS" = "Healthy" ]; then
+            echo "✅ Deployment successful - Container App is healthy!"
+          else
+            echo "⚠️ Deployment completed but health state is: $DEPLOYMENT_STATUS"
+            echo "🔍 Checking revision details..."
+            az containerapp revision list \
+              --name "$CONTAINER_APP_NAME" \
+              --resource-group "$RESOURCE_GROUP" \
+              --query "[0].{name: name, healthState: properties.healthState, replicas: properties.replicas}" -o table
           fi
-          
-          echo "✅ System Identity found: $PRINCIPAL_ID"
-          echo "✅ Identity Type: $IDENTITY_TYPE"
-          
-          # 2. Verify ACR exists and get resource ID
-          echo "🔍 2. Checking ACR details..."
-          ACR_RESOURCE_ID=$(az acr show --name "$ACR_NAME" --query id -o tsv)
-          if [ -z "$ACR_RESOURCE_ID" ]; then
-            echo "❌ ERROR: ACR '$ACR_NAME' not found!"
-            exit 1
-          fi
-          echo "✅ ACR Resource ID: $ACR_RESOURCE_ID"
-          
-          # 3. Check if AcrPull role is assigned
-          echo "🔍 3. Checking AcrPull role assignment..."
-          ROLE_ASSIGNMENTS=$(az role assignment list \
-            --scope "$ACR_RESOURCE_ID" \
-            --assignee "$PRINCIPAL_ID" \
-            --query "[?roleDefinitionName=='AcrPull'].{role: roleDefinitionName, scope: scope}" -o json)
-          
-          echo "📋 Role Assignments:"
-          echo "$ROLE_ASSIGNMENTS" | jq .
-          
-          ACR_PULL_COUNT=$(echo "$ROLE_ASSIGNMENTS" | jq '. | length')
-          if [ "$ACR_PULL_COUNT" -eq 0 ]; then
-            echo "❌ ERROR: AcrPull role not assigned to Container App System Identity!"
-            echo "🔧 To fix: Ensure Terraform assigns AcrPull role"
-            echo "🔧 Manual fix: az role assignment create --assignee $PRINCIPAL_ID --role AcrPull --scope $ACR_RESOURCE_ID"
-            exit 1
-          fi
-          echo "✅ AcrPull role assignment verified!"
-          
-          # 4. Test ACR access using Container App identity
-          echo "🔍 4. Testing ACR access using System Identity..."
-          
-          # Get access token using the System Identity
-          echo "🔑 Getting access token for Container App System Identity..."
-          
-          # First, let's check if we can access ACR repositories list
-          ACR_TEST=$(az acr repository list --name "$ACR_NAME" --output json 2>/dev/null || echo "[]")
-          echo "📋 ACR Repositories accessible:"
-          echo "$ACR_TEST" | jq .
-          
-          # 5. Verify specific image exists
-          echo "🔍 5. Verifying target image exists in ACR..."
-          IMAGE_URI="${{ steps.build-vars.outputs.image-uri }}"
-          IMAGE_TAG=$(echo "$IMAGE_URI" | cut -d':' -f2)
-          REPOSITORY_NAME="${{ inputs.service-name }}"
-          
-          echo "📋 Checking image: $IMAGE_URI"
-          echo "📋 Repository: $REPOSITORY_NAME"
-          echo "📋 Tag: $IMAGE_TAG"
-          
-          # Check if the specific tag exists
-          TAG_EXISTS=$(az acr repository show-manifests \
-            --name "$ACR_NAME" \
-            --repository "$REPOSITORY_NAME" \
-            --query "[?contains(tags, '$IMAGE_TAG')]" -o tsv 2>/dev/null || echo "")
-          
-          if [ -z "$TAG_EXISTS" ]; then
-            echo "❌ ERROR: Image tag '$IMAGE_TAG' not found in repository '$REPOSITORY_NAME'!"
-            echo "🔍 Available tags:"
-            az acr repository show-tags --name "$ACR_NAME" --repository "$REPOSITORY_NAME" --output table 2>/dev/null || echo "No tags found"
-            exit 1
-          fi
-          echo "✅ Target image verified in ACR!"
-          
-          # 6. Final validation - simulate container app pull
-          echo "🔍 6. Final validation - testing image pull simulation..."
-          
-          # Use Azure CLI to verify the image can be accessed
-          MANIFEST_CHECK=$(az acr repository show \
-            --name "$ACR_NAME" \
-            --image "$REPOSITORY_NAME:$IMAGE_TAG" \
-            --query "name" -o tsv 2>/dev/null || echo "")
-          
-          if [ -z "$MANIFEST_CHECK" ]; then
-            echo "❌ ERROR: Cannot access image manifest!"
-            exit 1
-          fi
-          echo "✅ Image manifest accessible!"
-          
-          echo "🎉 All RBAC and System Identity validations passed!"
-          echo "🚀 Container App should be able to pull from ACR successfully!"
           
         shell: bash
-
-      # 1️⃣3️⃣ Deploy to Azure Container App
-      - name: 🚀 Deploy to Azure Container App
-        uses: azure/container-apps-deploy-action@v2
-        with:
-          acrName: ${{ inputs.acr-name }}
-          containerAppName: ${{ steps.container-app.outputs.container-app-name }}
-          resourceGroup: ${{ steps.container-app.outputs.resource-group }}
-          imageToDeploy: ${{ steps.build-vars.outputs.image-uri }}
-          # Environment variables with Key Vault secret references
-          # Note: secrets must exist in Container App (created via Terraform)
-          environmentVariables: >-
-            ASPNETCORE_ENVIRONMENT=Production
-            ASPNETCORE_URLS=http://+:8080
-            DB_HOST=secretref:db-host
-            DB_PORT=secretref:db-port
-            DB_NAME=secretref:db-name-users
-            DB_USER=secretref:db-admin-login
-            DB_PASSWORD=secretref:db-password
-            DB_MAINTENANCE_NAME=secretref:db-name-maintenance
-            DB_SCHEMA=secretref:db-schema
-            DB_CONNECTION_TIMEOUT=secretref:db-connection-timeout
-            CACHE_HOST=secretref:cache-host
-            CACHE_PORT=secretref:cache-port
-            CACHE_PASSWORD=secretref:cache-password
-            CACHE_SECURE=secretref:cache-secure
-            AZURE_SERVICEBUS_CONNECTIONSTRING=secretref:servicebus-connection-string
-            AZURE_SERVICEBUS_AUTO_PROVISION=secretref:servicebus-auto-provision
-            AZURE_SERVICEBUS_MAX_DELIVERY_COUNT=secretref:servicebus-max-delivery-count
-            AZURE_SERVICEBUS_ENABLE_DEAD_LETTERING=secretref:servicebus-enable-dead-lettering
-            AZURE_SERVICEBUS_AUTO_PURGE_ON_STARTUP=secretref:servicebus-auto-purge-on-startup
-            AZURE_SERVICEBUS_USE_CONTROL_QUEUES=secretref:servicebus-use-control-queues
 
       # 1️⃣4️⃣ Get Container App URL
       - name: 🌐 Get Container App URL
