@@ -154,49 +154,7 @@ jobs:
           done
         shell: bash
 
-      # 1️⃣1️⃣ Wait for RBAC Propagation
-      - name: ⏳ Wait for RBAC Propagation
-        run: |
-          echo "⏳ Waiting for RBAC permissions to propagate..."
-          echo "🔍 Ensuring Container App System Identity has AcrPull access"
-          echo "📋 This prevents 'UNAUTHORIZED: authentication required' errors"
-          
-          # Wait 2 minutes for RBAC propagation
-          sleep 120
-          
-          echo "✅ RBAC propagation wait completed"
-        shell: bash
-
-      # 1️⃣2️⃣ Configure Container App Registry for System Identity
-      - name: 🔧 Configure Container App Registry Authentication
-        run: |
-          echo "� Configuring Container App to use System Identity for ACR access..."
-          
-          CONTAINER_APP_NAME="${{ steps.container-app.outputs.container-app-name }}"
-          RESOURCE_GROUP="${{ steps.container-app.outputs.resource-group }}"
-          ACR_NAME="${{ inputs.acr-name }}"
-          ACR_SERVER="${ACR_NAME}.azurecr.io"
-          
-          # Remove any existing ACR registry configuration that might use credentials
-          echo "🧹 Clearing any existing ACR configuration..."
-          az containerapp registry remove \
-            --name "$CONTAINER_APP_NAME" \
-            --resource-group "$RESOURCE_GROUP" \
-            --server "$ACR_SERVER" \
-            --ignore-not-found || echo "No existing ACR configuration found"
-          
-          # Configure ACR access using System Identity (no credentials needed)
-          echo "🔐 Configuring ACR access using System Managed Identity..."
-          az containerapp registry set \
-            --name "$CONTAINER_APP_NAME" \
-            --resource-group "$RESOURCE_GROUP" \
-            --server "$ACR_SERVER" \
-            --identity "system"
-          
-          echo "✅ Container App configured to use System Identity for ACR access"
-        shell: bash
-
-      # 1️⃣3️⃣ Deploy to Azure Container App using Azure CLI
+      # 1️⃣1️⃣ Deploy to Azure Container App using Azure CLI
       - name: 🚀 Deploy to Azure Container App
         run: |
           echo "🚀 Deploying Container App using System Managed Identity..."
@@ -261,7 +219,7 @@ jobs:
           
         shell: bash
 
-      # 1️⃣4️⃣ Get Container App URL
+      # 1️⃣2️⃣ Get Container App URL
       - name: 🌐 Get Container App URL
         id: get-url
         run: |
@@ -273,7 +231,7 @@ jobs:
           echo "🌐 Container App URL: https://$APP_URL"
         shell: bash
 
-      # 1️⃣5️⃣ Health check
+      # 1️⃣3️⃣ Health check
       - name: 🧪 Health Check
         shell: bash
         run: |
