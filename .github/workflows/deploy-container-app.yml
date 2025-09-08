@@ -83,7 +83,11 @@ jobs:
         run: az acr login --name ${{ inputs.acr-name }}
         shell: bash
 
-      # 7️⃣ Build and push Docker image
+      # 7️⃣ Setup Docker Buildx
+      - name: ⚙️ Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 8️⃣ Build and push Docker image
       - name: 🏗️ Build and Push Docker Image
         uses: docker/build-push-action@v5
         id: build-push
@@ -98,7 +102,7 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64
 
-      # 8️⃣ Get Container App info
+      # 9️⃣ Get Container App info
       - name: 🔎 Get Container App Info
         id: container-app
         run: |
@@ -114,7 +118,7 @@ jobs:
           echo "resource-group=$RESOURCE_GROUP" >> $GITHUB_OUTPUT
         shell: bash
 
-      # 9️⃣ Verify Image Exists in ACR Before Deploy
+      # 🔟 Verify Image Exists in ACR Before Deploy
       - name: � Verify Image Exists in ACR Before Deploy
         run: |
           IMAGE_URI_LATEST="${{ steps.build-vars.outputs.image-uri-latest }}"
@@ -153,7 +157,7 @@ jobs:
           done
         shell: bash
 
-      # 9️⃣ Deploy to Azure Container App with Environment Variables
+      # 1️⃣1️⃣ Deploy to Azure Container App with Environment Variables
       - name: 🚀 Deploy to Azure Container App
         uses: azure/container-apps-deploy-action@v2
         with:
@@ -183,7 +187,7 @@ jobs:
             AZURE_SERVICEBUS_AUTO_PURGE_ON_STARTUP=secretref:servicebus-auto-purge-on-startup
             AZURE_SERVICEBUS_USE_CONTROL_QUEUES=secretref:servicebus-use-control-queues
 
-      # 🔟 Get Container App URL
+      # 1️⃣2️⃣ Get Container App URL
       - name: 🌐 Get Container App URL
         id: get-url
         run: |
@@ -195,7 +199,7 @@ jobs:
           echo "🌐 Container App URL: https://$APP_URL"
         shell: bash
 
-      # 1️⃣1️⃣ Health check
+      # 1️⃣3️⃣ Health check
       - name: 🧪 Health Check
         shell: bash
         run: |
