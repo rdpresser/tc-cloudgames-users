@@ -79,7 +79,9 @@ namespace TC.CloudGames.Users.Api.Extensions
         // Authentication and Authorization
         public static IServiceCollection AddCustomAuthentication(this IServiceCollection services, IConfiguration configuration)
         {
-            services.AddAuthenticationJwtBearer(s => s.SigningKey = configuration["Jwt:SecretKey"])
+            var jwtSettings = configuration.GetSection("Jwt").Get<JwtSettings>();
+
+            services.AddAuthenticationJwtBearer(s => s.SigningKey = jwtSettings!.SecretKey)
                     .AddAuthorization()
                     .AddHttpContextAccessor();
 

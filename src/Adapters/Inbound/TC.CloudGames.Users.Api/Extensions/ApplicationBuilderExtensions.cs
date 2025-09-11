@@ -16,6 +16,7 @@ namespace TC.CloudGames.Users.Api.Extensions
         {
             app.UseFastEndpoints(c =>
             {
+                c.Security.RoleClaimType = "role";
                 c.Endpoints.RoutePrefix = "api";
                 c.Endpoints.ShortNames = true;
                 c.Errors.ProducesMetadataType = typeof(Microsoft.AspNetCore.Mvc.ProblemDetails);
