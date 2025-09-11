@@ -7,16 +7,15 @@ namespace TC.CloudGames.Users.Infrastructure.Repositories
         public UserRepository(IDocumentSession session)
             : base(session)
         {
-
         }
 
         public override async Task<IEnumerable<UserAggregate>> GetAllAsync(CancellationToken cancellationToken = default)
         {
-            // Efficient approach: Use projections directly instead of replaying events
-            // Since projections are always up-to-date, this avoids N+1 queries and unnecessary event replay
+            // Use projections directly; IsActive uses duplicated column index
             var userProjections = await Session.Query<UserProjection>()
                 .Where(u => u.IsActive)
-                .ToListAsync(cancellationToken).ConfigureAwait(false);
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
 
             return userProjections.Select(projection =>
                 UserAggregate.FromProjection(
@@ -33,8 +32,12 @@ namespace TC.CloudGames.Users.Infrastructure.Repositories
 
         public async Task<UserByEmailResponse?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
         {
+            if (string.IsNullOrWhiteSpace(email)) return null;
+
+            var lowerEmail = email.ToLower();
+
             var projection = await Session.Query<UserProjection>()
-                .Where(u => u.IsActive && u.Email.ToLower() == email.ToLower())
+                .Where(u => u.IsActive && u.Email.ToLower() == lowerEmail)
                 .Select(x => new
                 {
                     x.Id,
@@ -44,7 +47,8 @@ namespace TC.CloudGames.Users.Infrastructure.Repositories
                     x.Role,
                     x.IsActive
                 })
-                .FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+                .FirstOrDefaultAsync(cancellationToken)
+                .ConfigureAwait(false);
 
             if (projection == null)
                 return null;
@@ -61,15 +65,23 @@ namespace TC.CloudGames.Users.Infrastructure.Repositories
 
         public async Task<bool> EmailExistsAsync(string email, CancellationToken cancellationToken = default)
         {
+            if (string.IsNullOrWhiteSpace(email)) return false;
+
+            var lowerEmail = email.ToLower();
+
             return await Session.Query<UserProjection>()
-                .AnyAsync(u => u.IsActive && u.Email.ToLower() == email.ToLower(), cancellationToken)
+                .AnyAsync(u => u.IsActive && u.Email.ToLower() == lowerEmail, cancellationToken)
                 .ConfigureAwait(false);
         }
 
         public async Task<UserTokenProvider?> GetUserTokenInfoAsync(string email, string password, CancellationToken cancellationToken = default)
         {
+            if (string.IsNullOrWhiteSpace(email)) return null;
+
+            var lowerEmail = email.ToLower();
+
             var projection = await Session.Query<UserProjection>()
-                .Where(u => u.IsActive && u.Email.ToLower() == email.ToLower())
+                .Where(u => u.IsActive && u.Email.ToLower() == lowerEmail)
                 .Select(x => new
                 {
                     x.Id,
@@ -80,7 +92,8 @@ namespace TC.CloudGames.Users.Infrastructure.Repositories
                     x.Role,
                     x.IsActive
                 })
-                .FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+                .FirstOrDefaultAsync(cancellationToken)
+                .ConfigureAwait(false);
 
             if (projection == null)
                 return null;
@@ -98,11 +111,10 @@ namespace TC.CloudGames.Users.Infrastructure.Repositories
 
         public async Task<IReadOnlyList<UserListResponse>> GetUserListAsync(GetUserListQuery query, CancellationToken cancellationToken = default)
         {
-            // Start with active users
             var usersQuery = Session.Query<UserProjection>()
                 .Where(u => u.IsActive);
 
-            // Dynamic filtering (search across multiple fields)
+            // Dynamic filtering (case-insensitive)
             if (!string.IsNullOrWhiteSpace(query.Filter))
             {
                 var filter = query.Filter.ToLower();
@@ -110,8 +122,7 @@ namespace TC.CloudGames.Users.Infrastructure.Repositories
                     u.Name.ToLower().Contains(filter) ||
                     u.Username.ToLower().Contains(filter) ||
                     u.Email.ToLower().Contains(filter) ||
-                    u.Role.ToLower().Contains(filter)
-                );
+                    u.Role.ToLower().Contains(filter));
             }
 
             // Dynamic sorting

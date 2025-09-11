@@ -1,8 +1,10 @@
 ﻿using JasperFx.Resources;
+using Marten.Schema;
 using TC.CloudGames.Contracts.Events.Users;
 using TC.CloudGames.SharedKernel.Infrastructure.MessageBroker;
 using TC.CloudGames.SharedKernel.Infrastructure.Messaging;
 using TC.CloudGames.Users.Domain.Aggregates;
+using Weasel.Postgresql.Tables;
 using Wolverine;
 using Wolverine.AzureServiceBus;
 using Wolverine.Marten;
@@ -266,13 +268,10 @@ namespace TC.CloudGames.Users.Api.Extensions
                 // Document store configuration (documents schema)
                 options.DatabaseSchemaName = "documents";
 
-                // Register projection documents
-                options.Schema.For<UserProjection>().DatabaseSchemaName("documents");
-
                 // Register inline projections
                 options.Projections.Add<UserProjectionHandler>(ProjectionLifecycle.Inline);
 
-                // Auto-create databases/schemas if missing
+                // Auto-create databases/schemas
                 options.CreateDatabasesForTenants(c =>
                 {
                     c.MaintenanceDatabase(connProvider.MaintenanceConnectionString);
@@ -282,6 +281,23 @@ namespace TC.CloudGames.Users.Api.Extensions
                         .WithEncoding("UTF-8")
                         .ConnectionLimit(-1);
                 });
+
+                // Duplicated fields for filtering and DateTime
+                options.Schema.For<UserProjection>()
+                    .DatabaseSchemaName("documents")
+                    .Duplicate(x => x.Email, pgType: "varchar(255)")
+                    .Duplicate(x => x.IsActive, pgType: "boolean")
+                    .Duplicate(x => x.CreatedAt, pgType: "timestamptz")
+                    .Duplicate(x => x.UpdatedAt, pgType: "timestamptz");
+
+                // Computed indexes (case-insensitive) for text search
+                options.Schema.For<UserProjection>()
+                    .Index(x => x.Email, x => { x.Casing = ComputedIndex.Casings.Lower; x.IsUnique = true; x.Method = IndexMethod.btree; })
+                    .Index(x => x.Username, x => { x.Casing = ComputedIndex.Casings.Lower; x.Method = IndexMethod.btree; })
+                    .Index(x => x.Name, x => { x.Casing = ComputedIndex.Casings.Lower; x.Method = IndexMethod.btree; }); // full-text
+
+                // GIN index on JSONB
+                options.Schema.For<UserProjection>().GinIndexJsonData();
 
                 return options;
             })

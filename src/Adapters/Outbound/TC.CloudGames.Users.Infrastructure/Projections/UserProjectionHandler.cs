@@ -14,7 +14,9 @@ namespace TC.CloudGames.Users.Infrastructure.Projections
                 Username = @event.Username,
                 PasswordHash = @event.Password,
                 Role = @event.Role,
+
                 CreatedAt = @event.OccurredOn,
+                UpdatedAt = null,
                 IsActive = true
             };
             operations.Store(projection);
@@ -41,7 +43,7 @@ namespace TC.CloudGames.Users.Infrastructure.Projections
                 Id = @event.AggregateId,
                 PasswordHash = @event.NewPassword,
                 UpdatedAt = @event.OccurredOn,
-                IsActive = true // Assume still active unless deactivated event is processed
+                IsActive = true
             };
             operations.Store(projection);
         }
@@ -53,7 +55,7 @@ namespace TC.CloudGames.Users.Infrastructure.Projections
                 Id = @event.AggregateId,
                 Role = @event.NewRole,
                 UpdatedAt = @event.OccurredOn,
-                IsActive = true // Assume still active unless deactivated event is processed
+                IsActive = true
             };
             operations.Store(projection);
         }
