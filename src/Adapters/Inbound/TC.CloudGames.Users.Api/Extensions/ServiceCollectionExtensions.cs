@@ -177,7 +177,9 @@ namespace TC.CloudGames.Users.Api.Extensions
                         if (mq.AutoPurgeOnStartup) rabbitOpts.AutoPurgeOnStartup();
 
                         // Publish all messages to the configured exchange with durable outbox
-                        opts.PublishAllMessages().ToRabbitExchange(mq.Exchange);
+                        ////opts.PublishAllMessages().ToRabbitExchange(mq.Exchange);
+
+                        // Durable outbox 
                         opts.Policies.UseDurableOutboxOnAllSendingEndpoints();
 
                         // Register messages
@@ -200,13 +202,31 @@ namespace TC.CloudGames.Users.Api.Extensions
                         if (sb.AutoPurgeOnStartup) azureOpts.AutoPurgeOnStartup();
                         if (sb.UseControlQueues) azureOpts.EnableWolverineControlQueues();
 
+                        // Durable outbox for all sending endpoints
+                        opts.Policies.UseDurableOutboxOnAllSendingEndpoints();
+
                         // Publish all messages to a Topic with buffered in-memory delivery and durable outbox
-                        opts.PublishAllMessages()
+                        ////opts.PublishAllMessages()
+                        ////    .ToAzureServiceBusTopic(sb.TopicName)
+                        ////    .BufferedInMemory();
+
+                        // Register messages for Azure Service Bus Topic with buffered in-memory delivery
+                        opts.PublishMessage<EventContext<UserCreatedIntegrationEvent, UserAggregate>>()
+                            .ToAzureServiceBusTopic(sb.TopicName)
+                            .BufferedInMemory();
+                        opts.PublishMessage<EventContext<UserUpdatedIntegrationEvent, UserAggregate>>()
+                            .ToAzureServiceBusTopic(sb.TopicName)
+                            .BufferedInMemory();
+                        opts.PublishMessage<EventContext<UserRoleChangedIntegrationEvent, UserAggregate>>()
+                            .ToAzureServiceBusTopic(sb.TopicName)
+                            .BufferedInMemory();
+                        opts.PublishMessage<EventContext<UserActivatedIntegrationEvent, UserAggregate>>()
+                            .ToAzureServiceBusTopic(sb.TopicName)
+                            .BufferedInMemory();
+                        opts.PublishMessage<EventContext<UserDeactivatedIntegrationEvent, UserAggregate>>()
                             .ToAzureServiceBusTopic(sb.TopicName)
                             .BufferedInMemory();
 
-                        // Durable outbox for all sending endpoints
-                        opts.Policies.UseDurableOutboxOnAllSendingEndpoints();
                         break;
                 }
 
