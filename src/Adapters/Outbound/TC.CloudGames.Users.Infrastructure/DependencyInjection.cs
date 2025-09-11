@@ -10,7 +10,6 @@
             services.AddSingleton<ICacheService, CacheService>();
             services.AddTransient<IDateTimeProvider, DateTimeProvider>();
             services.AddSingleton<IConnectionStringProvider, ConnectionStringProvider>();
-            services.AddSingleton<ICacheProvider, CacheProvider>();
             services.AddSingleton<ITokenProvider, TokenProvider>();
             services.AddScoped<IUserContext, UserContext>();
 

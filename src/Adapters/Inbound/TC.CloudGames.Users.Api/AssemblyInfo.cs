@@ -27,11 +27,14 @@ global using TC.CloudGames.SharedKernel.Infrastructure.Caching.HealthCheck;
 global using TC.CloudGames.SharedKernel.Infrastructure.Caching.Provider;
 global using TC.CloudGames.SharedKernel.Infrastructure.Database;
 global using TC.CloudGames.SharedKernel.Infrastructure.Middleware;
+global using TC.CloudGames.Users.Api.Extensions;
 global using TC.CloudGames.Users.Api.Middleware;
 global using TC.CloudGames.Users.Api.Telemetry;
+global using TC.CloudGames.Users.Application;
 global using TC.CloudGames.Users.Application.Abstractions;
 global using TC.CloudGames.Users.Application.UseCases.CreateUser;
 global using TC.CloudGames.Users.Application.UseCases.GetUserByEmail;
+global using TC.CloudGames.Users.Infrastructure;
 global using TC.CloudGames.Users.Infrastructure.Projections;
 global using ZiggyCreatures.Caching.Fusion;
 global using ZiggyCreatures.Caching.Fusion.Serialization.SystemTextJson;
@@ -40,8 +43,7 @@ global using ValidationException = TC.CloudGames.Users.Api.Exceptions.Validation
 using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("TC.CloudGames.Users.Unit.Tests")]
 [assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]
-
-// REMARK: Required for functional and integration tests to work.
+//**//REMARK: Required for functional and integration tests to work.
 namespace TC.CloudGames.Users.Api
 {
     public partial class Program;

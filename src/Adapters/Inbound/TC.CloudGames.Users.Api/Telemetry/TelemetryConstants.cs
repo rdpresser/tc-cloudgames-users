@@ -10,7 +10,7 @@ internal static class TelemetryConstants
 
     // Service Identity - Centralized for consistency (matches Docker Compose)
     public const string ServiceName = "tccloudgames-user-app";
-    public const string ServiceNamespace = "tccloudgames-user-app-group";
+    public const string ServiceNamespace = "tccloudgames-app-group";
 
     // Meter Names for OpenTelemetry Metrics
     public const string UserMeterName = "TC.CloudGames.Users.Api.Metrics";
