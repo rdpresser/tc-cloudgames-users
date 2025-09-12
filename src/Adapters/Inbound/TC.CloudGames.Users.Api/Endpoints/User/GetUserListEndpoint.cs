@@ -8,7 +8,7 @@ namespace TC.CloudGames.Users.Api.Endpoints.User
 
         public override void Configure()
         {
-            Get("user/list");
+            Get("user");
             Roles(AppConstants.AdminRole);
             PreProcessor<QueryCachingPreProcessorBehavior<GetUserListQuery, IReadOnlyList<UserListResponse>>>();
             PostProcessor<QueryCachingPostProcessorBehavior<GetUserListQuery, IReadOnlyList<UserListResponse>>>();

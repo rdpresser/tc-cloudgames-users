@@ -118,7 +118,10 @@ namespace TC.CloudGames.Users.Infrastructure.Repositories
             if (!string.IsNullOrWhiteSpace(query.Filter))
             {
                 var filter = query.Filter.ToLower();
+                bool isGuid = Guid.TryParse(filter, out var guid);
+
                 usersQuery = usersQuery.Where(u =>
+                    (isGuid && u.Id == guid) ||
                     u.Name.ToLower().Contains(filter) ||
                     u.Username.ToLower().Contains(filter) ||
                     u.Email.ToLower().Contains(filter) ||
