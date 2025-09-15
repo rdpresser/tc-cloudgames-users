@@ -1,18 +1,4 @@
-﻿using JasperFx.Resources;
-using Marten.Schema;
-using TC.CloudGames.Contracts.Events.Users;
-using TC.CloudGames.SharedKernel.Infrastructure.MessageBroker;
-using TC.CloudGames.SharedKernel.Infrastructure.Messaging;
-using TC.CloudGames.Users.Domain.Aggregates;
-using Weasel.Postgresql.Tables;
-using Wolverine;
-using Wolverine.AzureServiceBus;
-using Wolverine.Marten;
-using Wolverine.Postgresql;
-using Wolverine.RabbitMQ;
-using Wolverine.Runtime.Routing;
-
-namespace TC.CloudGames.Users.Api.Extensions
+﻿namespace TC.CloudGames.Users.Api.Extensions
 {
     internal static class ServiceCollectionExtensions
     {
@@ -151,8 +137,8 @@ namespace TC.CloudGames.Users.Api.Extensions
                 // -------------------------------
                 // Envelope customizer and routing convention
                 // -------------------------------
-                opts.Services.AddSingleton<IEnvelopeCustomizer, GenericEventContextEnvelopeCustomizer>();
-                opts.Services.AddSingleton<IMessageRoutingConvention, EventContextRoutingConvention>();
+                ////opts.Services.AddSingleton<IEnvelopeCustomizer, GenericEventContextEnvelopeCustomizer>();
+                ////opts.Services.AddSingleton<IMessageRoutingConvention, EventContextRoutingConvention>();
 
                 // -------------------------------
                 // Enable durable local queues and auto transaction application
@@ -186,17 +172,18 @@ namespace TC.CloudGames.Users.Api.Extensions
                         // Durable outbox 
                         opts.Policies.UseDurableOutboxOnAllSendingEndpoints();
 
+                        var exchangeName = $"{mq.Exchange}-exchange";
                         // Register messages
-                        opts.PublishMessage<EventContext<UserCreatedIntegrationEvent, UserAggregate>>()
-                            .ToRabbitExchange(mq.Exchange);
-                        opts.PublishMessage<EventContext<UserUpdatedIntegrationEvent, UserAggregate>>()
-                            .ToRabbitExchange(mq.Exchange);
-                        opts.PublishMessage<EventContext<UserRoleChangedIntegrationEvent, UserAggregate>>()
-                            .ToRabbitExchange(mq.Exchange);
-                        opts.PublishMessage<EventContext<UserActivatedIntegrationEvent, UserAggregate>>()
-                            .ToRabbitExchange(mq.Exchange);
-                        opts.PublishMessage<EventContext<UserDeactivatedIntegrationEvent, UserAggregate>>()
-                            .ToRabbitExchange(mq.Exchange);
+                        opts.PublishMessage<EventContext<UserCreatedIntegrationEvent>>()
+                            .ToRabbitExchange(exchangeName);
+                        opts.PublishMessage<EventContext<UserUpdatedIntegrationEvent>>()
+                            .ToRabbitExchange(exchangeName);
+                        opts.PublishMessage<EventContext<UserRoleChangedIntegrationEvent>>()
+                            .ToRabbitExchange(exchangeName);
+                        opts.PublishMessage<EventContext<UserActivatedIntegrationEvent>>()
+                            .ToRabbitExchange(exchangeName);
+                        opts.PublishMessage<EventContext<UserDeactivatedIntegrationEvent>>()
+                            .ToRabbitExchange(exchangeName);
                         break;
 
                     case BrokerType.AzureServiceBus when broker.ServiceBusSettings is { } sb:
@@ -214,21 +201,22 @@ namespace TC.CloudGames.Users.Api.Extensions
                         ////    .ToAzureServiceBusTopic(sb.TopicName)
                         ////    .BufferedInMemory();
 
+                        var topicName = $"{sb.TopicName}-topic";
                         // Register messages for Azure Service Bus Topic with buffered in-memory delivery
-                        opts.PublishMessage<EventContext<UserCreatedIntegrationEvent, UserAggregate>>()
-                            .ToAzureServiceBusTopic(sb.TopicName)
+                        opts.PublishMessage<EventContext<UserCreatedIntegrationEvent>>()
+                            .ToAzureServiceBusTopic(topicName)
                             .BufferedInMemory();
-                        opts.PublishMessage<EventContext<UserUpdatedIntegrationEvent, UserAggregate>>()
-                            .ToAzureServiceBusTopic(sb.TopicName)
+                        opts.PublishMessage<EventContext<UserUpdatedIntegrationEvent>>()
+                            .ToAzureServiceBusTopic(topicName)
                             .BufferedInMemory();
-                        opts.PublishMessage<EventContext<UserRoleChangedIntegrationEvent, UserAggregate>>()
-                            .ToAzureServiceBusTopic(sb.TopicName)
+                        opts.PublishMessage<EventContext<UserRoleChangedIntegrationEvent>>()
+                            .ToAzureServiceBusTopic(topicName)
                             .BufferedInMemory();
-                        opts.PublishMessage<EventContext<UserActivatedIntegrationEvent, UserAggregate>>()
-                            .ToAzureServiceBusTopic(sb.TopicName)
+                        opts.PublishMessage<EventContext<UserActivatedIntegrationEvent>>()
+                            .ToAzureServiceBusTopic(topicName)
                             .BufferedInMemory();
-                        opts.PublishMessage<EventContext<UserDeactivatedIntegrationEvent, UserAggregate>>()
-                            .ToAzureServiceBusTopic(sb.TopicName)
+                        opts.PublishMessage<EventContext<UserDeactivatedIntegrationEvent>>()
+                            .ToAzureServiceBusTopic(topicName)
                             .BufferedInMemory();
 
                         break;
