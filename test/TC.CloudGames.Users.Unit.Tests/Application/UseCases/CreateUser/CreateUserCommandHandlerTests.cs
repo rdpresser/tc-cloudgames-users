@@ -9,7 +9,7 @@ public class CreateUserCommandHandlerTests : BaseTest
     {
         // Arrange
         Factory.RegisterTestServices(_ => { });
-        
+
         var repo = A.Fake<IUserRepository>();
         var outbox = A.Fake<IMartenOutbox>();
         var logger = A.Fake<ILogger<CreateUserCommandHandler>>();
@@ -55,7 +55,7 @@ public class CreateUserCommandHandlerTests : BaseTest
     {
         // Arrange
         Factory.RegisterTestServices(_ => { });
-        
+
         var repo = A.Fake<IUserRepository>();
         var outbox = A.Fake<IMartenOutbox>();
         var logger = A.Fake<ILogger<CreateUserCommandHandler>>();

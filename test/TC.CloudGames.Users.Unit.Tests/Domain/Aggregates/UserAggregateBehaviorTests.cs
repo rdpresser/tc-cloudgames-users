@@ -26,7 +26,7 @@ public class UserAggregateBehaviorTests
         user.Email.ShouldBe(newEmail);
         user.Username.ShouldBe(newUsername);
         user.UpdatedAt.ShouldNotBeNull();
-        user.UpdatedAt.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        user.UpdatedAt.ShouldBeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(1));
         user.CreatedAt.ShouldBe(originalCreatedAt); // Should not change
         user.Id.ShouldBe(originalId); // Should not change
         user.UncommittedEvents.Count.ShouldBe(2); // Create + Update events
@@ -125,7 +125,7 @@ public class UserAggregateBehaviorTests
         user.PasswordHash.ShouldBe(newPassword);
         user.PasswordHash.ShouldNotBe(originalPasswordHash);
         user.UpdatedAt.ShouldNotBeNull();
-        user.UpdatedAt.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        user.UpdatedAt.ShouldBeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(1));
         user.UncommittedEvents.Count.ShouldBe(2); // Create + PasswordChanged events
         user.UncommittedEvents[user.UncommittedEvents.Count - 1].ShouldBeOfType<UserPasswordChangedDomainEvent>();
     }
@@ -189,7 +189,7 @@ public class UserAggregateBehaviorTests
         user.Role.ShouldBe(newRole);
         user.Role.ShouldNotBe(originalRole);
         user.UpdatedAt.ShouldNotBeNull();
-        user.UpdatedAt.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        user.UpdatedAt.ShouldBeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(1));
         user.UncommittedEvents.Count.ShouldBe(2); // Create + RoleChanged events
         user.UncommittedEvents[user.UncommittedEvents.Count - 1].ShouldBeOfType<UserRoleChangedDomainEvent>();
     }
@@ -264,7 +264,7 @@ public class UserAggregateBehaviorTests
         result.IsSuccess.ShouldBeTrue();
         user.IsActive.ShouldBeTrue();
         user.UpdatedAt.ShouldNotBeNull();
-        user.UpdatedAt.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        user.UpdatedAt.ShouldBeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(1));
         user.UncommittedEvents.Count.ShouldBe(3); // Create + Deactivated + Activated events
         user.UncommittedEvents[user.UncommittedEvents.Count - 1].ShouldBeOfType<UserActivatedDomainEvent>();
     }
@@ -299,7 +299,7 @@ public class UserAggregateBehaviorTests
         result.IsSuccess.ShouldBeTrue();
         user.IsActive.ShouldBeFalse();
         user.UpdatedAt.ShouldNotBeNull();
-        user.UpdatedAt.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        user.UpdatedAt.ShouldBeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(1));
         user.UncommittedEvents.Count.ShouldBe(2); // Create + Deactivated events
         user.UncommittedEvents[user.UncommittedEvents.Count - 1].ShouldBeOfType<UserDeactivatedDomainEvent>();
     }

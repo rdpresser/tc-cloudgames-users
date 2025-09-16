@@ -1,4 +1,7 @@
-﻿namespace TC.CloudGames.Users.Domain.ValueObjects;
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace TC.CloudGames.Users.Domain.ValueObjects;
 
 public sealed record Email
 {
@@ -92,5 +95,14 @@ public sealed record Email
     public static bool IsValid(Email? value) => Validate(value).IsSuccess;
 
     public static implicit operator string(Email email) => email.Value;
-    ///public static implicit operator Email(string email) => Create(email).Value;
+    public static implicit operator Email(string email) => Create(email).Value;
+}
+
+public sealed class EmailJsonConverter : JsonConverter<Email>
+{
+    public override Email Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        => Email.FromDb(reader.GetString()!).Value;
+
+    public override void Write(Utf8JsonWriter writer, Email value, JsonSerializerOptions options)
+        => writer.WriteStringValue(value.Value);
 }

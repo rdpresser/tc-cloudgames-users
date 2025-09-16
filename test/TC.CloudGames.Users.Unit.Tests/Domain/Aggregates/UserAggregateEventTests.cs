@@ -28,7 +28,7 @@ public class UserAggregateEventTests
         createdEvent.Username.ShouldBe(username);
         createdEvent.Password.ShouldBe(password);
         createdEvent.Role.ShouldBe(role);
-        createdEvent.OccurredOn.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        createdEvent.OccurredOn.ShouldBeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(1));
     }
 
     [Fact]

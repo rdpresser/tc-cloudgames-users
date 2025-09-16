@@ -111,7 +111,7 @@ internal static class TestExtensions
     /// <summary>
     /// Extension to handle nullable DateTime comparison
     /// </summary>
-    public static void ShouldBeCloseTo(this DateTime? actual, DateTime expected, TimeSpan tolerance)
+    public static void ShouldBeCloseTo(this DateTimeOffset? actual, DateTimeOffset expected, TimeSpan tolerance)
     {
         actual.ShouldNotBeNull();
         actual.Value.ShouldBeCloseTo(expected, tolerance);
@@ -120,7 +120,7 @@ internal static class TestExtensions
     /// <summary>
     /// Extension to handle non-nullable DateTime comparison (using Shouldly's built-in method)
     /// </summary>
-    public static void ShouldBeCloseTo(this DateTime actual, DateTime expected, TimeSpan tolerance)
+    public static void ShouldBeCloseTo(this DateTimeOffset actual, DateTimeOffset expected, TimeSpan tolerance)
     {
         Math.Abs((actual - expected).TotalMilliseconds).ShouldBeLessThan(tolerance.TotalMilliseconds);
     }

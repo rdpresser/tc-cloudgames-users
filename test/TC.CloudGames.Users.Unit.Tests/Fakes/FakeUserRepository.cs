@@ -44,6 +44,9 @@ namespace TC.CloudGames.Users.Unit.Tests.Fakes
             return Task.CompletedTask;
         }
 
+        public Task<UserAggregate?> LoadSnapshotAsync(Guid aggregateId, CancellationToken cancellationToken = default)
+            => GetByIdAsync(aggregateId, cancellationToken);
+
         public Task<UserByEmailResponse?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
         {
             var user = _users.FirstOrDefault(u => u.Email.Value.Equals(email, StringComparison.OrdinalIgnoreCase));

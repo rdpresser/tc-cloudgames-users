@@ -1,4 +1,7 @@
-﻿namespace TC.CloudGames.Users.Domain.ValueObjects;
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace TC.CloudGames.Users.Domain.ValueObjects;
 
 /// <summary>
 /// Value Object representing a user password with validation and hashing.
@@ -136,6 +139,7 @@ public sealed record Password
     /// </summary>
     /// <param name="password">The Password instance.</param>
     public static implicit operator string(Password password) => password.Hash;
+    public static implicit operator Password(string password) => Create(password).Value;
 
     /// <summary>
     /// Implicit conversion from string to Password.
@@ -155,4 +159,13 @@ public sealed record Password
         errors = !result.IsSuccess ? [.. result.ValidationErrors] : [];
         return result.IsSuccess;
     }
+}
+
+public sealed class PasswordJsonConverter : JsonConverter<Password>
+{
+    public override Password Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        => Password.FromHash(reader.GetString()!).Value;
+
+    public override void Write(Utf8JsonWriter writer, Password value, JsonSerializerOptions options)
+        => writer.WriteStringValue(value.Hash);
 }

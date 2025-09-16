@@ -25,7 +25,7 @@ public class UserAggregateCreationTests
         user.PasswordHash.ShouldBe(password);
         user.Role.ShouldBe(role);
         user.IsActive.ShouldBeTrue();
-        user.CreatedAt.ShouldBeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        user.CreatedAt.ShouldBeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(1));
         user.UpdatedAt.ShouldBeNull();
         user.UncommittedEvents.ShouldHaveSingleItem();
         user.UncommittedEvents[0].ShouldBeOfType<UserCreatedDomainEvent>();

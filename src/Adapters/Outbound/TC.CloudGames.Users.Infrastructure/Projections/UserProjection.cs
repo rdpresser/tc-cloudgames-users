@@ -9,8 +9,10 @@
         public string PasswordHash { get; set; } = string.Empty;
         public string Role { get; set; } = Domain.ValueObjects.Role.User.Value;
 
-        public DateTime CreatedAt { get; set; }
-        public DateTime? UpdatedAt { get; set; }
+        public DateTimeOffset CreatedAt { get; set; }
+        public DateTimeOffset? UpdatedAt { get; set; }
         public bool IsActive { get; set; }
+
+        public bool IsDeleted { get; set; }
     }
 }

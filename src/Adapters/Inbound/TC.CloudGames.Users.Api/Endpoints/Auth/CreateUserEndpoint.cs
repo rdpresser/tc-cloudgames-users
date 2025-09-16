@@ -17,8 +17,8 @@
             {
                 s.Summary = "Endpoint for creating a new user.";
                 s.Description = "This endpoint allows for the registration of a new user by providing their first name, last name, email, password, and role. Upon successful registration, a new user is created in the system.";
-                s.ExampleRequest = new CreateUserCommand("John", "Smith", "john.smith@gmail.com", "******", "Admin");
-                s.ResponseExamples[201] = new CreateUserResponse(Guid.NewGuid(), "John", "Smith", "john.smith@gmail.com", "Admin");
+                s.ExampleRequest = new CreateUserCommand("John Smith", "john.smith@gmail.com", "john.smith", "******", "Admin");
+                s.ResponseExamples[201] = new CreateUserResponse(Guid.NewGuid(), "John Smith", "john.smith@gmail.com", "john.smith", "Admin");
                 s.Responses[201] = "Returned when a new user is successfully created.";
                 s.Responses[400] = "Returned when a bad request occurs.";
             });

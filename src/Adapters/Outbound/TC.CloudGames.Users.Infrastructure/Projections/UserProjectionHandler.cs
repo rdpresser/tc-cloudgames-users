@@ -16,7 +16,8 @@ namespace TC.CloudGames.Users.Infrastructure.Projections
                 Role = @event.Role,
                 CreatedAt = @event.OccurredOn,
                 UpdatedAt = null,
-                IsActive = true
+                IsActive = true,
+                IsDeleted = false
             };
 
             operations.Store(projection);
@@ -73,6 +74,7 @@ namespace TC.CloudGames.Users.Infrastructure.Projections
             var projection = await operations.LoadAsync<UserProjection>(@event.AggregateId).ConfigureAwait(false);
             if (projection == null) return;
 
+            projection.IsDeleted = true;
             projection.IsActive = false;
             projection.UpdatedAt = @event.OccurredOn;
 

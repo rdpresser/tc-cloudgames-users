@@ -1,4 +1,7 @@
-﻿namespace TC.CloudGames.Users.Api.Extensions
+﻿using TC.CloudGames.Users.Domain.Aggregates;
+using TC.CloudGames.Users.Domain.ValueObjects;
+
+namespace TC.CloudGames.Users.Api.Extensions
 {
     internal static class ServiceCollectionExtensions
     {
@@ -250,14 +253,31 @@
                 options.Connection(connProvider.ConnectionString);
                 options.Logger(new ConsoleMartenLogger()); // optional: log SQL for debugging
 
+                options.UseSystemTextJsonForSerialization(configure: cfg =>
+                {
+                    // Adicione aqui seus conversores
+                    cfg.Converters.Add(new EmailJsonConverter());
+                    cfg.Converters.Add(new PasswordJsonConverter());
+                    cfg.Converters.Add(new RoleJsonConverter());
+
+                    // Configurações extras, se necessário
+                    ////cfg.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+                    cfg.WriteIndented = true;
+                });
+
                 // Event Store configuration (events schema)
                 options.Events.DatabaseSchemaName = "events";
 
                 // Document store configuration (documents schema)
                 options.DatabaseSchemaName = "documents";
 
-                // Register inline projections
+                // Register inline projections - for queries with index
                 options.Projections.Add<UserProjectionHandler>(ProjectionLifecycle.Inline);
+
+                // Snapshot automático do aggregate (para acelerar LoadAsync)
+                options.Schema.For<UserAggregate>();
+
+                ////options.Projections.Snapshot<UserAggregate>(SnapshotLifecycle.Inline);
 
                 // Auto-create databases/schemas
                 options.CreateDatabasesForTenants(c =>

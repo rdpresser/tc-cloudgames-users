@@ -1,4 +1,7 @@
-﻿namespace TC.CloudGames.Users.Domain.ValueObjects;
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace TC.CloudGames.Users.Domain.ValueObjects;
 
 /// <summary>
 /// Value Object representing a user role with validation and predefined roles.
@@ -127,10 +130,20 @@ public sealed record Role
     /// </summary>
     /// <param name="role">The Role instance.</param>
     public static implicit operator string(Role role) => role.Value;
+    public static implicit operator Role(string role) => Create(role).Value;
 
     /// <summary>
     /// Implicit conversion from string to Role.
     /// </summary>
     /// <param name="role">The role name.</param>
     ///public static implicit operator Role(string role) => Create(role).Value;
+}
+
+public sealed class RoleJsonConverter : JsonConverter<Role>
+{
+    public override Role Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        => Role.FromDb(reader.GetString()!).Value;
+
+    public override void Write(Utf8JsonWriter writer, Role value, JsonSerializerOptions options)
+        => writer.WriteStringValue(value.Value);
 }
