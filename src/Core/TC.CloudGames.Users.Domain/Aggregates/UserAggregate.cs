@@ -176,7 +176,7 @@ public sealed class UserAggregate : BaseAggregateRoot
     /// No validation needed as data comes from a trusted source (database)
     /// </summary>
     public static UserAggregate FromProjection(Guid id, string name, string email, string username,
-        string passwordHash, string role, DateTime createdAt, DateTime? updatedAt, bool isActive)
+        string passwordHash, string role, DateTimeOffset createdAt, DateTimeOffset? updatedAt, bool isActive)
     {
         var user = new UserAggregate(id)
         {
@@ -225,7 +225,7 @@ public sealed class UserAggregate : BaseAggregateRoot
         if (errors.Any())
             return Result.Invalid(errors.ToArray());
 
-        var @event = new UserUpdatedDomainEvent(Id, name, email, username, DateTime.UtcNow);
+        var @event = new UserUpdatedDomainEvent(Id, name, email, username, DateTimeOffset.UtcNow);
         ApplyEvent(@event);
         return Result.Success();
     }
@@ -239,7 +239,7 @@ public sealed class UserAggregate : BaseAggregateRoot
     {
         if (newPassword == null)
             return Result.Invalid(new ValidationError($"Password.Required", "Password is required."));
-        var @event = new UserPasswordChangedDomainEvent(Id, newPassword, DateTime.UtcNow);
+        var @event = new UserPasswordChangedDomainEvent(Id, newPassword, DateTimeOffset.UtcNow);
         ApplyEvent(@event);
         return Result.Success();
     }
@@ -255,7 +255,7 @@ public sealed class UserAggregate : BaseAggregateRoot
             return Result.Invalid(new ValidationError($"{nameof(Role)}.Invalid", "Invalid role value."));
         if (Role.Value == newRole.Value)
             return Result.Invalid(new ValidationError($"{nameof(Role)}.SameRole", "User already has this role."));
-        var @event = new UserRoleChangedDomainEvent(Id, newRole, DateTime.UtcNow);
+        var @event = new UserRoleChangedDomainEvent(Id, newRole, DateTimeOffset.UtcNow);
         ApplyEvent(@event);
         return Result.Success();
     }
@@ -268,7 +268,7 @@ public sealed class UserAggregate : BaseAggregateRoot
     {
         if (IsActive)
             return Result.Invalid(new ValidationError("User.AlreadyActive", "User is already active."));
-        var @event = new UserActivatedDomainEvent(Id, DateTime.UtcNow);
+        var @event = new UserActivatedDomainEvent(Id, DateTimeOffset.UtcNow);
         ApplyEvent(@event);
         return Result.Success();
     }
@@ -281,7 +281,7 @@ public sealed class UserAggregate : BaseAggregateRoot
     {
         if (!IsActive)
             return Result.Invalid(new ValidationError("User.AlreadyInactive", "User is already deactivated."));
-        var @event = new UserDeactivatedDomainEvent(Id, DateTime.UtcNow);
+        var @event = new UserDeactivatedDomainEvent(Id, DateTimeOffset.UtcNow);
         ApplyEvent(@event);
         return Result.Success();
     }
@@ -396,10 +396,10 @@ public sealed class UserAggregate : BaseAggregateRoot
     }
 
     // Domain Events (internal, rich in domain details, using Value Objects for type safety)
-    public record UserCreatedDomainEvent(Guid AggregateId, string Name, Email Email, string Username, Password Password, Role Role, DateTime OccurredOn) : BaseDomainEvent(AggregateId, OccurredOn);
-    public record UserUpdatedDomainEvent(Guid AggregateId, string Name, Email Email, string Username, DateTime OccurredOn) : BaseDomainEvent(AggregateId, OccurredOn);
-    public record UserPasswordChangedDomainEvent(Guid AggregateId, Password NewPassword, DateTime OccurredOn) : BaseDomainEvent(AggregateId, OccurredOn);
-    public record UserRoleChangedDomainEvent(Guid AggregateId, Role NewRole, DateTime OccurredOn) : BaseDomainEvent(AggregateId, OccurredOn);
-    public record UserActivatedDomainEvent(Guid AggregateId, DateTime OccurredOn) : BaseDomainEvent(AggregateId, OccurredOn);
-    public record UserDeactivatedDomainEvent(Guid AggregateId, DateTime OccurredOn) : BaseDomainEvent(AggregateId, OccurredOn);
+    public record UserCreatedDomainEvent(Guid AggregateId, string Name, Email Email, string Username, Password Password, Role Role, DateTimeOffset OccurredOn) : BaseDomainEvent(AggregateId, OccurredOn);
+    public record UserUpdatedDomainEvent(Guid AggregateId, string Name, Email Email, string Username, DateTimeOffset OccurredOn) : BaseDomainEvent(AggregateId, OccurredOn);
+    public record UserPasswordChangedDomainEvent(Guid AggregateId, Password NewPassword, DateTimeOffset OccurredOn) : BaseDomainEvent(AggregateId, OccurredOn);
+    public record UserRoleChangedDomainEvent(Guid AggregateId, Role NewRole, DateTimeOffset OccurredOn) : BaseDomainEvent(AggregateId, OccurredOn);
+    public record UserActivatedDomainEvent(Guid AggregateId, DateTimeOffset OccurredOn) : BaseDomainEvent(AggregateId, OccurredOn);
+    public record UserDeactivatedDomainEvent(Guid AggregateId, DateTimeOffset OccurredOn) : BaseDomainEvent(AggregateId, OccurredOn);
 }
