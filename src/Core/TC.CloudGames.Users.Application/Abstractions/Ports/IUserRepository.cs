@@ -6,7 +6,6 @@ namespace TC.CloudGames.Users.Application.Abstractions.Ports
 {
     public interface IUserRepository : IBaseRepository<UserAggregate>
     {
-        ////Task<UserAggregate?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
         Task<UserByEmailResponse?> GetByEmailAsync(string email, CancellationToken cancellationToken = default);
         Task<bool> EmailExistsAsync(string email, CancellationToken cancellationToken = default);
         Task<UserTokenProvider?> GetUserTokenInfoAsync(string email, string password, CancellationToken cancellationToken = default);

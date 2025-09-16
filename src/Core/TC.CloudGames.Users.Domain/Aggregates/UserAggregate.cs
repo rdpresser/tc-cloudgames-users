@@ -8,8 +8,8 @@ public sealed class UserAggregate : BaseAggregateRoot
     public Password PasswordHash { get; private set; } = default!;
     public Role Role { get; private set; } = default!;
 
-    // Construtor para Marten / ORM
-    private UserAggregate() : base() { }
+    // Construtor para Marten / ORM - deve ser público para event sourcing
+    public UserAggregate() : base() { }
 
     // Construtor privado para factories
     private UserAggregate(Guid id) : base(id) { }
@@ -62,7 +62,7 @@ public sealed class UserAggregate : BaseAggregateRoot
     private static Result<UserAggregate> CreateAggregate(string name, Email email, string username, Password password, Role role)
     {
         var aggregate = new UserAggregate(Guid.NewGuid());
-        var @event = new UserCreatedDomainEvent(aggregate.Id, name, email, username, password, role, aggregate.CreatedAt);
+        var @event = new UserCreatedDomainEvent(aggregate.Id, name, email.Value, username, password.Hash, role.Value, DateTimeOffset.UtcNow);
         aggregate.ApplyEvent(@event);
         return Result.Success(aggregate);
     }
@@ -98,7 +98,7 @@ public sealed class UserAggregate : BaseAggregateRoot
         var errors = ValidateNameAndUsername(name, username);
         if (errors.Any()) return Result.Invalid(errors.ToArray());
 
-        var @event = new UserUpdatedDomainEvent(Id, name, email, username, DateTimeOffset.UtcNow);
+        var @event = new UserUpdatedDomainEvent(Id, name, email.Value, username, DateTimeOffset.UtcNow);
         ApplyEvent(@event);
         return Result.Success();
     }
@@ -106,7 +106,7 @@ public sealed class UserAggregate : BaseAggregateRoot
     public Result ChangePassword(Password newPassword)
     {
         if (newPassword == null) return Result.Invalid(new ValidationError($"Password.Required", "Password is required."));
-        var @event = new UserPasswordChangedDomainEvent(Id, newPassword, DateTimeOffset.UtcNow);
+        var @event = new UserPasswordChangedDomainEvent(Id, newPassword.Hash, DateTimeOffset.UtcNow);
         ApplyEvent(@event);
         return Result.Success();
     }
@@ -114,8 +114,8 @@ public sealed class UserAggregate : BaseAggregateRoot
     public Result ChangeRole(Role newRole)
     {
         if (newRole == null) return Result.Invalid(new ValidationError($"{nameof(Role)}.Invalid", "Invalid role value."));
-        if (Role == newRole.Value) return Result.Invalid(new ValidationError($"{nameof(Role)}.SameRole", "User already has this role."));
-        var @event = new UserRoleChangedDomainEvent(Id, newRole, DateTimeOffset.UtcNow);
+        if (Role.Value == newRole.Value) return Result.Invalid(new ValidationError($"{nameof(Role)}.SameRole", "User already has this role."));
+        var @event = new UserRoleChangedDomainEvent(Id, newRole.Value, DateTimeOffset.UtcNow);
         ApplyEvent(@event);
         return Result.Success();
     }
@@ -173,14 +173,15 @@ public sealed class UserAggregate : BaseAggregateRoot
 
     #region Domain Events Apply
 
+    // CORRECTED: Apply methods should use the data from events to reconstruct state
     public void Apply(UserCreatedDomainEvent @event)
     {
         SetId(@event.AggregateId);
         Name = @event.Name;
-        Email = Email.FromDb(@event.Email);
+        Email = ValueObjects.Email.FromDb(@event.Email).Value;
         Username = @event.Username;
-        PasswordHash = Password.FromHash(@event.Password);
-        Role = Role.FromDb(@event.Role);
+        PasswordHash = Password.FromHash(@event.Password).Value;
+        Role = ValueObjects.Role.FromDb(@event.Role).Value;
         SetCreatedAt(@event.OccurredOn);
         SetActivate();
     }
@@ -188,20 +189,20 @@ public sealed class UserAggregate : BaseAggregateRoot
     public void Apply(UserUpdatedDomainEvent @event)
     {
         Name = @event.Name;
-        Email = Email.FromDb(@event.Email);
+        Email = ValueObjects.Email.FromDb(@event.Email).Value;
         Username = @event.Username;
         SetUpdatedAt(@event.OccurredOn);
     }
 
     public void Apply(UserPasswordChangedDomainEvent @event)
     {
-        PasswordHash = Password.FromHash(@event.NewPassword);
+        PasswordHash = Password.FromHash(@event.NewPassword).Value;
         SetUpdatedAt(@event.OccurredOn);
     }
 
     public void Apply(UserRoleChangedDomainEvent @event)
     {
-        Role = Role.FromDb(@event.NewRole);
+        Role = ValueObjects.Role.FromDb(@event.NewRole).Value;
         SetUpdatedAt(@event.OccurredOn);
     }
 
