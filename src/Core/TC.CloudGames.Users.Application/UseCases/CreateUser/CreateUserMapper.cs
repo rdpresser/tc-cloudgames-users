@@ -20,8 +20,8 @@
                 Id: e.Id,
                 Name: e.Name,
                 Username: e.Username,
-                Email: e.Email.Value,
-                Role: e.Role.Value
+                Email: e.Email,
+                Role: e.Role
             );
         }
 
@@ -29,9 +29,9 @@
         => new(
             domainEvent.AggregateId,
             domainEvent.Name,
-            domainEvent.Email.Value,
+            domainEvent.Email,
             domainEvent.Username,
-            domainEvent.Role.Value,
+            domainEvent.Role,
             domainEvent.OccurredOn
         );
     }

@@ -130,7 +130,7 @@ public sealed record Role
     /// </summary>
     /// <param name="role">The Role instance.</param>
     public static implicit operator string(Role role) => role.Value;
-    public static implicit operator Role(string role) => Create(role).Value;
+    ////public static implicit operator Role(string role) => Create(role).Value;
 
     /// <summary>
     /// Implicit conversion from string to Role.

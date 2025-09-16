@@ -168,5 +168,39 @@ namespace TC.CloudGames.Users.Infrastructure.Repositories
 
             return userList;
         }
+
+        ////public async Task<UserAggregate?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        ////{
+        ////    var projection = await Session.Query<UserProjection>()
+        ////        .Where(u => u.IsActive && u.Id == id)
+        ////        .Select(x => new
+        ////        {
+        ////            x.Id,
+        ////            x.Name,
+        ////            x.Email,
+        ////            x.Username,
+        ////            x.PasswordHash,
+        ////            x.Role,
+        ////            x.CreatedAt,
+        ////            x.UpdatedAt,
+        ////            x.IsActive
+        ////        })
+        ////        .FirstOrDefaultAsync(cancellationToken)
+        ////        .ConfigureAwait(false);
+
+        ////    if (projection == null)
+        ////        return null;
+
+        ////    return UserAggregate.FromProjection(
+        ////        projection.Id,
+        ////        projection.Name,
+        ////        projection.Email,
+        ////        projection.Username,
+        ////        projection.PasswordHash,
+        ////        projection.Role,
+        ////        projection.CreatedAt,
+        ////        projection.UpdatedAt,
+        ////        projection.IsActive);
+        ////}
     }
 }

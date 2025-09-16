@@ -95,7 +95,7 @@ public sealed record Email
     public static bool IsValid(Email? value) => Validate(value).IsSuccess;
 
     public static implicit operator string(Email email) => email.Value;
-    public static implicit operator Email(string email) => Create(email).Value;
+    ////public static implicit operator Email(string email) => Create(email).Value;
 }
 
 public sealed class EmailJsonConverter : JsonConverter<Email>

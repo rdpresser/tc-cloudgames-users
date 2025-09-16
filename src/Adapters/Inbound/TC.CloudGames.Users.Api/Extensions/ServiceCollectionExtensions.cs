@@ -1,7 +1,4 @@
-﻿using TC.CloudGames.Users.Domain.Aggregates;
-using TC.CloudGames.Users.Domain.ValueObjects;
-
-namespace TC.CloudGames.Users.Api.Extensions
+﻿namespace TC.CloudGames.Users.Api.Extensions
 {
     internal static class ServiceCollectionExtensions
     {
@@ -253,17 +250,17 @@ namespace TC.CloudGames.Users.Api.Extensions
                 options.Connection(connProvider.ConnectionString);
                 options.Logger(new ConsoleMartenLogger()); // optional: log SQL for debugging
 
-                options.UseSystemTextJsonForSerialization(configure: cfg =>
-                {
-                    // Adicione aqui seus conversores
-                    cfg.Converters.Add(new EmailJsonConverter());
-                    cfg.Converters.Add(new PasswordJsonConverter());
-                    cfg.Converters.Add(new RoleJsonConverter());
+                ////options.UseSystemTextJsonForSerialization(configure: cfg =>
+                ////{
+                ////    // Adicione aqui seus conversores
+                ////    ////cfg.Converters.Add(new EmailJsonConverter());
+                ////    ////cfg.Converters.Add(new PasswordJsonConverter());
+                ////    ////cfg.Converters.Add(new RoleJsonConverter());
 
-                    // Configurações extras, se necessário
-                    ////cfg.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-                    cfg.WriteIndented = true;
-                });
+                ////    // Configurações extras, se necessário
+                ////    ////cfg.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+                ////    cfg.WriteIndented = true;
+                ////});
 
                 // Event Store configuration (events schema)
                 options.Events.DatabaseSchemaName = "events";
@@ -275,8 +272,7 @@ namespace TC.CloudGames.Users.Api.Extensions
                 options.Projections.Add<UserProjectionHandler>(ProjectionLifecycle.Inline);
 
                 // Snapshot automático do aggregate (para acelerar LoadAsync)
-                options.Schema.For<UserAggregate>();
-
+                ////options.Schema.For<UserAggregate>();
                 ////options.Projections.Snapshot<UserAggregate>(SnapshotLifecycle.Inline);
 
                 // Auto-create databases/schemas
