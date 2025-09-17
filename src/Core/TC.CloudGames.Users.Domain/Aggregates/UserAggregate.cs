@@ -173,7 +173,6 @@ public sealed class UserAggregate : BaseAggregateRoot
 
     #region Domain Events Apply
 
-    // CORRECTED: Apply methods should use the data from events to reconstruct state
     public void Apply(UserCreatedDomainEvent @event)
     {
         SetId(@event.AggregateId);

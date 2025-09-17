@@ -196,27 +196,47 @@
                         // Durable outbox for all sending endpoints
                         opts.Policies.UseDurableOutboxOnAllSendingEndpoints();
 
-                        // Publish all messages to a Topic with buffered in-memory delivery and durable outbox
-                        ////opts.PublishAllMessages()
-                        ////    .ToAzureServiceBusTopic(sb.TopicName)
-                        ////    .BufferedInMemory();
-
                         var topicName = $"{sb.TopicName}-topic";
                         // Register messages for Azure Service Bus Topic with buffered in-memory delivery
                         opts.PublishMessage<EventContext<UserCreatedIntegrationEvent>>()
                             .ToAzureServiceBusTopic(topicName)
+                            .CustomizeOutgoing(envelope =>
+                            {
+                                envelope.Headers["DomainAggregate"] = "UserAggregate";
+                            })
+                            .UseDurableOutbox()
                             .BufferedInMemory();
                         opts.PublishMessage<EventContext<UserUpdatedIntegrationEvent>>()
                             .ToAzureServiceBusTopic(topicName)
+                            .CustomizeOutgoing(envelope =>
+                            {
+                                envelope.Headers["DomainAggregate"] = "UserAggregate";
+                            })
+                            .UseDurableOutbox()
                             .BufferedInMemory();
                         opts.PublishMessage<EventContext<UserRoleChangedIntegrationEvent>>()
                             .ToAzureServiceBusTopic(topicName)
+                            .CustomizeOutgoing(envelope =>
+                            {
+                                envelope.Headers["DomainAggregate"] = "UserAggregate";
+                            })
+                            .UseDurableOutbox()
                             .BufferedInMemory();
                         opts.PublishMessage<EventContext<UserActivatedIntegrationEvent>>()
                             .ToAzureServiceBusTopic(topicName)
+                            .CustomizeOutgoing(envelope =>
+                            {
+                                envelope.Headers["DomainAggregate"] = "UserAggregate";
+                            })
+                            .UseDurableOutbox()
                             .BufferedInMemory();
                         opts.PublishMessage<EventContext<UserDeactivatedIntegrationEvent>>()
                             .ToAzureServiceBusTopic(topicName)
+                            .CustomizeOutgoing(envelope =>
+                            {
+                                envelope.Headers["DomainAggregate"] = "UserAggregate";
+                            })
+                            .UseDurableOutbox()
                             .BufferedInMemory();
 
                         break;
