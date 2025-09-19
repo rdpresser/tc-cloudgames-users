@@ -123,6 +123,18 @@
             return services;
         }
 
+        static string DefaultFlattenedMessageName(Type messageType)
+        {
+            if (!messageType.IsGenericType) return messageType.Name;
+
+            var generic = messageType.GetGenericTypeDefinition().Name;
+            var backtick = generic.IndexOf('`');
+            if (backtick >= 0) generic = generic.Substring(0, backtick);
+
+            var inner = messageType.GetGenericArguments()[0].Name;
+            return $"{generic}{inner}"; // ex: EventContext + UserCreatedIntegrationEvent => EventContextUserCreatedIntegrationEvent
+        }
+
         // 2) Configure Wolverine messaging with RabbitMQ transport and durable outbox
         private static WebApplicationBuilder AddWolverineMessaging(this WebApplicationBuilder builder)
         {
@@ -131,6 +143,8 @@
                 // -------------------------------
                 // Define schema for Wolverine durability and Postgres persistence
                 // -------------------------------
+
+                opts.UseSystemTextJsonForSerialization();
                 const string wolverineSchema = "wolverine";
                 opts.Durability.MessageStorageSchemaName = wolverineSchema;
 
@@ -166,9 +180,6 @@
                         if (mq.UseQuorumQueues) rabbitOpts.UseQuorumQueues();
                         if (mq.AutoPurgeOnStartup) rabbitOpts.AutoPurgeOnStartup();
 
-                        // Publish all messages to the configured exchange with durable outbox
-                        ////opts.PublishAllMessages().ToRabbitExchange(mq.Exchange);
-
                         // Durable outbox 
                         opts.Policies.UseDurableOutboxOnAllSendingEndpoints();
 
@@ -184,6 +195,7 @@
                             .ToRabbitExchange(exchangeName);
                         opts.PublishMessage<EventContext<UserDeactivatedIntegrationEvent>>()
                             .ToRabbitExchange(exchangeName);
+
                         break;
 
                     case BrokerType.AzureServiceBus when broker.ServiceBusSettings is { } sb:
@@ -195,47 +207,57 @@
 
                         // Durable outbox for all sending endpoints
                         opts.Policies.UseDurableOutboxOnAllSendingEndpoints();
-
                         var topicName = $"{sb.TopicName}-topic";
-                        // Register messages for Azure Service Bus Topic with buffered in-memory delivery
+
+                        // Mapeia os aliases de cada evento
+                        opts.RegisterMessageType(
+                            typeof(EventContext<UserCreatedIntegrationEvent>),
+                            DefaultFlattenedMessageName(typeof(EventContext<UserCreatedIntegrationEvent>))
+                        );
+                        opts.RegisterMessageType(
+                            typeof(EventContext<UserUpdatedIntegrationEvent>),
+                            DefaultFlattenedMessageName(typeof(EventContext<UserUpdatedIntegrationEvent>))
+                        );
+                        opts.RegisterMessageType(
+                            typeof(EventContext<UserRoleChangedIntegrationEvent>),
+                            DefaultFlattenedMessageName(typeof(EventContext<UserRoleChangedIntegrationEvent>))
+                        );
+                        opts.RegisterMessageType(
+                            typeof(EventContext<UserActivatedIntegrationEvent>),
+                            DefaultFlattenedMessageName(typeof(EventContext<UserActivatedIntegrationEvent>))
+                        );
+                        opts.RegisterMessageType(
+                            typeof(EventContext<UserDeactivatedIntegrationEvent>),
+                            DefaultFlattenedMessageName(typeof(EventContext<UserDeactivatedIntegrationEvent>))
+                        );
+
                         opts.PublishMessage<EventContext<UserCreatedIntegrationEvent>>()
                             .ToAzureServiceBusTopic(topicName)
-                            .CustomizeOutgoing(envelope =>
-                            {
-                                envelope.Headers["DomainAggregate"] = "UserAggregate";
-                            })
+                            .CustomizeOutgoing(e => e.Headers["DomainAggregate"] = "UserAggregate")
                             .UseDurableOutbox()
                             .BufferedInMemory();
+
                         opts.PublishMessage<EventContext<UserUpdatedIntegrationEvent>>()
                             .ToAzureServiceBusTopic(topicName)
-                            .CustomizeOutgoing(envelope =>
-                            {
-                                envelope.Headers["DomainAggregate"] = "UserAggregate";
-                            })
+                            .CustomizeOutgoing(e => e.Headers["DomainAggregate"] = "UserAggregate")
                             .UseDurableOutbox()
                             .BufferedInMemory();
+
                         opts.PublishMessage<EventContext<UserRoleChangedIntegrationEvent>>()
                             .ToAzureServiceBusTopic(topicName)
-                            .CustomizeOutgoing(envelope =>
-                            {
-                                envelope.Headers["DomainAggregate"] = "UserAggregate";
-                            })
+                            .CustomizeOutgoing(e => e.Headers["DomainAggregate"] = "UserAggregate")
                             .UseDurableOutbox()
                             .BufferedInMemory();
+
                         opts.PublishMessage<EventContext<UserActivatedIntegrationEvent>>()
                             .ToAzureServiceBusTopic(topicName)
-                            .CustomizeOutgoing(envelope =>
-                            {
-                                envelope.Headers["DomainAggregate"] = "UserAggregate";
-                            })
+                            .CustomizeOutgoing(e => e.Headers["DomainAggregate"] = "UserAggregate")
                             .UseDurableOutbox()
                             .BufferedInMemory();
+
                         opts.PublishMessage<EventContext<UserDeactivatedIntegrationEvent>>()
                             .ToAzureServiceBusTopic(topicName)
-                            .CustomizeOutgoing(envelope =>
-                            {
-                                envelope.Headers["DomainAggregate"] = "UserAggregate";
-                            })
+                            .CustomizeOutgoing(e => e.Headers["DomainAggregate"] = "UserAggregate")
                             .UseDurableOutbox()
                             .BufferedInMemory();
 
@@ -270,7 +292,7 @@
                 options.Connection(connProvider.ConnectionString);
                 options.Logger(new ConsoleMartenLogger()); // optional: log SQL for debugging
 
-                ////options.UseSystemTextJsonForSerialization(configure: cfg =>
+                ////options.UseSystemTextJsonForSerialization();
                 ////{
                 ////    // Adicione aqui seus conversores
                 ////    ////cfg.Converters.Add(new EmailJsonConverter());
