@@ -129,7 +129,7 @@
 
             var generic = messageType.GetGenericTypeDefinition().Name;
             var backtick = generic.IndexOf('`');
-            if (backtick >= 0) generic = generic.Substring(0, backtick);
+            if (backtick >= 0) generic = generic[..backtick];
 
             var inner = messageType.GetGenericArguments()[0].Name;
             return $"{generic}{inner}"; // ex: EventContext + UserCreatedIntegrationEvent => EventContextUserCreatedIntegrationEvent
@@ -231,31 +231,7 @@
                             DefaultFlattenedMessageName(typeof(EventContext<UserDeactivatedIntegrationEvent>))
                         );
 
-                        opts.PublishMessage<EventContext<UserCreatedIntegrationEvent>>()
-                            .ToAzureServiceBusTopic(topicName)
-                            .CustomizeOutgoing(e => e.Headers["DomainAggregate"] = "UserAggregate")
-                            .UseDurableOutbox()
-                            .BufferedInMemory();
-
-                        opts.PublishMessage<EventContext<UserUpdatedIntegrationEvent>>()
-                            .ToAzureServiceBusTopic(topicName)
-                            .CustomizeOutgoing(e => e.Headers["DomainAggregate"] = "UserAggregate")
-                            .UseDurableOutbox()
-                            .BufferedInMemory();
-
-                        opts.PublishMessage<EventContext<UserRoleChangedIntegrationEvent>>()
-                            .ToAzureServiceBusTopic(topicName)
-                            .CustomizeOutgoing(e => e.Headers["DomainAggregate"] = "UserAggregate")
-                            .UseDurableOutbox()
-                            .BufferedInMemory();
-
-                        opts.PublishMessage<EventContext<UserActivatedIntegrationEvent>>()
-                            .ToAzureServiceBusTopic(topicName)
-                            .CustomizeOutgoing(e => e.Headers["DomainAggregate"] = "UserAggregate")
-                            .UseDurableOutbox()
-                            .BufferedInMemory();
-
-                        opts.PublishMessage<EventContext<UserDeactivatedIntegrationEvent>>()
+                        opts.PublishAllMessages()
                             .ToAzureServiceBusTopic(topicName)
                             .CustomizeOutgoing(e => e.Headers["DomainAggregate"] = "UserAggregate")
                             .UseDurableOutbox()
