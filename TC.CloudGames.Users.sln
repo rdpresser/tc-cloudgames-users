@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.14.36401.2
+# Visual Studio Version 18
+VisualStudioVersion = 18.0.11012.119 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
 EndProject
@@ -51,6 +51,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Common - Library Items", "C
 		..\..\shared\common\global.json = ..\..\shared\common\global.json
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TC.CloudGames.Messaging", "..\..\shared\common\src\TC.CloudGames.Messaging\TC.CloudGames.Messaging.csproj", "{12C5B4EA-84B6-23C9-9EC4-83BB986F10B1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -85,6 +87,10 @@ Global
 		{BF634AAF-587E-1916-7EED-FB2526DC3D01}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BF634AAF-587E-1916-7EED-FB2526DC3D01}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BF634AAF-587E-1916-7EED-FB2526DC3D01}.Release|Any CPU.Build.0 = Release|Any CPU
+		{12C5B4EA-84B6-23C9-9EC4-83BB986F10B1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{12C5B4EA-84B6-23C9-9EC4-83BB986F10B1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{12C5B4EA-84B6-23C9-9EC4-83BB986F10B1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{12C5B4EA-84B6-23C9-9EC4-83BB986F10B1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -106,6 +112,7 @@ Global
 		{1B25FAAA-B192-4646-31AB-4F7985CB6D36} = {93275AAA-728E-4DDB-A435-F458C0DBDC71}
 		{BF634AAF-587E-1916-7EED-FB2526DC3D01} = {93275AAA-728E-4DDB-A435-F458C0DBDC71}
 		{539C81E1-BF4A-40AD-849C-6AFC79F088DA} = {93275AAA-728E-4DDB-A435-F458C0DBDC71}
+		{12C5B4EA-84B6-23C9-9EC4-83BB986F10B1} = {93275AAA-728E-4DDB-A435-F458C0DBDC71}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {A7014F37-1DA1-42AF-820C-CE3084CCC1FB}

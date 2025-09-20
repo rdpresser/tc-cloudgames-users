@@ -1,4 +1,6 @@
-﻿namespace TC.CloudGames.Users.Api.Extensions
+﻿using TC.CloudGames.Messaging.Extensions;
+
+namespace TC.CloudGames.Users.Api.Extensions
 {
     internal static class ServiceCollectionExtensions
     {
@@ -123,18 +125,6 @@
             return services;
         }
 
-        static string DefaultFlattenedMessageName(Type messageType)
-        {
-            if (!messageType.IsGenericType) return messageType.Name;
-
-            var generic = messageType.GetGenericTypeDefinition().Name;
-            var backtick = generic.IndexOf('`');
-            if (backtick >= 0) generic = generic[..backtick];
-
-            var inner = messageType.GetGenericArguments()[0].Name;
-            return $"{generic}{inner}"; // ex: EventContext + UserCreatedIntegrationEvent => EventContextUserCreatedIntegrationEvent
-        }
-
         // 2) Configure Wolverine messaging with RabbitMQ transport and durable outbox
         private static WebApplicationBuilder AddWolverineMessaging(this WebApplicationBuilder builder)
         {
@@ -209,27 +199,7 @@
                         opts.Policies.UseDurableOutboxOnAllSendingEndpoints();
                         var topicName = $"{sb.TopicName}-topic";
 
-                        // Mapeia os aliases de cada evento
-                        opts.RegisterMessageType(
-                            typeof(EventContext<UserCreatedIntegrationEvent>),
-                            DefaultFlattenedMessageName(typeof(EventContext<UserCreatedIntegrationEvent>))
-                        );
-                        opts.RegisterMessageType(
-                            typeof(EventContext<UserUpdatedIntegrationEvent>),
-                            DefaultFlattenedMessageName(typeof(EventContext<UserUpdatedIntegrationEvent>))
-                        );
-                        opts.RegisterMessageType(
-                            typeof(EventContext<UserRoleChangedIntegrationEvent>),
-                            DefaultFlattenedMessageName(typeof(EventContext<UserRoleChangedIntegrationEvent>))
-                        );
-                        opts.RegisterMessageType(
-                            typeof(EventContext<UserActivatedIntegrationEvent>),
-                            DefaultFlattenedMessageName(typeof(EventContext<UserActivatedIntegrationEvent>))
-                        );
-                        opts.RegisterMessageType(
-                            typeof(EventContext<UserDeactivatedIntegrationEvent>),
-                            DefaultFlattenedMessageName(typeof(EventContext<UserDeactivatedIntegrationEvent>))
-                        );
+                        opts.RegisterUserEvents();
 
                         opts.PublishAllMessages()
                             .ToAzureServiceBusTopic(topicName)
