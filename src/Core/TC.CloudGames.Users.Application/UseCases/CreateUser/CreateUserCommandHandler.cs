@@ -28,7 +28,6 @@ namespace TC.CloudGames.Users.Application.UseCases.CreateUser
             var aggregateResult = CreateUserMapper.ToAggregate(command);
             if (!aggregateResult.IsSuccess)
             {
-                AddErrors(aggregateResult.ValidationErrors);
                 return Task.FromResult(Result<UserAggregate>.Invalid(aggregateResult.ValidationErrors));
             }
 
@@ -87,14 +86,20 @@ namespace TC.CloudGames.Users.Application.UseCases.CreateUser
             // 1. Map command -> aggregate
             var mapResult = await MapCommandToAggregateAsync(command, ct).ConfigureAwait(false);
             if (!mapResult.IsSuccess)
-                return Result<CreateUserResponse>.Invalid(mapResult.ValidationErrors);
+            {
+                AddErrors(mapResult.ValidationErrors);
+                return BuildValidationErrorResult();
+            }
 
             var aggregate = mapResult.Value;
 
             // 2. Validate aggregate (optional custom rules)
             var validationResult = await ValidateAggregateAsync(aggregate, ct).ConfigureAwait(false);
             if (!validationResult.IsSuccess)
+            {
+                AddErrors(validationResult.ValidationErrors);
                 return Result<CreateUserResponse>.Invalid(validationResult.ValidationErrors);
+            }
 
             // 3. Persist aggregate events (event sourcing)
             await Repository.SaveAsync(aggregate, ct).ConfigureAwait(false);
@@ -106,7 +111,6 @@ namespace TC.CloudGames.Users.Application.UseCases.CreateUser
             await Repository.CommitAsync(aggregate, ct).ConfigureAwait(false);
 
             _logger.LogInformation("User {UserId} created successfully and events committed", aggregate.Id);
-
 
             // 6. Map response
             return CreateUserMapper.FromAggregate(aggregate);
