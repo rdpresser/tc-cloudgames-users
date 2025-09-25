@@ -177,18 +177,27 @@ namespace TC.CloudGames.Users.Api.Extensions
                         // Register messages
                         opts.PublishMessage<EventContext<UserCreatedIntegrationEvent>>()
                             .ToRabbitExchange(exchangeName)
+                            .BufferedInMemory()
                             .UseDurableOutbox();
+
                         opts.PublishMessage<EventContext<UserUpdatedIntegrationEvent>>()
                             .ToRabbitExchange(exchangeName)
+                            .BufferedInMemory()
                             .UseDurableOutbox();
+
                         opts.PublishMessage<EventContext<UserRoleChangedIntegrationEvent>>()
                             .ToRabbitExchange(exchangeName)
+                            .BufferedInMemory()
                             .UseDurableOutbox();
+
                         opts.PublishMessage<EventContext<UserActivatedIntegrationEvent>>()
                             .ToRabbitExchange(exchangeName)
+                            .BufferedInMemory()
                             .UseDurableOutbox();
+
                         opts.PublishMessage<EventContext<UserDeactivatedIntegrationEvent>>()
                             .ToRabbitExchange(exchangeName)
+                            .BufferedInMemory()
                             .UseDurableOutbox();
 
                         break;
@@ -206,11 +215,41 @@ namespace TC.CloudGames.Users.Api.Extensions
 
                         opts.RegisterUserEvents();
 
-                        opts.PublishAllMessages()
+                        opts.PublishMessage<EventContext<UserCreatedIntegrationEvent>>()
                             .ToAzureServiceBusTopic(topicName)
                             .CustomizeOutgoing(e => e.Headers["DomainAggregate"] = "UserAggregate")
-                            .UseDurableOutbox()
-                            .BufferedInMemory();
+                            .BufferedInMemory()
+                            .UseDurableOutbox();
+
+                        opts.PublishMessage<EventContext<UserUpdatedIntegrationEvent>>()
+                            .ToAzureServiceBusTopic(topicName)
+                            .CustomizeOutgoing(e => e.Headers["DomainAggregate"] = "UserAggregate")
+                            .BufferedInMemory()
+                            .UseDurableOutbox();
+
+                        opts.PublishMessage<EventContext<UserRoleChangedIntegrationEvent>>()
+                            .ToAzureServiceBusTopic(topicName)
+                            .CustomizeOutgoing(e => e.Headers["DomainAggregate"] = "UserAggregate")
+                            .BufferedInMemory()
+                            .UseDurableOutbox();
+
+                        opts.PublishMessage<EventContext<UserActivatedIntegrationEvent>>()
+                            .ToAzureServiceBusTopic(topicName)
+                            .CustomizeOutgoing(e => e.Headers["DomainAggregate"] = "UserAggregate")
+                            .BufferedInMemory()
+                            .UseDurableOutbox();
+
+                        opts.PublishMessage<EventContext<UserDeactivatedIntegrationEvent>>()
+                            .ToAzureServiceBusTopic(topicName)
+                            .CustomizeOutgoing(e => e.Headers["DomainAggregate"] = "UserAggregate")
+                            .BufferedInMemory()
+                            .UseDurableOutbox();
+
+                        ////opts.PublishAllMessages()
+                        ////    .ToAzureServiceBusTopic(topicName)
+                        ////    .CustomizeOutgoing(e => e.Headers["DomainAggregate"] = "UserAggregate")
+                        ////    .BufferedInMemory()
+                        ////    .UseDurableOutbox();
 
                         break;
                 }
