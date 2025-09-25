@@ -176,15 +176,20 @@ namespace TC.CloudGames.Users.Api.Extensions
                         var exchangeName = $"{mq.Exchange}-exchange";
                         // Register messages
                         opts.PublishMessage<EventContext<UserCreatedIntegrationEvent>>()
-                            .ToRabbitExchange(exchangeName);
+                            .ToRabbitExchange(exchangeName)
+                            .UseDurableOutbox();
                         opts.PublishMessage<EventContext<UserUpdatedIntegrationEvent>>()
-                            .ToRabbitExchange(exchangeName);
+                            .ToRabbitExchange(exchangeName)
+                            .UseDurableOutbox();
                         opts.PublishMessage<EventContext<UserRoleChangedIntegrationEvent>>()
-                            .ToRabbitExchange(exchangeName);
+                            .ToRabbitExchange(exchangeName)
+                            .UseDurableOutbox();
                         opts.PublishMessage<EventContext<UserActivatedIntegrationEvent>>()
-                            .ToRabbitExchange(exchangeName);
+                            .ToRabbitExchange(exchangeName)
+                            .UseDurableOutbox();
                         opts.PublishMessage<EventContext<UserDeactivatedIntegrationEvent>>()
-                            .ToRabbitExchange(exchangeName);
+                            .ToRabbitExchange(exchangeName)
+                            .UseDurableOutbox();
 
                         break;
 
