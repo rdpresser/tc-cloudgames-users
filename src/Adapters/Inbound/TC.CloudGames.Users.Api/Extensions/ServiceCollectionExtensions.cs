@@ -1,4 +1,6 @@
-﻿using TC.CloudGames.Messaging.Extensions;
+﻿using Marten.Events.Projections;
+using TC.CloudGames.Messaging.Extensions;
+using TC.CloudGames.Users.Domain.Aggregates;
 
 namespace TC.CloudGames.Users.Api.Extensions
 {
@@ -304,8 +306,7 @@ namespace TC.CloudGames.Users.Api.Extensions
                 options.Projections.Add<UserProjectionHandler>(ProjectionLifecycle.Inline);
 
                 // Snapshot automático do aggregate (para acelerar LoadAsync)
-                ////options.Schema.For<UserAggregate>();
-                ////options.Projections.Snapshot<UserAggregate>(SnapshotLifecycle.Inline);
+                options.Projections.Snapshot<UserAggregate>(SnapshotLifecycle.Inline);
 
                 // Auto-create databases/schemas
                 options.CreateDatabasesForTenants(c =>

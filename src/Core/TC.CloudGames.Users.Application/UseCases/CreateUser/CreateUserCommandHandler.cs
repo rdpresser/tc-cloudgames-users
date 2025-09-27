@@ -98,7 +98,7 @@ namespace TC.CloudGames.Users.Application.UseCases.CreateUser
             if (!validationResult.IsSuccess)
             {
                 AddErrors(validationResult.ValidationErrors);
-                return Result<CreateUserResponse>.Invalid(validationResult.ValidationErrors);
+                return BuildValidationErrorResult();
             }
 
             // 3. Persist aggregate events (event sourcing)

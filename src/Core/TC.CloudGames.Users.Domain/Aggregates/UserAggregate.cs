@@ -1,4 +1,6 @@
-﻿namespace TC.CloudGames.Users.Domain.Aggregates;
+﻿using System.Text.Json.Serialization;
+
+namespace TC.CloudGames.Users.Domain.Aggregates;
 
 public sealed class UserAggregate : BaseAggregateRoot
 {
@@ -7,6 +9,21 @@ public sealed class UserAggregate : BaseAggregateRoot
     public string Username { get; private set; } = default!;
     public Password PasswordHash { get; private set; } = default!;
     public Role Role { get; private set; } = default!;
+
+    // Construtor para Marten / ORM + JsonConstructor
+    [JsonConstructor]
+    public UserAggregate(Guid id, string name, Email email, string username, Password passwordHash, Role role, DateTimeOffset createdAt, DateTimeOffset? updatedAt, bool isActive)
+    {
+        Id = id;
+        Name = name;
+        Email = email;
+        Username = username;
+        PasswordHash = passwordHash;
+        Role = role;
+        SetCreatedAt(createdAt);
+        SetUpdatedAt(updatedAt);
+        SetActive(isActive);
+    }
 
     // Construtor para Marten / ORM - deve ser público para event sourcing
     public UserAggregate() : base() { }

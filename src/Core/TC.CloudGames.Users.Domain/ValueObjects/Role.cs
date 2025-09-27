@@ -18,10 +18,17 @@ public sealed record Role
 
     public string Value { get; }
 
-    private Role(string value)
+    [JsonConstructor]
+    public Role(string value)
     {
         Value = value;
     }
+
+
+    ////private Role(string value)
+    ////{
+    ////    Value = value;
+    ////}
 
     /// <summary>
     /// Validates a role value.

@@ -71,14 +71,20 @@ namespace TC.CloudGames.Users.Application.UseCases.UpdateUser
             // 1. Map command to aggregate (loads + updates state)
             var mapResult = await MapCommandToAggregateAsync(command, ct).ConfigureAwait(false);
             if (!mapResult.IsSuccess)
-                return Result<UpdateUserResponse>.Invalid(mapResult.ValidationErrors);
+            {
+                AddErrors(mapResult.ValidationErrors);
+                return BuildNotFoundResult();
+            }
 
             var aggregate = mapResult.Value;
 
             // 2. Validate (business rules if needed)
             var validationResult = await ValidateAggregateAsync(aggregate, ct).ConfigureAwait(false);
             if (!validationResult.IsSuccess)
-                return Result<UpdateUserResponse>.Invalid(validationResult.ValidationErrors);
+            {
+                AddErrors(validationResult.ValidationErrors);
+                return BuildValidationErrorResult();
+            }
 
             // 3. Save aggregate state
             await Repository.SaveAsync(aggregate, ct).ConfigureAwait(false);

@@ -17,7 +17,8 @@ public sealed record Email
 
     public string Value { get; }
 
-    private Email(string value)
+    [JsonConstructor]
+    public Email(string value)
     {
         Value = value;
     }

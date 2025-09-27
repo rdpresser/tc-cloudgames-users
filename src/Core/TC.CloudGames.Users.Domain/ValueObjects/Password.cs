@@ -15,7 +15,8 @@ public sealed record Password
 
     public string Hash { get; }
 
-    private Password(string hash)
+    [JsonConstructor]
+    public Password(string hash)
     {
         Hash = hash;
     }
