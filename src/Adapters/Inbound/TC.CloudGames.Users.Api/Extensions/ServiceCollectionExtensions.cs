@@ -1,8 +1,4 @@
-﻿using Marten.Events.Projections;
-using TC.CloudGames.Messaging.Extensions;
-using TC.CloudGames.Users.Domain.Aggregates;
-
-namespace TC.CloudGames.Users.Api.Extensions
+﻿namespace TC.CloudGames.Users.Api.Extensions
 {
     internal static class ServiceCollectionExtensions
     {
@@ -284,17 +280,16 @@ namespace TC.CloudGames.Users.Api.Extensions
                 options.Connection(connProvider.ConnectionString);
                 options.Logger(new ConsoleMartenLogger()); // optional: log SQL for debugging
 
-                ////options.UseSystemTextJsonForSerialization();
-                ////{
-                ////    // Adicione aqui seus conversores
-                ////    ////cfg.Converters.Add(new EmailJsonConverter());
-                ////    ////cfg.Converters.Add(new PasswordJsonConverter());
-                ////    ////cfg.Converters.Add(new RoleJsonConverter());
+                options.UseSystemTextJsonForSerialization(configure: cfg =>
+                {
+                    cfg.Converters.Add(new EmailJsonConverter());
+                    cfg.Converters.Add(new PasswordJsonConverter());
+                    cfg.Converters.Add(new RoleJsonConverter());
 
-                ////    // Configurações extras, se necessário
-                ////    ////cfg.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-                ////    cfg.WriteIndented = true;
-                ////});
+                    // Configurações extras, se necessário
+                    ////cfg.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+                    ////cfg.WriteIndented = true;
+                });
 
                 // Event Store configuration (events schema)
                 options.Events.DatabaseSchemaName = "events";

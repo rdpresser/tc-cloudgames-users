@@ -18,8 +18,7 @@ public sealed record Role
 
     public string Value { get; }
 
-    [JsonConstructor]
-    public Role(string value)
+    private Role(string value)
     {
         Value = value;
     }
@@ -144,13 +143,4 @@ public sealed record Role
     /// </summary>
     /// <param name="role">The role name.</param>
     ///public static implicit operator Role(string role) => Create(role).Value;
-}
-
-public sealed class RoleJsonConverter : JsonConverter<Role>
-{
-    public override Role Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-        => Role.FromDb(reader.GetString()!).Value;
-
-    public override void Write(Utf8JsonWriter writer, Role value, JsonSerializerOptions options)
-        => writer.WriteStringValue(value.Value);
 }
