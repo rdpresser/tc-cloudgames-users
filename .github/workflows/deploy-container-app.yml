@@ -250,7 +250,9 @@ jobs:
               AZURE_SERVICEBUS_MAX_DELIVERY_COUNT=secretref:servicebus-max-delivery-count \
               AZURE_SERVICEBUS_ENABLE_DEAD_LETTERING=secretref:servicebus-enable-dead-lettering \
               AZURE_SERVICEBUS_AUTO_PURGE_ON_STARTUP=secretref:servicebus-auto-purge-on-startup \
-              AZURE_SERVICEBUS_USE_CONTROL_QUEUES=secretref:servicebus-use-control-queues
+              AZURE_SERVICEBUS_USE_CONTROL_QUEUES=secretref:servicebus-use-control-queues \
+              AZURE_SERVICEBUS_TOPIC_NAME=secretref:servicebus-users-topic-name \
+              CACHE_INSTANCE_NAME=secretref:cache-users-instance-name
           
           echo "✅ Container App deployment completed successfully!"
           echo "🔍 Checking deployment status..."
