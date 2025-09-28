@@ -211,7 +211,58 @@ jobs:
           fi
         shell: bash
 
-      # 1️⃣2️⃣ Deploy to Azure Container App using Azure CLI
+      # 1️⃣2️⃣ Setup Container App Secrets from Key Vault
+      - name: 🔐 Setup Container App Secrets from Key Vault
+        run: |
+          echo "🔐 Setting up Container App secrets from Key Vault..."
+          
+          CONTAINER_APP_NAME="${{ steps.container-app.outputs.container-app-name }}"
+          RESOURCE_GROUP="${{ steps.container-app.outputs.resource-group }}"
+          KEY_VAULT_NAME="tccloudgamesdevcr8nkv"
+          
+          echo "📋 Container App: $CONTAINER_APP_NAME"
+          echo "📋 Resource Group: $RESOURCE_GROUP"
+          echo "📋 Key Vault: $KEY_VAULT_NAME"
+          
+          # Create/Update secrets in Container App using Key Vault references
+          echo "🔄 Setting up Container App secrets..."
+          
+          # Database secrets
+          az containerapp secret set --name "$CONTAINER_APP_NAME" --resource-group "$RESOURCE_GROUP" \
+            --secrets \
+              "db-host=keyvaultref:https://$KEY_VAULT_NAME.vault.azure.net/secrets/db-host,identityref:system" \
+              "db-port=keyvaultref:https://$KEY_VAULT_NAME.vault.azure.net/secrets/db-port,identityref:system" \
+              "db-name-users=keyvaultref:https://$KEY_VAULT_NAME.vault.azure.net/secrets/db-name-users,identityref:system" \
+              "db-admin-login=keyvaultref:https://$KEY_VAULT_NAME.vault.azure.net/secrets/db-admin-login,identityref:system" \
+              "db-password=keyvaultref:https://$KEY_VAULT_NAME.vault.azure.net/secrets/db-password,identityref:system" \
+              "db-name-maintenance=keyvaultref:https://$KEY_VAULT_NAME.vault.azure.net/secrets/db-name-maintenance,identityref:system" \
+              "db-schema=keyvaultref:https://$KEY_VAULT_NAME.vault.azure.net/secrets/db-schema,identityref:system" \
+              "db-connection-timeout=keyvaultref:https://$KEY_VAULT_NAME.vault.azure.net/secrets/db-connection-timeout,identityref:system"
+          
+          # Cache secrets
+          az containerapp secret set --name "$CONTAINER_APP_NAME" --resource-group "$RESOURCE_GROUP" \
+            --secrets \
+              "cache-host=keyvaultref:https://$KEY_VAULT_NAME.vault.azure.net/secrets/cache-host,identityref:system" \
+              "cache-port=keyvaultref:https://$KEY_VAULT_NAME.vault.azure.net/secrets/cache-port,identityref:system" \
+              "cache-password=keyvaultref:https://$KEY_VAULT_NAME.vault.azure.net/secrets/cache-password,identityref:system" \
+              "cache-secure=keyvaultref:https://$KEY_VAULT_NAME.vault.azure.net/secrets/cache-secure,identityref:system" \
+              "cache-users-instance-name=keyvaultref:https://$KEY_VAULT_NAME.vault.azure.net/secrets/cache-users-instance-name,identityref:system"
+          
+          # Service Bus secrets
+          az containerapp secret set --name "$CONTAINER_APP_NAME" --resource-group "$RESOURCE_GROUP" \
+            --secrets \
+              "servicebus-connection-string=keyvaultref:https://$KEY_VAULT_NAME.vault.azure.net/secrets/servicebus-connection-string,identityref:system" \
+              "servicebus-auto-provision=keyvaultref:https://$KEY_VAULT_NAME.vault.azure.net/secrets/servicebus-auto-provision,identityref:system" \
+              "servicebus-max-delivery-count=keyvaultref:https://$KEY_VAULT_NAME.vault.azure.net/secrets/servicebus-max-delivery-count,identityref:system" \
+              "servicebus-enable-dead-lettering=keyvaultref:https://$KEY_VAULT_NAME.vault.azure.net/secrets/servicebus-enable-dead-lettering,identityref:system" \
+              "servicebus-auto-purge-on-startup=keyvaultref:https://$KEY_VAULT_NAME.vault.azure.net/secrets/servicebus-auto-purge-on-startup,identityref:system" \
+              "servicebus-use-control-queues=keyvaultref:https://$KEY_VAULT_NAME.vault.azure.net/secrets/servicebus-use-control-queues,identityref:system" \
+              "servicebus-users-topic-name=keyvaultref:https://$KEY_VAULT_NAME.vault.azure.net/secrets/servicebus-users-topic-name,identityref:system"
+          
+          echo "✅ Container App secrets setup completed!"
+        shell: bash
+
+      # 1️⃣3️⃣ Deploy to Azure Container App using Azure CLI
       - name: 🚀 Deploy to Azure Container App
         run: |
           echo "🚀 Deploying Container App using System Managed Identity..."
@@ -278,7 +329,7 @@ jobs:
           
         shell: bash
 
-      # 1️⃣3️⃣ Get Container App URL
+      # 1️⃣4️⃣ Get Container App URL
       - name: 🌐 Get Container App URL
         id: get-url
         run: |
@@ -290,7 +341,7 @@ jobs:
           echo "🌐 Container App URL: https://$APP_URL"
         shell: bash
 
-      # 1️⃣4️⃣ Health check
+      # 1️⃣5️⃣ Health check
       - name: 🧪 Health Check
         shell: bash
         run: |
