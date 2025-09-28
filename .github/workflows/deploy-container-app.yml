@@ -18,6 +18,9 @@ on:
       acr-name:
         required: true
         type: string
+      key-vault-name:
+        required: true
+        type: string
     secrets:
       AZURE_CREDENTIALS:
         required: true
@@ -218,7 +221,7 @@ jobs:
           
           CONTAINER_APP_NAME="${{ steps.container-app.outputs.container-app-name }}"
           RESOURCE_GROUP="${{ steps.container-app.outputs.resource-group }}"
-          KEY_VAULT_NAME="tccloudgamesdevcr8nkv"
+          KEY_VAULT_NAME="${{ inputs.key-vault-name }}"
           
           echo "📋 Container App: $CONTAINER_APP_NAME"
           echo "📋 Resource Group: $RESOURCE_GROUP"
