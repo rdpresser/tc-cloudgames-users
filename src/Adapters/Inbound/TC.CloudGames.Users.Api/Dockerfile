@@ -16,6 +16,7 @@ WORKDIR /src
 COPY services/users/Directory.Build.props ./
 
 # Copy shared common projects (required for ProjectReferences)
+COPY ["shared/common/src/TC.CloudGames.Messaging/TC.CloudGames.Messaging.csproj", "shared/common/src/TC.CloudGames.Messaging/"]
 COPY ["shared/common/src/TC.CloudGames.SharedKernel/TC.CloudGames.SharedKernel.csproj", "shared/common/src/TC.CloudGames.SharedKernel/"]
 COPY ["shared/common/src/TC.CloudGames.Contracts/TC.CloudGames.Contracts.csproj", "shared/common/src/TC.CloudGames.Contracts/"]
 
