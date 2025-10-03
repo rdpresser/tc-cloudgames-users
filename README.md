@@ -6,7 +6,7 @@ The Users microservice is responsible for user management, authentication, autho
 
 This service follows **Hexagonal Architecture (Ports & Adapters)** with **Domain-Driven Design (DDD)** and **Event Sourcing**:
 
-
+````
 TC.CloudGames.Users/
 ├── 🎯 Core/ # Business Logic
 │ ├── Domain/ # Domain Layer
@@ -28,7 +28,38 @@ TC.CloudGames.Users/
 ├── 2 - Architecture.Testing/ # Architecture Validation
 ├── 3 - Integration.Testing/ # Integration Tests
 └── 4 - BDD.Testing/ # Behavior-Driven Tests
+````
 
+### 🔀 User Registration Flow (Event Sourcing + Outbox)
+
+This sequence diagram details the creation of a new user, applying Event Sourcing and the Transactional Outbox Pattern to ensure atomicity between event persistence and message publishing.
+
+```mermaid
+sequenceDiagram
+    participant Client as Client (Frontend / App)
+    participant APIGW as API Gateway (Azure API Management)
+    participant UsersAPI as Users API (FastEndpoints)
+    participant AppLayer as Application Layer (CQRS, Wolverine Mediator)
+    participant UserAgg as User Aggregate (Validation + Business Rules)
+    participant EventStore as Event Store (Marten / Postgres)
+    participant Outbox as Outbox (Wolverine - Reliable Publish)
+    participant MsgBroker as Message Broker (Kafka / RabbitMQ / Azure Service Bus)
+    participant ReadModel as Read Model / Projections (Marten Projections)
+
+    Note over Client, ReadModel: Flow: User Creation\nService: Users -> CP (Consistency + Partition Tolerance)\nStrong validation and atomicity via Outbox Pattern
+
+    Client->>APIGW: POST /users/register
+    APIGW->>UsersAPI: Forward request
+    UsersAPI->>AppLayer: Execute CreateUserCommand
+    AppLayer->>UserAgg: Validate data + apply domain logic\nGenerate event |UserRegistered|
+    UserAgg->>EventStore: Append event to Event Store (Marten)
+    EventStore->>Outbox: Write outbox entry\n(same transaction as append to Event Store)
+    Outbox->>MsgBroker: Publish event |UserRegistered|
+    MsgBroker->>ReadModel: Update read projection\n(synchronous / transactional)
+    ReadModel-->>Client: 201 Created (or 409 Conflict if validation fails)
+
+```
+---
 
 ## 🎯 Domain Model
 
