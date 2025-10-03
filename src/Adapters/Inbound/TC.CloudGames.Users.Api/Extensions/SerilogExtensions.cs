@@ -55,7 +55,7 @@
                         credentials: new LokiCredentials
                         {
                             Login = configuration["Serilog:WriteTo:1:Args:credentials:username"] ?? string.Empty,
-                            Password = Environment.GetEnvironmentVariable("GRAFANA_API_TOKEN") ?? string.Empty
+                            Password = Environment.GetEnvironmentVariable("GRAFANA_LOGS_API_TOKEN") ?? string.Empty
                         },
                         labels: new[]
                         {

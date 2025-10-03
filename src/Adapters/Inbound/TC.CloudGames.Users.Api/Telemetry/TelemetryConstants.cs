@@ -9,8 +9,8 @@ internal static class TelemetryConstants
     public const string Version = "1.0.0";
 
     // Service Identity - Centralized for consistency (matches Docker Compose)
-    public const string ServiceName = "tccloudgames-user-app";
-    public const string ServiceNamespace = "tccloudgames-app-group";
+    public const string ServiceName = "tccloudgames-users";
+    public const string ServiceNamespace = "tccloudgames";
 
     // Meter Names for OpenTelemetry Metrics
     public const string UserMeterName = "TC.CloudGames.Users.Api.Metrics";
@@ -60,8 +60,8 @@ internal static class TelemetryConstants
         var otlpEndpoint = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT");
         var otlpHeaders = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_HEADERS");
         var otlpProtocol = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_PROTOCOL");
-        var grafanaApiToken = Environment.GetEnvironmentVariable("GRAFANA_API_TOKEN");
-        var grafanaPrometheusToken = Environment.GetEnvironmentVariable("GRAFANA_PROMETHEUS_TOKEN");
+        var grafanaApiToken = Environment.GetEnvironmentVariable("GRAFANA_LOGS_API_TOKEN");
+        var grafanaPrometheusToken = Environment.GetEnvironmentVariable("GRAFANA_OTEL_PROMETHEUS_API_TOKEN");
 
         logger.LogInformation("OTLP Endpoint: {OtlpEndpoint}", string.IsNullOrEmpty(otlpEndpoint) ? "NOT SET" : otlpEndpoint);
         logger.LogInformation("OTLP Headers: {OtlpHeaders}", string.IsNullOrEmpty(otlpHeaders) ? "NOT SET" : "***CONFIGURED***");
