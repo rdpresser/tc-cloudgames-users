@@ -1,18 +1,11 @@
 var builder = WebApplication.CreateBuilder(args);
 
-//**************************************************************
-// Add services default using sharedKernel project
-////builder.AddServiceDefaults();
-
 // Configure environment variables (will skip if running under .NET Aspire)
 builder.ConfigureEnvironmentVariables();
 
 // Configure Serilog as logging provider
 builder.Host.UseCustomSerilog(builder.Configuration);
-
-//***************** ADICIONAR **************************************************/
-//builder.AddCustomLoggingTelemetry()
-//********************************************************************************/
+builder.AddCustomLoggingTelemetry();
 
 // Register application, infrastructure and API services
 builder.Services.AddUserServices(builder);
@@ -27,10 +20,8 @@ if (!builder.Environment.IsEnvironment("Testing"))
 }
 
 // Get logger instance for Program and log telemetry configuration
-//***************** ADICIONAR **************************************************/
-//var logger = app.Services.GetRequiredService<ILogger<TC.CloudGames.Users.Api.Program>>()
-//TelemetryConstants.LogTelemetryConfiguration(logger)
-//********************************************************************************/
+var logger = app.Services.GetRequiredService<ILogger<TC.CloudGames.Users.Api.Program>>();
+TelemetryConstants.LogTelemetryConfiguration(logger);
 
 // Use metrics authentication middleware extension
 app.UseMetricsAuthentication();

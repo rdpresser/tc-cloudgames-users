@@ -13,7 +13,7 @@ internal static class TelemetryConstants
     public const string ServiceNamespace = "tccloudgames";
 
     // Meter Names for OpenTelemetry Metrics
-    public const string UserMeterName = "TC.CloudGames.Users.Api.Metrics";
+    public const string UsersMeterName = "TC.CloudGames.Users.Api.Metrics";
 
     // Activity Source Names for OpenTelemetry Tracing
     public const string UserActivitySource = "TC.CloudGames.Users.Api";
@@ -48,7 +48,7 @@ internal static class TelemetryConstants
         logger.LogInformation("Service Namespace: {ServiceNamespace}", ServiceNamespace);
         logger.LogInformation("Telemetry Version: {Version}", Version);
         logger.LogInformation("Correlation Header: {CorrelationIdHeader}", CorrelationIdHeader);
-        logger.LogInformation("User Meter: {UserMeterName}", UserMeterName);
+        logger.LogInformation("User Meter: {UserMeterName}", UsersMeterName);
         logger.LogInformation("User Activity Source: {UserActivitySource}", UserActivitySource);
         logger.LogInformation("Database Activity Source: {DatabaseActivitySource}", DatabaseActivitySource);
         logger.LogInformation("Cache Activity Source: {CacheActivitySource}", CacheActivitySource);

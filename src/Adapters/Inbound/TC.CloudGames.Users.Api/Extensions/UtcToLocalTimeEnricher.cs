@@ -36,6 +36,5 @@
                 throw new InvalidOperationException($"The timezone '{_timeZone.Id}' is invalid or corrupted.");
             }
         }
-
     }
 }
