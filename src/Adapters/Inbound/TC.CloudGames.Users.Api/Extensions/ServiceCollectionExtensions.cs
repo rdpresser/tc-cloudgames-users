@@ -97,7 +97,7 @@ namespace TC.CloudGames.Users.Api.Extensions
                                                     // Custom application meters
                         .AddMeter("Wolverine")
                         .AddMeter("Marten")
-                        .AddMeter(TelemetryConstants.UsersMeterName) // Custom game metrics
+                        .AddMeter(TelemetryConstants.UsersMeterName) // Custom users metrics
                                                                      // Export to both OTLP (Grafana Cloud) and Prometheus endpoint
                         .AddOtlpExporter()
                         .AddPrometheusExporter()) // Prometheus scraping endpoint
