@@ -44,8 +44,9 @@ namespace TC.CloudGames.Users.Application.UseCases.CreateUser
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unexpected error during aggregate mapping for email {Email}", command.Email);
-                throw;
+                _logger.LogError(ex, "Unexpected error during aggregate mapping for email {Email}. Error: {ErrorMessage}", 
+                    command.Email, ex.Message);
+                throw new InvalidOperationException($"Failed to map command to aggregate for email {command.Email}", ex);
             }
         }
 
@@ -67,8 +68,9 @@ namespace TC.CloudGames.Users.Application.UseCases.CreateUser
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unexpected error during aggregate validation for user {UserId}", aggregate.Id);
-                throw;
+                _logger.LogError(ex, "Unexpected error during aggregate validation for user {UserId}. Error: {ErrorMessage}", 
+                    aggregate.Id, ex.Message);
+                throw new InvalidOperationException($"Failed to validate aggregate for user {aggregate.Id}", ex);
             }
         }
 
@@ -117,12 +119,12 @@ namespace TC.CloudGames.Users.Application.UseCases.CreateUser
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, 
-                            "Failed to queue integration event {EventType} for user {UserId} with correlation {CorrelationId}. Event details: {@Event}",
+                            "Failed to queue integration event {EventType} for user {UserId} with correlation {CorrelationId}. Error: {ErrorMessage}",
                             evt.EventData.GetType().Name,
                             evt.AggregateId,
                             evt.CorrelationId,
-                            evt);
-                        throw;
+                            ex.Message);
+                        throw new InvalidOperationException($"Failed to publish integration event {evt.EventData.GetType().Name} for user {evt.AggregateId}", ex);
                     }
                 }
 
@@ -131,8 +133,9 @@ namespace TC.CloudGames.Users.Application.UseCases.CreateUser
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Critical error during integration events publication for user {UserId}", aggregate.Id);
-                throw;
+                _logger.LogError(ex, "Critical error during integration events publication for user {UserId}. Error: {ErrorMessage}", 
+                    aggregate.Id, ex.Message);
+                throw new InvalidOperationException($"Failed to publish integration events for user {aggregate.Id}", ex);
             }
         }
 
@@ -152,7 +155,8 @@ namespace TC.CloudGames.Users.Application.UseCases.CreateUser
             try
             {
                 // 1. Map command -> aggregate
-                _logger.LogDebug("Step 1/{StepTotal} - Mapping command to aggregate for operation {OperationId}", 1, 6, operationId);
+                _logger.LogDebug("Step {StepNumber}/{StepTotal} - Mapping command to aggregate for operation {OperationId}", 
+                    1, 6, operationId);
                 
                 var mapResult = await MapCommandToAggregateAsync(command, ct).ConfigureAwait(false);
                 if (!mapResult.IsSuccess)
@@ -166,11 +170,11 @@ namespace TC.CloudGames.Users.Application.UseCases.CreateUser
                 }
 
                 var aggregate = mapResult.Value;
-                _logger.LogDebug("Step 1/{StepTotal} completed - Aggregate {UserId} created for operation {OperationId}", 
+                _logger.LogDebug("Step {StepNumber}/{StepTotal} completed - Aggregate {UserId} created for operation {OperationId}", 
                     1, 6, aggregate.Id, operationId);
 
                 // 2. Validate aggregate (optional custom rules)
-                _logger.LogDebug("Step 2/{StepTotal} - Validating aggregate {UserId} for operation {OperationId}", 
+                _logger.LogDebug("Step {StepNumber}/{StepTotal} - Validating aggregate {UserId} for operation {OperationId}", 
                     2, 6, aggregate.Id, operationId);
                 
                 var validationResult = await ValidateAggregateAsync(aggregate, ct).ConfigureAwait(false);
@@ -184,68 +188,68 @@ namespace TC.CloudGames.Users.Application.UseCases.CreateUser
                     return BuildValidationErrorResult();
                 }
 
-                _logger.LogDebug("Step 2/{StepTotal} completed - Aggregate validation passed for user {UserId} operation {OperationId}", 
+                _logger.LogDebug("Step {StepNumber}/{StepTotal} completed - Aggregate validation passed for user {UserId} operation {OperationId}", 
                     2, 6, aggregate.Id, operationId);
 
                 // 3. Persist aggregate events (event sourcing)
-                _logger.LogDebug("Step 3/{StepTotal} - Persisting aggregate events for user {UserId} operation {OperationId}", 
+                _logger.LogDebug("Step {StepNumber}/{StepTotal} - Persisting aggregate events for user {UserId} operation {OperationId}", 
                     3, 6, aggregate.Id, operationId);
                 
                 try
                 {
                     await Repository.SaveAsync(aggregate, ct).ConfigureAwait(false);
-                    _logger.LogDebug("Step 3/{StepTotal} completed - Events saved for user {UserId} operation {OperationId}", 
+                    _logger.LogDebug("Step {StepNumber}/{StepTotal} completed - Events saved for user {UserId} operation {OperationId}", 
                         3, 6, aggregate.Id, operationId);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, 
-                        "Step 3/{StepTotal} failed - Error saving aggregate events for user {UserId} operation {OperationId}. Repository type: {RepositoryType}",
-                        3, 6, aggregate.Id, operationId, Repository.GetType().Name);
-                    throw;
+                        "Step {StepNumber}/{StepTotal} failed - Error saving aggregate events for user {UserId} operation {OperationId}. Repository type: {RepositoryType}. Error: {ErrorMessage}",
+                        3, 6, aggregate.Id, operationId, Repository.GetType().Name, ex.Message);
+                    throw new InvalidOperationException($"Failed to save events for user {aggregate.Id} in operation {operationId}", ex);
                 }
 
                 // 4. Publish integration events via outbox
-                _logger.LogDebug("Step 4/{StepTotal} - Publishing integration events for user {UserId} operation {OperationId}", 
+                _logger.LogDebug("Step {StepNumber}/{StepTotal} - Publishing integration events for user {UserId} operation {OperationId}", 
                     4, 6, aggregate.Id, operationId);
                 
                 try
                 {
                     await PublishIntegrationEventsAsync(aggregate, ct).ConfigureAwait(false);
-                    _logger.LogDebug("Step 4/{StepTotal} completed - Integration events published for user {UserId} operation {OperationId}", 
+                    _logger.LogDebug("Step {StepNumber}/{StepTotal} completed - Integration events published for user {UserId} operation {OperationId}", 
                         4, 6, aggregate.Id, operationId);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, 
-                        "Step 4/{StepTotal} failed - Error publishing integration events for user {UserId} operation {OperationId}. Outbox type: {OutboxType}",
-                        4, 6, aggregate.Id, operationId, _outbox.GetType().Name);
-                    throw;
+                        "Step {StepNumber}/{StepTotal} failed - Error publishing integration events for user {UserId} operation {OperationId}. Outbox type: {OutboxType}. Error: {ErrorMessage}",
+                        4, 6, aggregate.Id, operationId, _outbox.GetType().Name, ex.Message);
+                    throw new InvalidOperationException($"Failed to publish events for user {aggregate.Id} in operation {operationId}", ex);
                 }
 
                 // 5. Commit session (persist + flush outbox atomically)
-                _logger.LogDebug("Step 5/{StepTotal} - Committing session for user {UserId} operation {OperationId}", 
+                _logger.LogDebug("Step {StepNumber}/{StepTotal} - Committing session for user {UserId} operation {OperationId}", 
                     5, 6, aggregate.Id, operationId);
                 
                 try
                 {
                     await Repository.CommitAsync(aggregate, ct).ConfigureAwait(false);
-                    _logger.LogDebug("Step 5/{StepTotal} completed - Session committed for user {UserId} operation {OperationId}", 
+                    _logger.LogDebug("Step {StepNumber}/{StepTotal} completed - Session committed for user {UserId} operation {OperationId}", 
                         5, 6, aggregate.Id, operationId);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, 
-                        "Step 5/{StepTotal} failed - Error committing session for user {UserId} operation {OperationId}. Repository type: {RepositoryType}",
-                        5, 6, aggregate.Id, operationId, Repository.GetType().Name);
-                    throw;
+                        "Step {StepNumber}/{StepTotal} failed - Error committing session for user {UserId} operation {OperationId}. Repository type: {RepositoryType}. Error: {ErrorMessage}",
+                        5, 6, aggregate.Id, operationId, Repository.GetType().Name, ex.Message);
+                    throw new InvalidOperationException($"Failed to commit session for user {aggregate.Id} in operation {operationId}", ex);
                 }
 
                 _logger.LogInformation("User {UserId} created successfully and events committed for operation {OperationId}", 
                     aggregate.Id, operationId);
 
                 // 6. Map response
-                _logger.LogDebug("Step 6/{StepTotal} - Mapping response for user {UserId} operation {OperationId}", 
+                _logger.LogDebug("Step {StepNumber}/{StepTotal} - Mapping response for user {UserId} operation {OperationId}", 
                     6, 6, aggregate.Id, operationId);
                 
                 try
@@ -259,40 +263,41 @@ namespace TC.CloudGames.Users.Application.UseCases.CreateUser
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, 
-                        "Step 6/{StepTotal} failed - Error mapping response for user {UserId} operation {OperationId}",
-                        6, 6, aggregate.Id, operationId);
-                    throw;
+                        "Step {StepNumber}/{StepTotal} failed - Error mapping response for user {UserId} operation {OperationId}. Error: {ErrorMessage}",
+                        6, 6, aggregate.Id, operationId, ex.Message);
+                    throw new InvalidOperationException($"Failed to map response for user {aggregate.Id} in operation {operationId}", ex);
                 }
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException ex)
             {
-                _logger.LogWarning("Operation {OperationId} was cancelled for email {Email}", operationId, command.Email);
-                throw;
+                _logger.LogWarning(ex, "Operation {OperationId} was cancelled for email {Email}. Cancellation reason: {CancellationReason}", 
+                    operationId, command.Email, ex.Message);
+                throw new OperationCanceledException($"User creation operation {operationId} was cancelled", ex);
             }
             catch (TimeoutException ex)
             {
                 _logger.LogError(ex, "Operation {OperationId} timed out for email {Email}. Timeout details: {TimeoutMessage}", 
                     operationId, command.Email, ex.Message);
-                throw;
+                throw new TimeoutException($"User creation operation {operationId} timed out", ex);
             }
             catch (InvalidOperationException ex)
             {
                 _logger.LogError(ex, "Invalid operation during user creation {OperationId} for email {Email}. Details: {ErrorMessage}", 
                     operationId, command.Email, ex.Message);
-                throw;
+                throw new InvalidOperationException($"Invalid operation during user creation {operationId}", ex);
             }
             catch (UnauthorizedAccessException ex)
             {
                 _logger.LogError(ex, "Unauthorized access during user creation {OperationId} for email {Email}. User: {CurrentUserId}", 
                     operationId, command.Email, UserContext.Id);
-                throw;
+                throw new UnauthorizedAccessException($"Unauthorized access during user creation {operationId}", ex);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, 
                     "Critical error during user creation operation {OperationId} for email {Email}. Current user: {CurrentUserId}. Error type: {ErrorType}",
                     operationId, command.Email, UserContext.Id, ex.GetType().Name);
-                throw;
+                throw new InvalidOperationException($"Critical error during user creation operation {operationId}", ex);
             }
         }
     }
