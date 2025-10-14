@@ -61,7 +61,7 @@ namespace TC.CloudGames.Users.Api.Extensions
         public static IApplicationBuilder UseCustomMiddlewares(this IApplicationBuilder app)
         {
             // Enables proxy headers (important for ACA)
-            app.UseForwardedHeaders(new ForwardedHeadersOptions { ForwardedHeaders = ForwardedHeaders.All });
+            ////app.UseForwardedHeaders(new ForwardedHeadersOptions { ForwardedHeaders = ForwardedHeaders.All });
 
             app.UseCustomExceptionHandler()
                 .UseCorrelationMiddleware()
