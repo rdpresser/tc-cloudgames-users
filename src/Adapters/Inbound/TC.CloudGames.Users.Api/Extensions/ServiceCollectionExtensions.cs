@@ -95,7 +95,7 @@ namespace TC.CloudGames.Users.Api.Extensions
                         .AddMeter("Microsoft.AspNetCore.Server.Kestrel")
                         .AddMeter("System.Net.Http")
                         .AddMeter("System.Runtime") // .NET runtime metrics
-                        // Custom application meters
+                                                    // Custom application meters
                         .AddMeter("Wolverine")
                         .AddMeter("Marten")
                         .AddMeter(TelemetryConstants.UsersMeterName) // Custom users metrics
@@ -307,10 +307,10 @@ namespace TC.CloudGames.Users.Api.Extensions
                 ////opts.Policies.OnException<Exception>().RetryTimes(5);
                 opts.Policies.OnAnyException()
                     .RetryWithCooldown(
-                        TimeSpan.FromMilliseconds(200), 
-                        TimeSpan.FromMilliseconds(400), 
-                        TimeSpan.FromMilliseconds(600), 
-                        TimeSpan.FromMilliseconds(800), 
+                        TimeSpan.FromMilliseconds(200),
+                        TimeSpan.FromMilliseconds(400),
+                        TimeSpan.FromMilliseconds(600),
+                        TimeSpan.FromMilliseconds(800),
                         TimeSpan.FromMilliseconds(1000)
                     );
 
@@ -373,11 +373,19 @@ namespace TC.CloudGames.Users.Api.Extensions
                         break;
 
                     case BrokerType.AzureServiceBus when broker.ServiceBusSettings is { } sb:
-                        var azureOpts = opts.UseAzureServiceBus(sb.ConnectionString);
+                        var azureOpts = opts.UseAzureServiceBus(sb.ConnectionString,
+                            configure =>
+                            {
+                                configure.Identifier = typeof(Program).Assembly.GetName().Name;
+                            });
 
                         if (sb.AutoProvision) azureOpts.AutoProvision();
                         if (sb.AutoPurgeOnStartup) azureOpts.AutoPurgeOnStartup();
-                        if (sb.UseControlQueues) azureOpts.EnableWolverineControlQueues();
+                        if (sb.UseControlQueues)
+                        {
+                            azureOpts.EnableWolverineControlQueues();
+                            azureOpts.SystemQueuesAreEnabled(true);
+                        }
 
                         // Durable outbox for all sending endpoints
                         opts.Policies.UseDurableOutboxOnAllSendingEndpoints();
