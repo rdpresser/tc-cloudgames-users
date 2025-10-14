@@ -3,6 +3,7 @@ using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using Wolverine.ErrorHandling;
 
 namespace TC.CloudGames.Users.Api.Extensions
 {
@@ -94,7 +95,7 @@ namespace TC.CloudGames.Users.Api.Extensions
                         .AddMeter("Microsoft.AspNetCore.Server.Kestrel")
                         .AddMeter("System.Net.Http")
                         .AddMeter("System.Runtime") // .NET runtime metrics
-                                                    // Custom application meters
+                        // Custom application meters
                         .AddMeter("Wolverine")
                         .AddMeter("Marten")
                         .AddMeter(TelemetryConstants.UsersMeterName) // Custom users metrics
@@ -169,13 +170,14 @@ namespace TC.CloudGames.Users.Api.Extensions
                         })
                         .AddFusionCacheInstrumentation()
                         .AddNpgsql()
-                        .AddRedisInstrumentation()
+                        //.AddRedisInstrumentation()
                         .AddSource(TelemetryConstants.UserActivitySource)
                         .AddSource(TelemetryConstants.DatabaseActivitySource)
                         .AddSource(TelemetryConstants.CacheActivitySource)
-                        .AddSource("Wolverine")
-                        .AddSource("Marten")
-                        .AddOtlpExporter());
+                        //.AddSource("Wolverine")
+                        //.AddSource("Marten")
+                        .AddOtlpExporter()
+                    );
 
             // Register custom metrics classes
             services.AddSingleton<UserMetrics>();
@@ -292,10 +294,22 @@ namespace TC.CloudGames.Users.Api.Extensions
                 opts.Durability.MessageStorageSchemaName = wolverineSchema;
 
                 // -------------------------------
-                // Envelope customizer and routing convention
+                // Persist Wolverine messages in Postgres using the same schema
                 // -------------------------------
-                ////opts.Services.AddSingleton<IEnvelopeCustomizer, GenericEventContextEnvelopeCustomizer>();
-                ////opts.Services.AddSingleton<IMessageRoutingConvention, EventContextRoutingConvention>();
+                opts.PersistMessagesWithPostgresql(
+                    PostgresHelper.Build(builder.Configuration).ConnectionString,
+                    wolverineSchema
+                );
+
+                ////opts.Policies.OnException<Exception>().RetryTimes(5);
+                opts.Policies.OnAnyException()
+                    .RetryWithCooldown(
+                        TimeSpan.FromMilliseconds(200), 
+                        TimeSpan.FromMilliseconds(400), 
+                        TimeSpan.FromMilliseconds(600), 
+                        TimeSpan.FromMilliseconds(800), 
+                        TimeSpan.FromMilliseconds(1000)
+                    );
 
                 // -------------------------------
                 // Enable durable local queues and auto transaction application
@@ -372,31 +386,56 @@ namespace TC.CloudGames.Users.Api.Extensions
                             .ToAzureServiceBusTopic(topicName)
                             .CustomizeOutgoing(e => e.Headers["DomainAggregate"] = "UserAggregate")
                             .BufferedInMemory()
-                            .UseDurableOutbox();
+                            .UseDurableOutbox()
+                            .CircuitBreaking(configure =>
+                            {
+                                configure.FailuresBeforeCircuitBreaks = 5;
+                                configure.MaximumEnvelopeRetryStorage = 10;
+                            });
 
                         opts.PublishMessage<EventContext<UserUpdatedIntegrationEvent>>()
                             .ToAzureServiceBusTopic(topicName)
                             .CustomizeOutgoing(e => e.Headers["DomainAggregate"] = "UserAggregate")
                             .BufferedInMemory()
-                            .UseDurableOutbox();
+                            .UseDurableOutbox()
+                            .CircuitBreaking(configure =>
+                            {
+                                configure.FailuresBeforeCircuitBreaks = 5;
+                                configure.MaximumEnvelopeRetryStorage = 10;
+                            });
 
                         opts.PublishMessage<EventContext<UserRoleChangedIntegrationEvent>>()
                             .ToAzureServiceBusTopic(topicName)
                             .CustomizeOutgoing(e => e.Headers["DomainAggregate"] = "UserAggregate")
                             .BufferedInMemory()
-                            .UseDurableOutbox();
+                            .UseDurableOutbox()
+                            .CircuitBreaking(configure =>
+                            {
+                                configure.FailuresBeforeCircuitBreaks = 5;
+                                configure.MaximumEnvelopeRetryStorage = 10;
+                            });
 
                         opts.PublishMessage<EventContext<UserActivatedIntegrationEvent>>()
                             .ToAzureServiceBusTopic(topicName)
                             .CustomizeOutgoing(e => e.Headers["DomainAggregate"] = "UserAggregate")
                             .BufferedInMemory()
-                            .UseDurableOutbox();
+                            .UseDurableOutbox()
+                            .CircuitBreaking(configure =>
+                            {
+                                configure.FailuresBeforeCircuitBreaks = 5;
+                                configure.MaximumEnvelopeRetryStorage = 10;
+                            });
 
                         opts.PublishMessage<EventContext<UserDeactivatedIntegrationEvent>>()
                             .ToAzureServiceBusTopic(topicName)
                             .CustomizeOutgoing(e => e.Headers["DomainAggregate"] = "UserAggregate")
                             .BufferedInMemory()
-                            .UseDurableOutbox();
+                            .UseDurableOutbox()
+                            .CircuitBreaking(configure =>
+                            {
+                                configure.FailuresBeforeCircuitBreaks = 5;
+                                configure.MaximumEnvelopeRetryStorage = 10;
+                            });
 
                         ////opts.PublishAllMessages()
                         ////    .ToAzureServiceBusTopic(topicName)
@@ -406,14 +445,6 @@ namespace TC.CloudGames.Users.Api.Extensions
 
                         break;
                 }
-
-                // -------------------------------
-                // Persist Wolverine messages in Postgres using the same schema
-                // -------------------------------
-                opts.PersistMessagesWithPostgresql(
-                    PostgresHelper.Build(builder.Configuration).ConnectionString,
-                    wolverineSchema
-                );
             });
 
             // -------------------------------

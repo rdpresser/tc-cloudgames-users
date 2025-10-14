@@ -1,4 +1,5 @@
-﻿using TC.CloudGames.SharedKernel.Infrastructure.Database.Initializer;
+﻿using Microsoft.AspNetCore.HttpOverrides;
+using TC.CloudGames.SharedKernel.Infrastructure.Database.Initializer;
 
 namespace TC.CloudGames.Users.Api.Extensions
 {
@@ -59,8 +60,10 @@ namespace TC.CloudGames.Users.Api.Extensions
         // Configures custom middlewares including HTTPS redirection, exception handling, correlation, logging, and health checks
         public static IApplicationBuilder UseCustomMiddlewares(this IApplicationBuilder app)
         {
-            app.UseHttpsRedirection()
-                .UseCustomExceptionHandler()
+            // Enables proxy headers (important for ACA)
+            app.UseForwardedHeaders(new ForwardedHeadersOptions { ForwardedHeaders = ForwardedHeaders.All });
+
+            app.UseCustomExceptionHandler()
                 .UseCorrelationMiddleware()
                 .UseMiddleware<TelemetryMiddleware>() // Add telemetry middleware after correlation
                 .UseSerilogRequestLogging()
