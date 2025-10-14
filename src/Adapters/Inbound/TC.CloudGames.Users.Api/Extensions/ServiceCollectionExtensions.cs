@@ -290,8 +290,11 @@ namespace TC.CloudGames.Users.Api.Extensions
                 // -------------------------------
 
                 opts.UseSystemTextJsonForSerialization();
+                opts.ApplicationAssembly = typeof(Program).Assembly;
+
                 const string wolverineSchema = "wolverine";
                 opts.Durability.MessageStorageSchemaName = wolverineSchema;
+                opts.ServiceName = "tccloudgames";
 
                 // -------------------------------
                 // Persist Wolverine messages in Postgres using the same schema
