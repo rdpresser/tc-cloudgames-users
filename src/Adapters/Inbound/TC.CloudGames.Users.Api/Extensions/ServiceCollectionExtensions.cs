@@ -383,6 +383,13 @@ namespace TC.CloudGames.Users.Api.Extensions
                             azureOpts.SystemQueuesAreEnabled(true);
                         }
 
+                        azureOpts.UseTopicAndSubscriptionConventionalRouting(configure =>
+                        {
+                            configure.SubscriptionNameForListener(t => t.Name.ToLowerInvariant());
+                            configure.TopicNameForListener(t => t.Name.ToLowerInvariant());
+                            configure.TopicNameForSender(t => t.Name.ToLowerInvariant());
+                        });
+
                         // Durable outbox for all sending endpoints
                         opts.Policies.UseDurableOutboxOnAllSendingEndpoints();
                         var topicName = $"{sb.TopicName}-topic";
