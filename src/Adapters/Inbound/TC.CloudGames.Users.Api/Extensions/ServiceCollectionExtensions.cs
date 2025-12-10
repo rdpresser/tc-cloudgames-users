@@ -4,6 +4,7 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Wolverine.ErrorHandling;
+using TC.CloudGames.SharedKernel.Infrastructure.Telemetry;
 
 namespace TC.CloudGames.Users.Api.Extensions
 {
@@ -41,6 +42,9 @@ namespace TC.CloudGames.Users.Api.Extensions
             var instanceId = Environment.MachineName;
             var serviceName = TelemetryConstants.ServiceName;
             var serviceNamespace = TelemetryConstants.ServiceNamespace;
+
+            // Carrega configuração do Grafana via Helper (para verificar se Agent está habilitado)
+            var grafanaSettings = GrafanaHelper.Build(configuration);
 
             // ==============================================================
             // MÉTRICAS (Prometheus Exporter)
@@ -82,7 +86,8 @@ namespace TC.CloudGames.Users.Api.Extensions
                 })
 
                 // ==============================================================
-                // TRACES (OTLP Exporter para Grafana Cloud)
+                // TRACES (OTLP Exporter para Grafana Agent)
+                // Apenas configurado se Grafana Agent estiver habilitado
                 // ==============================================================
                 .WithTracing(tracing =>
                 {
@@ -141,15 +146,39 @@ namespace TC.CloudGames.Users.Api.Extensions
                         // Custom sources (Wolverine, Marten, Users)
                         .AddSource(TelemetryConstants.UserActivitySource)
                         .AddSource(TelemetryConstants.DatabaseActivitySource)
-                        .AddSource(TelemetryConstants.CacheActivitySource)
-                        // Exporta traces para o Grafana Cloud OTLP Gateway
-                        .AddOtlpExporter(otlp =>
+                        .AddSource(TelemetryConstants.CacheActivitySource);
+
+                    // ========================================================
+                    // OTLP Exporter (CONDICIONAL - apenas se Agent habilitado)
+                    // ========================================================
+                    if (grafanaSettings.Agent.Enabled)
+                    {
+                        tracing.AddOtlpExporter(otlp =>
                         {
-                            otlp.Endpoint = new Uri(configuration["Grafana:Otlp:Endpoint"] ??
-                                                    "https://otlp-gateway-prod-sa-east-1.grafana.net");
-                            otlp.Headers = configuration["Grafana:Otlp:Headers"] ??
-                                           $"Authorization=Bearer {Environment.GetEnvironmentVariable("GRAFANA_OTLP_API_TOKEN")}";
+                            otlp.Endpoint = new Uri(grafanaSettings.Otlp.Endpoint);
+                            otlp.Protocol = grafanaSettings.Otlp.Protocol.ToLowerInvariant() == "grpc"
+                                ? OpenTelemetry.Exporter.OtlpExportProtocol.Grpc
+                                : OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
+
+                            // Headers (se houver - normalmente não precisa com Grafana Agent local)
+                            if (!string.IsNullOrWhiteSpace(grafanaSettings.Otlp.Headers))
+                            {
+                                otlp.Headers = grafanaSettings.Otlp.Headers;
+                            }
+
+                            // Timeout
+                            otlp.TimeoutMilliseconds = grafanaSettings.Otlp.TimeoutSeconds * 1000;
                         });
+
+                        // Log via Console.WriteLine (evita BuildServiceProvider)
+                        Console.WriteLine($"[INFO] OTLP Exporter configured - Endpoint: {grafanaSettings.Otlp.Endpoint}, Protocol: {grafanaSettings.Otlp.Protocol}");
+                    }
+                    else
+                    {
+                        // Log via Console.WriteLine (evita BuildServiceProvider)
+                        Console.WriteLine("[WARN] Grafana Agent is DISABLED - Traces will be generated but NOT exported.");
+                        Console.WriteLine("[WARN] To enable: Set Grafana:Agent:Enabled=true or GRAFANA_AGENT_ENABLED=true");
+                    }
                 });
 
             // ==============================================================
@@ -538,6 +567,7 @@ namespace TC.CloudGames.Users.Api.Extensions
             services.Configure<PostgresOptions>(configuration.GetSection("Database"));
             services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
             services.Configure<CacheProviderSettings>(configuration.GetSection("Cache"));
+            services.Configure<GrafanaOptions>(configuration.GetSection("Grafana"));
 
             return services;
         }

@@ -20,7 +20,7 @@ if (!builder.Environment.IsEnvironment("Testing"))
 
 // Get logger instance for Program and log telemetry configuration
 var logger = app.Services.GetRequiredService<ILogger<TC.CloudGames.Users.Api.Program>>();
-TelemetryConstants.LogTelemetryConfiguration(logger);
+TelemetryConstants.LogTelemetryConfiguration(logger, app.Configuration);
 
 // Use metrics authentication middleware extension
 app.UseMetricsAuthentication();
