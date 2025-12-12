@@ -1,16 +1,17 @@
 ﻿using Npgsql;
+using OpenTelemetry;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using Wolverine.ErrorHandling;
 using TC.CloudGames.SharedKernel.Infrastructure.Telemetry;
+using Wolverine.ErrorHandling;
 
 namespace TC.CloudGames.Users.Api.Extensions
 {
     internal static class ServiceCollectionExtensions
     {
-        public static IServiceCollection AddUserServices(this IServiceCollection services, WebApplicationBuilder builder)
+        public static IServiceCollection AddUserServices(this IServiceCollection services, IHostApplicationBuilder builder)
         {
             // Configure FluentValidation globally
             ConfigureFluentValidationGlobals();
@@ -30,12 +31,54 @@ namespace TC.CloudGames.Users.Api.Extensions
                 .AddCustomFastEndpoints()
                 .ConfigureAppSettings(builder.Configuration)
                 .AddCustomHealthCheck()
-                .AddCustomOpenTelemetry(builder.Configuration);
+                .AddCustomOpenTelemetry(builder, builder.Configuration);
 
             return services;
         }
 
-        public static IServiceCollection AddCustomOpenTelemetry(this IServiceCollection services, IConfiguration configuration)
+        private static IHostApplicationBuilder AddOpenTelemetryExporters(this IHostApplicationBuilder builder)
+        {
+            var useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
+            
+            // Carrega configuração do Grafana via Helper (para verificar se Agent está habilitado)
+            var grafanaSettings = GrafanaHelper.Build(builder.Configuration);
+
+            if (grafanaSettings.Agent.Enabled && useOtlpExporter)
+            {
+                // Configuração manual do OTLP Exporter com as settings do Grafana
+                builder.Services.AddOpenTelemetry()
+                    .WithTracing(tracing =>
+                    {
+                        tracing.AddOtlpExporter(otlp =>
+                        {
+                            otlp.Endpoint = new Uri(grafanaSettings.Otlp.Endpoint);
+                            otlp.Protocol = grafanaSettings.Otlp.Protocol.ToLowerInvariant() == "grpc"
+                                ? OpenTelemetry.Exporter.OtlpExportProtocol.Grpc
+                                : OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
+
+                            // Headers (se houver - normalmente não precisa com Grafana Agent local)
+                            if (!string.IsNullOrWhiteSpace(grafanaSettings.Otlp.Headers))
+                            {
+                                otlp.Headers = grafanaSettings.Otlp.Headers;
+                            }
+
+                            // Timeout
+                            otlp.TimeoutMilliseconds = grafanaSettings.Otlp.TimeoutSeconds * 1000;
+                        });
+                    });
+
+                Console.WriteLine($"[INFO] OTLP Exporter configured - Endpoint: {grafanaSettings.Otlp.Endpoint}, Protocol: {grafanaSettings.Otlp.Protocol}");
+            }
+            else
+            {
+                Console.WriteLine("[WARN] Grafana Agent is DISABLED - Traces will be generated but NOT exported.");
+                Console.WriteLine("[WARN] To enable: Set Grafana:Agent:Enabled=true or GRAFANA_AGENT_ENABLED=true");
+            }
+
+            return builder;
+        }
+
+        public static IServiceCollection AddCustomOpenTelemetry(this IServiceCollection services, IHostApplicationBuilder builder, IConfiguration configuration)
         {
             var serviceVersion = typeof(Program).Assembly.GetName().Version?.ToString() ?? TelemetryConstants.Version;
             var environment = configuration["ASPNETCORE_ENVIRONMENT"] ?? "Development";
@@ -43,15 +86,19 @@ namespace TC.CloudGames.Users.Api.Extensions
             var serviceName = TelemetryConstants.ServiceName;
             var serviceNamespace = TelemetryConstants.ServiceNamespace;
 
-            // Carrega configuração do Grafana via Helper (para verificar se Agent está habilitado)
-            var grafanaSettings = GrafanaHelper.Build(configuration);
+            // Logging via OpenTelemetry
+            builder.Logging.AddOpenTelemetry(logging =>
+            {
+                logging.IncludeFormattedMessage = true;
+                logging.IncludeScopes = true;
+            });
 
             // ==============================================================
-            // MÉTRICAS (Prometheus Exporter)
+            // MÉTRICAS E TRACES
             // ==============================================================
             services.AddOpenTelemetry()
                 // Configura o ResourceBuilder (metadados enviados com métricas e traces)
-                .ConfigureResource(resource => resource.AddService(serviceName, serviceVersion: serviceVersion, serviceInstanceId: instanceId)
+                .ConfigureResource(resource => resource.AddService(serviceName, serviceNamespace: environment.ToLowerInvariant(), serviceVersion: serviceVersion, serviceInstanceId: instanceId)
                 .AddAttributes(new Dictionary<string, object>
                 {
                     ["deployment.environment"] = environment.ToLowerInvariant(),
@@ -84,11 +131,6 @@ namespace TC.CloudGames.Users.Api.Extensions
                         // Exporter Prometheus (para /metrics)
                         .AddPrometheusExporter();
                 })
-
-                // ==============================================================
-                // TRACES (OTLP Exporter para Grafana Agent)
-                // Apenas configurado se Grafana Agent estiver habilitado
-                // ==============================================================
                 .WithTracing(tracing =>
                 {
                     tracing
@@ -147,38 +189,6 @@ namespace TC.CloudGames.Users.Api.Extensions
                         .AddSource(TelemetryConstants.UserActivitySource)
                         .AddSource(TelemetryConstants.DatabaseActivitySource)
                         .AddSource(TelemetryConstants.CacheActivitySource);
-
-                    // ========================================================
-                    // OTLP Exporter (CONDICIONAL - apenas se Agent habilitado)
-                    // ========================================================
-                    if (grafanaSettings.Agent.Enabled)
-                    {
-                        tracing.AddOtlpExporter(otlp =>
-                        {
-                            otlp.Endpoint = new Uri(grafanaSettings.Otlp.Endpoint);
-                            otlp.Protocol = grafanaSettings.Otlp.Protocol.ToLowerInvariant() == "grpc"
-                                ? OpenTelemetry.Exporter.OtlpExportProtocol.Grpc
-                                : OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
-
-                            // Headers (se houver - normalmente não precisa com Grafana Agent local)
-                            if (!string.IsNullOrWhiteSpace(grafanaSettings.Otlp.Headers))
-                            {
-                                otlp.Headers = grafanaSettings.Otlp.Headers;
-                            }
-
-                            // Timeout
-                            otlp.TimeoutMilliseconds = grafanaSettings.Otlp.TimeoutSeconds * 1000;
-                        });
-
-                        // Log via Console.WriteLine (evita BuildServiceProvider)
-                        Console.WriteLine($"[INFO] OTLP Exporter configured - Endpoint: {grafanaSettings.Otlp.Endpoint}, Protocol: {grafanaSettings.Otlp.Protocol}");
-                    }
-                    else
-                    {
-                        // Log via Console.WriteLine (evita BuildServiceProvider)
-                        Console.WriteLine("[WARN] Grafana Agent is DISABLED - Traces will be generated but NOT exported.");
-                        Console.WriteLine("[WARN] To enable: Set Grafana:Agent:Enabled=true or GRAFANA_AGENT_ENABLED=true");
-                    }
                 });
 
             // ==============================================================
@@ -186,6 +196,9 @@ namespace TC.CloudGames.Users.Api.Extensions
             // ==============================================================
             services.AddSingleton<UserMetrics>();
             services.AddSingleton<SystemMetrics>();
+            
+            // Adiciona exporters (OTLP será configurado apenas se Grafana estiver habilitado)
+            builder.AddOpenTelemetryExporters();
 
             return services;
         }
