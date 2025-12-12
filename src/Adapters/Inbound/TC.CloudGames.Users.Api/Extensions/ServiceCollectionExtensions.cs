@@ -11,7 +11,7 @@ namespace TC.CloudGames.Users.Api.Extensions
 {
     internal static class ServiceCollectionExtensions
     {
-        public static IServiceCollection AddUserServices(this IServiceCollection services, IHostApplicationBuilder builder)
+        public static IServiceCollection AddUserServices(this IServiceCollection services, WebApplicationBuilder builder)
         {
             // Configure FluentValidation globally
             ConfigureFluentValidationGlobals();
