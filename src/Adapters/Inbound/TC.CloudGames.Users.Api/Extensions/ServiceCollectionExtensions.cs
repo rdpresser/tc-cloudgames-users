@@ -98,7 +98,7 @@ namespace TC.CloudGames.Users.Api.Extensions
             // ==============================================================
             services.AddOpenTelemetry()
                 // Configura o ResourceBuilder (metadados enviados com métricas e traces)
-                .ConfigureResource(resource => resource.AddService(serviceName, serviceNamespace: environment.ToLowerInvariant(), serviceVersion: serviceVersion, serviceInstanceId: instanceId)
+                .ConfigureResource(resource => resource.AddService(serviceName, serviceNamespace: serviceNamespace, serviceVersion: serviceVersion, serviceInstanceId: instanceId)
                 .AddAttributes(new Dictionary<string, object>
                 {
                     ["deployment.environment"] = environment.ToLowerInvariant(),
