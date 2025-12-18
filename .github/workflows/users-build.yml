@@ -6,11 +6,19 @@ on:
     paths:
       - 'services/users/**'
       - 'shared/common/**'
+      - 'src/**'
+      - 'test/**'
+      - '.github/workflows/**'
+      - 'services/users/.github/workflows/**'
   pull_request:
     branches: [main]
     paths:
       - 'services/users/**'
       - 'shared/common/**'
+      - 'src/**'
+      - 'test/**'
+      - '.github/workflows/**'
+      - 'services/users/.github/workflows/**'
   workflow_dispatch:
     inputs:
       environment:
@@ -192,11 +200,13 @@ jobs:
       # Azure Authentication
       # ─────────────────────────────────────────────────────────────────────────
       - name: 🔐 Azure Login
+        if: github.event_name != 'pull_request'
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: 🔗 Get ACR Info
+        if: github.event_name != 'pull_request'
         id: acr-info
         run: |
           ENV_PREFIX="${{ needs.validate.outputs.environment }}"
@@ -223,6 +233,7 @@ jobs:
           echo "📦 Image URI: $IMAGE_URI"
 
       - name: 🐳 Login to Azure Container Registry
+        if: github.event_name != 'pull_request'
         run: az acr login --name ${{ steps.acr-info.outputs.acr-name }}
 
       - name: ⚙️ Set up Docker Buildx
@@ -297,6 +308,7 @@ jobs:
       # Push to ACR
       # ─────────────────────────────────────────────────────────────────────────
       - name: 🚀 Push Docker Image to ACR
+        if: github.event_name != 'pull_request'
         uses: docker/build-push-action@v5
         with:
           context: ./tc-cloudgames-solution
@@ -312,6 +324,7 @@ jobs:
       # Verify Push
       # ─────────────────────────────────────────────────────────────────────────
       - name: ✅ Verify Image in ACR
+        if: github.event_name != 'pull_request'
         run: |
           echo "🔍 Verifying image in ACR..."
           az acr repository show-tags \
