@@ -40,12 +40,12 @@ namespace TC.CloudGames.Users.Api.Extensions
         {
             var useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
             
-            // Carrega configuração do Grafana via Helper (para verificar se Agent está habilitado)
+            // Load Grafana configuration via Helper (to check if Agent is enabled)
             var grafanaSettings = GrafanaHelper.Build(builder.Configuration);
 
             if (grafanaSettings.Agent.Enabled && useOtlpExporter)
             {
-                // Configuração manual do OTLP Exporter com as settings do Grafana
+                // Manual OTLP Exporter configuration with Grafana settings
                 builder.Services.AddOpenTelemetry()
                     .WithTracing(tracing =>
                     {
@@ -56,7 +56,7 @@ namespace TC.CloudGames.Users.Api.Extensions
                                 ? OpenTelemetry.Exporter.OtlpExportProtocol.Grpc
                                 : OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
 
-                            // Headers (se houver - normalmente não precisa com Grafana Agent local)
+                            // Headers (if any - normally not needed with local Grafana Agent)
                             if (!string.IsNullOrWhiteSpace(grafanaSettings.Otlp.Headers))
                             {
                                 otlp.Headers = grafanaSettings.Otlp.Headers;
@@ -94,10 +94,10 @@ namespace TC.CloudGames.Users.Api.Extensions
             });
 
             // ==============================================================
-            // MÉTRICAS E TRACES
+            // METRICS AND TRACES
             // ==============================================================
             services.AddOpenTelemetry()
-                // Configura o ResourceBuilder (metadados enviados com métricas e traces)
+                // Configure ResourceBuilder (metadata sent with metrics and traces)
                 .ConfigureResource(resource => resource.AddService(serviceName, serviceNamespace: serviceNamespace, serviceVersion: serviceVersion, serviceInstanceId: instanceId)
                 .AddAttributes(new Dictionary<string, object>
                 {
@@ -113,18 +113,18 @@ namespace TC.CloudGames.Users.Api.Extensions
                 .WithMetrics(metrics =>
                 {
                     metrics
-                        // Instrumentações padrão do .NET e ASP.NET Core
+                        // Standard .NET and ASP.NET Core instrumentation
                         .AddAspNetCoreInstrumentation()
                         .AddHttpClientInstrumentation()
-                        .AddRuntimeInstrumentation()   // CPU, memória, GC
+                        .AddRuntimeInstrumentation()   // CPU, memory, GC
                         .AddFusionCacheInstrumentation()
                         .AddNpgsqlInstrumentation()
-                        // Meters internos da plataforma
+                        // Internal platform meters
                         .AddMeter("Microsoft.AspNetCore.Hosting")
                         .AddMeter("Microsoft.AspNetCore.Server.Kestrel")
                         .AddMeter("System.Net.Http")
                         .AddMeter("System.Runtime")
-                        // Meters específicos da aplicação
+                        // Application-specific meters
                         .AddMeter("Wolverine")
                         .AddMeter("Marten")
                         .AddMeter(TelemetryConstants.UsersMeterName)
@@ -192,12 +192,12 @@ namespace TC.CloudGames.Users.Api.Extensions
                 });
 
             // ==============================================================
-            // REGISTROS CUSTOM DE MÉTRICAS
+            // CUSTOM METRICS REGISTRATION
             // ==============================================================
             services.AddSingleton<UserMetrics>();
             services.AddSingleton<SystemMetrics>();
             
-            // Adiciona exporters (OTLP será configurado apenas se Grafana estiver habilitado)
+            // Add exporters (OTLP will be configured only if Grafana is enabled)
             builder.AddOpenTelemetryExporters();
 
             return services;
@@ -503,7 +503,7 @@ namespace TC.CloudGames.Users.Api.Extensions
                     cfg.Converters.Add(new PasswordJsonConverter());
                     cfg.Converters.Add(new RoleJsonConverter());
 
-                    // Configurações extras, se necessário
+                    // Extra configurations, if needed
                     ////cfg.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
                     ////cfg.WriteIndented = true;
                 });
@@ -517,7 +517,7 @@ namespace TC.CloudGames.Users.Api.Extensions
                 // Register inline projections - for queries with index
                 options.Projections.Add<UserProjectionHandler>(ProjectionLifecycle.Inline);
 
-                // Snapshot automático do aggregate (para acelerar LoadAsync)
+                // Automatic aggregate snapshot (to accelerate LoadAsync)
                 options.Projections.Snapshot<UserAggregate>(SnapshotLifecycle.Inline);
 
                 // Auto-create databases/schemas
