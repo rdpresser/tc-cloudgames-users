@@ -42,6 +42,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════════
   validate:
     name: 🔍 Validate Trigger
+    permissions: {}
     runs-on: ubuntu-latest
     if: (github.event.pull_request.merged == true) || (github.event_name == 'workflow_dispatch') || (github.event_name == 'pull_request' && github.event.action != 'closed')
     outputs:
