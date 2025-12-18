@@ -151,6 +151,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════════
   test-skipped:
     name: 🚫 Tests Skipped
+    permissions: {}
     runs-on: ubuntu-latest
     needs: validate
     if: needs.validate.outputs.should-continue == 'true' && github.event.inputs.skip-tests == 'true'
