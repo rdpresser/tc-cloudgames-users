@@ -1,6 +1,10 @@
 name: 🏗️ Users API CI Pipeline
 
 env:
+  SERVICE_NAME: users-api
+  SOLUTION_FILE: TC.CloudGames.Users.sln
+  DOCKERFILE_PATH: services/users/src/Adapters/Inbound/TC.CloudGames.Users.Api/Dockerfile
+  WORKSPACE_PATH: tc-cloudgames-solution/services/users
   DOTNET_VERSION: '9.0.x'
 
 on:
@@ -21,8 +25,7 @@ on:
         default: 'dev-rodrigo'
         type: choice
         options:
-          - dev
-          - prod
+          - dev-rodrigo
       skip-tests:
         description: 'Skip unit tests (emergency only)'
         default: false
@@ -31,13 +34,6 @@ on:
         description: 'Skip Trivy security scan (emergency only)'
         default: false
         type: boolean
-
-env:
-  SERVICE_NAME: users-api
-  SOLUTION_FILE: TC.CloudGames.Users.sln
-  DOCKERFILE_PATH: services/users/src/Adapters/Inbound/TC.CloudGames.Users.Api/Dockerfile
-  WORKSPACE_PATH: tc-cloudgames-solution/services/users
-  DOTNET_VERSION: '9.0.x'
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════════════
