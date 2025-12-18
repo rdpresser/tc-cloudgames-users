@@ -1,23 +1,23 @@
-# ?? Grafana Agent Configuration Guide
+# üìä Grafana Agent Configuration Guide
 
-## ?? Overview
+## üîç Overview
 
-A aplicaÁ„o suporta export de **traces** para o **Grafana Cloud** atravÈs do **Grafana Agent**.
+The application supports **trace** export to **Grafana Cloud** through the **Grafana Agent**.
 
-**Arquitetura:**
-- **Logs:** Escritos em `stdout` (JSON) ? coletados pelo Grafana Agent ? enviados para Grafana Cloud Loki
-- **Traces:** Gerados via OpenTelemetry ? exportados via OTLP ? Grafana Agent ? Grafana Cloud Tempo
-- **Metrics:** Expostos no endpoint `/metrics` ? scraped pelo Grafana Agent ? enviados para Grafana Cloud Prometheus
+**Architecture:**
+- **Logs:** Written to `stdout` (JSON) ‚Üí collected by Grafana Agent ‚Üí sent to Grafana Cloud Loki
+- **Traces:** Generated via OpenTelemetry ‚Üí exported via OTLP ‚Üí Grafana Agent ‚Üí Grafana Cloud Tempo
+- **Metrics:** Exposed on `/metrics` endpoint ‚Üí scraped by Grafana Agent ‚Üí sent to Grafana Cloud Prometheus
 
-**Comportamento:**
-- ? Se `Grafana.Agent.Enabled = true` ? Traces s„o exportados via OTLP
-- ?? Se `Grafana.Agent.Enabled = false` ? Traces s„o gerados mas **N√O exportados**
+**Behavior:**
+- ‚úÖ If `Grafana.Agent.Enabled = true` ‚Üí Traces are exported via OTLP
+- ‚ùå If `Grafana.Agent.Enabled = false` ‚Üí Traces are generated but **NOT exported**
 
 ---
 
-## ?? ConfiguraÁ„o
+## ‚öôÔ∏è Configuration
 
-### **OpÁ„o 1: appsettings.json**
+### **Option 1: appsettings.json**
 
 ```json
 {
@@ -27,7 +27,7 @@ A aplicaÁ„o suporta export de **traces** para o **Grafana Cloud** atravÈs do **G
       "OtlpGrpcPort": 4317,
       "OtlpHttpPort": 4318,
       "MetricsPort": 12345,
-      "Enabled": true  // ? Controla export de traces
+      "Enabled": true  // ‚úÖ Controls trace export
     },
     "Otlp": {
       "Endpoint": "http://localhost:4317",
@@ -40,13 +40,13 @@ A aplicaÁ„o suporta export de **traces** para o **Grafana Cloud** atravÈs do **G
 }
 ```
 
-### **OpÁ„o 2: Environment Variables** (sobrescreve appsettings)
+### **Option 2: Environment Variables** (overrides appsettings)
 
 ```sh
-# Habilitar/Desabilitar Agent
-GRAFANA_AGENT_ENABLED=true   # ou false
+# Enable/Disable Agent
+GRAFANA_AGENT_ENABLED=true   # or false
 
-# ConfiguraÁıes do Agent
+# Agent Configuration
 GRAFANA_AGENT_HOST=localhost
 GRAFANA_AGENT_OTLP_GRPC_PORT=4317
 GRAFANA_AGENT_OTLP_HTTP_PORT=4318
@@ -61,57 +61,57 @@ OTEL_EXPORTER_OTLP_INSECURE=true
 
 ---
 
-## ?? Telemetry Stack
+## üì° Telemetry Stack
 
 ### **Logs**
-- **Serilog** ? `stdout` (JSON) ? **Grafana Agent** ? **Grafana Cloud Loki**
-- ?? **Independente** da flag `Agent.Enabled` (sempre escrito no stdout)
+- **Serilog** ‚Üí `stdout` (JSON) ‚Üí **Grafana Agent** ‚Üí **Grafana Cloud Loki**
+- ‚úÖ **Independent** of `Agent.Enabled` flag (always written to stdout)
 
 ### **Traces**
-- **OpenTelemetry** ? OTLP Exporter ? **Grafana Agent** ? **Grafana Cloud Tempo**
-- ? **Depende** da flag `Agent.Enabled`
-  - `true`: Exporta via OTLP
-  - `false`: Gera traces localmente, mas **n„o exporta**
+- **OpenTelemetry** ‚Üí OTLP Exporter ‚Üí **Grafana Agent** ‚Üí **Grafana Cloud Tempo**
+- ‚ö†Ô∏è **Depends** on `Agent.Enabled` flag
+  - `true`: Exports via OTLP
+  - `false`: Generates traces locally, but **does not export**
 
 ### **Metrics**
-- **Prometheus** ? `/metrics` endpoint ? **Grafana Agent** (scrape) ? **Grafana Cloud Prometheus**
-- ?? **Independente** da flag `Agent.Enabled` (endpoint sempre disponÌvel)
+- **Prometheus** ‚Üí `/metrics` endpoint ‚Üí **Grafana Agent** (scrape) ‚Üí **Grafana Cloud Prometheus**
+- ‚úÖ **Independent** of `Agent.Enabled` flag (endpoint always available)
 
 ---
 
-## ?? Cen·rios de Uso
+## üéØ Usage Scenarios
 
-### **Scenario 1: Development Local (SEM Grafana Agent)**
+### **Scenario 1: Local Development (WITHOUT Grafana Agent)**
 
 ```json
 {
   "Grafana": {
     "Agent": {
-      "Enabled": false  // ? Desabilita export
+      "Enabled": false  // ‚ùå Disables export
     }
   }
 }
 ```
 
-**Resultado:**
-- ? Logs: escritos no console (stdout)
-- ?? Traces: gerados, mas **n„o exportados**
-- ? Metrics: disponÌveis em `/metrics`
+**Result:**
+- ‚úÖ Logs: written to console (stdout)
+- ‚ö†Ô∏è Traces: generated, but **not exported**
+- ‚úÖ Metrics: available at `/metrics`
 
-**Comportamento esperado:**
+**Expected behavior:**
 ```
 [WARN] Grafana Agent is DISABLED - Traces will be generated but NOT exported.
 [WARN] To enable: Set Grafana:Agent:Enabled=true or GRAFANA_AGENT_ENABLED=true
 ```
 
-**Quando usar:**
-- Development local **sem Docker**
-- N„o quer rodar Grafana Agent localmente
-- Apenas validando lÛgica da aplicaÁ„o
+**When to use:**
+- Local development **without Docker**
+- Don't want to run Grafana Agent locally
+- Only validating application logic
 
 ---
 
-### **Scenario 2: Development com Docker Compose**
+### **Scenario 2: Development with Docker Compose**
 
 ```json
 {
@@ -124,10 +124,10 @@ OTEL_EXPORTER_OTLP_INSECURE=true
 }
 ```
 
-**Resultado:**
-- ? Logs: `stdout` ? Agent ? Grafana Cloud Loki
-- ? Traces: OTLP ? Agent ? Grafana Cloud Tempo
-- ? Metrics: `/metrics` ? Agent ? Grafana Cloud Prometheus
+**Result:**
+- ‚úÖ Logs: `stdout` ‚Üí Agent ‚Üí Grafana Cloud Loki
+- ‚úÖ Traces: OTLP ‚Üí Agent ‚Üí Grafana Cloud Tempo
+- ‚úÖ Metrics: `/metrics` ‚Üí Agent ‚Üí Grafana Cloud Prometheus
 
 **docker-compose.yml:**
 ```yaml
@@ -157,58 +157,58 @@ services:
 }
 ```
 
-**Ou via Environment Variables:**
+**Or via Environment Variables:**
 ```sh
 GRAFANA_AGENT_ENABLED=true
 GRAFANA_AGENT_HOST=grafana-agent.monitoring.svc.cluster.local
 ```
 
-**Resultado:**
-- ? Logs: `stdout` ? Agent (DaemonSet) ? Grafana Cloud Loki
-- ? Traces: OTLP ? Agent (DaemonSet) ? Grafana Cloud Tempo
-- ? Metrics: `/metrics` ? Agent (scrape) ? Grafana Cloud Prometheus
+**Result:**
+- ‚úÖ Logs: `stdout` ‚Üí Agent (DaemonSet) ‚Üí Grafana Cloud Loki
+- ‚úÖ Traces: OTLP ‚Üí Agent (DaemonSet) ‚Üí Grafana Cloud Tempo
+- ‚úÖ Metrics: `/metrics` ‚Üí Agent (scrape) ‚Üí Grafana Cloud Prometheus
 
 ---
 
-## ?? VerificaÁ„o
+## ‚úÖ Verification
 
-### **1. Verificar configuraÁ„o na startup**
+### **1. Check configuration on startup**
 
-Procure por estas linhas no log da aplicaÁ„o:
+Look for these lines in the application log:
 
 ```
 === GRAFANA AGENT CONFIG ===
-? Grafana Agent: ENABLED
-   ? OTLP Export: ACTIVE
-   ? Traces will be sent to Grafana Agent
-   ? Logs: stdout ? Agent ? Grafana Cloud Loki
-   ? Metrics: /metrics ? Agent scrape ? Grafana Cloud Prometheus
+‚úÖ Grafana Agent: ENABLED
+   ‚úÖ OTLP Export: ACTIVE
+   ‚úÖ Traces will be sent to Grafana Agent
+   ‚úÖ Logs: stdout ‚Üí Agent ‚Üí Grafana Cloud Loki
+   ‚úÖ Metrics: /metrics ‚Üí Agent scrape ‚Üí Grafana Cloud Prometheus
 ```
 
-Ou, se desabilitado:
+Or, if disabled:
 
 ```
-??  Grafana Agent: DISABLED
-   ? OTLP Export: INACTIVE
-   ? Traces will be generated but NOT exported
-   ? Logs: stdout only (not sent to Grafana Cloud)
-   ? Metrics: /metrics endpoint available (not scraped)
+‚ùå  Grafana Agent: DISABLED
+   ‚ö†Ô∏è OTLP Export: INACTIVE
+   ‚ö†Ô∏è Traces will be generated but NOT exported
+   ‚ö†Ô∏è Logs: stdout only (not sent to Grafana Cloud)
+   ‚ö†Ô∏è Metrics: /metrics endpoint available (not scraped)
 ```
 
-### **2. Testar conectividade com Agent**
+### **2. Test Agent connectivity**
 
 ```sh
-# Verificar se Agent est· rodando
+# Check if Agent is running
 curl http://localhost:12345/-/healthy
 
-# Verificar se OTLP gRPC est· acessÌvel
+# Check if OTLP gRPC is accessible
 grpcurl -plaintext localhost:4317 list
 ```
 
-### **3. Verificar export de traces**
+### **3. Verify trace export**
 
 ```sh
-# Ver logs do Grafana Agent
+# View Grafana Agent logs
 docker logs grafana-agent
 
 # Ou no Kubernetes
@@ -217,69 +217,69 @@ kubectl logs -n monitoring -l app=grafana-agent --tail=50 -f
 
 ---
 
-## ?? Prioridade de ConfiguraÁ„o
+## üîß Configuration Priority
 
-A configuraÁ„o segue esta ordem de prioridade (maior para menor):
+Configuration follows this priority order (highest to lowest):
 
-1. **Environment Variables** (ex: `GRAFANA_AGENT_ENABLED`)
+1. **Environment Variables** (e.g., `GRAFANA_AGENT_ENABLED`)
 2. **appsettings.{Environment}.json**
 3. **appsettings.json**
-4. **Defaults do cÛdigo** (GrafanaOptions)
+4. **Code defaults** (GrafanaOptions)
 
-**Exemplo:**
+**Example:**
 ```sh
 # appsettings.json
 "Grafana.Agent.Enabled": false
 
-# Environment Variable (SOBRESCREVE)
+# Environment Variable (OVERRIDES)
 GRAFANA_AGENT_ENABLED=true
 
-# Resultado: Agent HABILITADO
+# Result: Agent ENABLED
 ```
 
 ---
 
-## ?? Troubleshooting
+## üîß Troubleshooting
 
-### **Problema: Traces n„o aparecem no Grafana Cloud**
+### **Problem: Traces don't appear in Grafana Cloud**
 
-**VerificaÁıes:**
+**Checks:**
 
-1. **Agent est· habilitado?**
+1. **Is Agent enabled?**
    ```sh
-   # Ver log da aplicaÁ„o
+   # View application log
    grep "Grafana Agent" logs.txt
-   # Deve mostrar: ? Grafana Agent: ENABLED
+   # Should show: ‚úÖ Grafana Agent: ENABLED
    ```
 
-2. **Agent est· rodando?**
+2. **Is Agent running?**
    ```sh
    curl http://localhost:12345/-/healthy
-   # Deve retornar: OK
+   # Should return: OK
    ```
 
-3. **AplicaÁ„o consegue conectar no Agent?**
+3. **Can application connect to Agent?**
    ```sh
-   # Ver logs da aplicaÁ„o
+   # View application logs
    grep "OTLP Exporter configured" logs.txt
    ```
 
-4. **Agent est· enviando para Grafana Cloud?**
+4. **Is Agent sending to Grafana Cloud?**
    ```sh
-   # Ver logs do Agent
+   # View Agent logs
    docker logs grafana-agent | grep "trace"
    ```
 
-### **Problema: AplicaÁ„o d· erro ao iniciar**
+### **Problem: Application fails to start**
 
-**Erro comum:**
+**Common error:**
 ```
 Failed to connect to OTLP endpoint
 ```
 
-**SoluÁ„o:**
+**Solution:**
 ```sh
-# Desabilite o Agent temporariamente
+# Disable Agent temporarily
 GRAFANA_AGENT_ENABLED=false
 
 # Ou no appsettings.json
@@ -288,22 +288,22 @@ GRAFANA_AGENT_ENABLED=false
 
 ---
 
-## ?? Resumo
+## üìù Summary
 
-| Componente | Agent.Enabled=true | Agent.Enabled=false |
+| Component | Agent.Enabled=true | Agent.Enabled=false |
 |------------|-------------------|---------------------|
-| **Logs (stdout)** | ? Enviados | ? Escritos (n„o enviados) |
-| **Traces (OTLP)** | ? Exportados | ?? Gerados (n„o exportados) |
-| **Metrics (/metrics)** | ? Scraped | ? DisponÌveis (n„o scraped) |
+| **Logs (stdout)** | ‚úÖ Sent | ‚ö†Ô∏è Written (not sent) |
+| **Traces (OTLP)** | ‚úÖ Exported | ‚ö†Ô∏è Generated (not exported) |
+| **Metrics (/metrics)** | ‚úÖ Scraped | ‚ö†Ô∏è Available (not scraped) |
 
-**RecomendaÁ„o:**
+**Recommendation:**
 - Development local: `Enabled = false`
 - Development Docker: `Enabled = true`
 - Production (AKS): `Enabled = true`
 
 ---
 
-## ?? Links ⁄teis
+## üîó Useful Links
 
 - [Grafana Agent Documentation](https://grafana.com/docs/agent/latest/)
 - [OpenTelemetry OTLP Specification](https://opentelemetry.io/docs/reference/specification/protocol/otlp/)
