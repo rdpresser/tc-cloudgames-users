@@ -45,13 +45,9 @@ namespace TC.CloudGames.Users.Api.Extensions
                 loggerConfiguration.Enrich.WithProperty("cloud.platform", "azure_container_apps");
                 loggerConfiguration.Enrich.WithProperty("service.instance.id", instanceId);
 
-                // --- Sinks ---
-                // Console em JSON (stdout) — ideal para que o Grafana Agent / Loki colete dos containers
-                // Mantemos o JsonFormatter para estrutura consistente e parsing fácil pelo Loki/agent.
-                loggerConfiguration.WriteTo.Console(new JsonFormatter(renderMessage: true));
-
-                // OBS: quaisquer outros sinks configurados via appsettings.json permanecem, porque ReadFrom.Configuration()
-                // já carregou tudo. Se quiser garantir que NÃO haja sinks extras (ex: file, loki) remova essas seções do config.
+                // NOTE: Console sink (JSON stdout) is already configured in appsettings.json via ReadFrom.Configuration()
+                // No need to add WriteTo.Console() here to avoid duplicate log entries
+                // Grafana Agent / Loki collects from stdout as configured in appsettings.Development.json and appsettings.Production.json
             });
         }
     }
