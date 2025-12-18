@@ -1,15 +1,6 @@
 name: 🏗️ Users API CI Pipeline
 
 on:
-  push:
-    branches: [main, develop, feature/phase_04]
-    paths:
-      - 'services/users/**'
-      - 'shared/common/**'
-      - 'src/**'
-      - 'test/**'
-      - '.github/workflows/**'
-      - 'services/users/.github/workflows/**'
   pull_request:
     branches: [main]
     paths:
