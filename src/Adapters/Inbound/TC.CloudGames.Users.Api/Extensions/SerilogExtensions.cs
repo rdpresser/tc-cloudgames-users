@@ -9,15 +9,15 @@ namespace TC.CloudGames.Users.Api.Extensions
         {
             return hostBuilder.UseSerilog((hostContext, services, loggerConfiguration) =>
             {
-                // Lê configuração padrão (sinks, níveis, overrides)
+                // Read default configuration (sinks, levels, overrides)
                 loggerConfiguration.ReadFrom.Configuration(hostContext.Configuration);
 
-                // Valores úteis
+                // Useful values
                 var environment = configuration["ASPNETCORE_ENVIRONMENT"]?.ToLower() ?? "development";
                 var serviceVersion = typeof(Program).Assembly.GetName().Version?.ToString() ?? TelemetryConstants.Version;
                 var instanceId = Environment.MachineName;
 
-                // Timezone (se configurado)
+                // Timezone (if configured)
                 var timeZoneId = configuration["TimeZone"] ?? "UTC";
                 TimeZoneInfo? timeZone = null;
                 try
@@ -26,14 +26,14 @@ namespace TC.CloudGames.Users.Api.Extensions
                 }
                 catch
                 {
-                    // fallback para UTC se TimeZone inválido
+                    // Fallback to UTC if TimeZone is invalid
                     timeZone = TimeZoneInfo.Utc;
                 }
 
-                // --- Enrichers essenciais ---
-                // Mantém enriquecimento com span/trace, contexto e propriedades estáticas
+                // --- Essential Enrichers ---
+                // Maintains enrichment with span/trace, context and static properties
                 loggerConfiguration.Enrich.With(new UtcToLocalTimeEnricher(timeZone));
-                loggerConfiguration.Enrich.WithSpan();           // garante trace_id/span_id quando disponível
+                loggerConfiguration.Enrich.WithSpan();           // Ensures trace_id/span_id when available
                 loggerConfiguration.Enrich.FromLogContext();
 
                 // OpenTelemetry semantic conventions / resource consistency
