@@ -1,8 +1,10 @@
 ﻿using Npgsql;
+using OpenTelemetry;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using TC.CloudGames.SharedKernel.Infrastructure.Telemetry;
 using Wolverine.ErrorHandling;
 
 namespace TC.CloudGames.Users.Api.Extensions
@@ -29,109 +31,119 @@ namespace TC.CloudGames.Users.Api.Extensions
                 .AddCustomFastEndpoints()
                 .ConfigureAppSettings(builder.Configuration)
                 .AddCustomHealthCheck()
-                .AddCustomOpenTelemetry(builder.Configuration);
+                .AddCustomOpenTelemetry(builder, builder.Configuration);
 
             return services;
         }
 
-        public static WebApplicationBuilder AddCustomLoggingTelemetry(this WebApplicationBuilder builder)
+        private static IHostApplicationBuilder AddOpenTelemetryExporters(this IHostApplicationBuilder builder)
         {
-            builder.Logging.ClearProviders();
+            var useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
+            
+            // Load Grafana configuration via Helper (to check if Agent is enabled)
+            var grafanaSettings = GrafanaHelper.Build(builder.Configuration);
 
-            builder.Logging.AddOpenTelemetry(options =>
+            if (grafanaSettings.Agent.Enabled && useOtlpExporter)
             {
-                options.IncludeScopes = true;
-                options.IncludeFormattedMessage = true;
-
-                // Enhanced resource configuration for logs using centralized constants
-                options.SetResourceBuilder(
-                    ResourceBuilder.CreateDefault()
-                        .AddService(TelemetryConstants.ServiceName,
-                                   serviceVersion: typeof(Program).Assembly.GetName().Version?.ToString() ?? TelemetryConstants.Version)
-                        .AddAttributes(new Dictionary<string, object>
+                // Manual OTLP Exporter configuration with Grafana settings
+                builder.Services.AddOpenTelemetry()
+                    .WithTracing(tracing =>
+                    {
+                        tracing.AddOtlpExporter(otlp =>
                         {
-                            ["deployment.environment"] = (builder.Configuration["ASPNETCORE_ENVIRONMENT"] ?? "Development").ToLowerInvariant(),
-                            ["service.namespace"] = TelemetryConstants.ServiceNamespace.ToLowerInvariant(),
-                            ["cloud.provider"] = "azure",
-                            ["cloud.platform"] = "azure_container_apps"
-                        }));
+                            otlp.Endpoint = new Uri(grafanaSettings.Otlp.Endpoint);
+                            otlp.Protocol = grafanaSettings.Otlp.Protocol.ToLowerInvariant() == "grpc"
+                                ? OpenTelemetry.Exporter.OtlpExportProtocol.Grpc
+                                : OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
 
-                options.AddOtlpExporter();
-            });
+                            // Headers (if any - normally not needed with local Grafana Agent)
+                            if (!string.IsNullOrWhiteSpace(grafanaSettings.Otlp.Headers))
+                            {
+                                otlp.Headers = grafanaSettings.Otlp.Headers;
+                            }
+
+                            // Timeout
+                            otlp.TimeoutMilliseconds = grafanaSettings.Otlp.TimeoutSeconds * 1000;
+                        });
+                    });
+
+                Console.WriteLine($"[INFO] OTLP Exporter configured - Endpoint: {grafanaSettings.Otlp.Endpoint}, Protocol: {grafanaSettings.Otlp.Protocol}");
+            }
+            else
+            {
+                Console.WriteLine("[WARN] Grafana Agent is DISABLED - Traces will be generated but NOT exported.");
+                Console.WriteLine("[WARN] To enable: Set Grafana:Agent:Enabled=true or GRAFANA_AGENT_ENABLED=true");
+            }
 
             return builder;
         }
 
-        public static IServiceCollection AddCustomOpenTelemetry(this IServiceCollection services, IConfiguration configuration)
+        public static IServiceCollection AddCustomOpenTelemetry(this IServiceCollection services, IHostApplicationBuilder builder, IConfiguration configuration)
         {
             var serviceVersion = typeof(Program).Assembly.GetName().Version?.ToString() ?? TelemetryConstants.Version;
             var environment = configuration["ASPNETCORE_ENVIRONMENT"] ?? "Development";
             var instanceId = Environment.MachineName;
+            var serviceName = TelemetryConstants.ServiceName;
+            var serviceNamespace = TelemetryConstants.ServiceNamespace;
 
+            // Logging via OpenTelemetry
+            builder.Logging.AddOpenTelemetry(logging =>
+            {
+                logging.IncludeFormattedMessage = true;
+                logging.IncludeScopes = true;
+            });
+
+            // ==============================================================
+            // METRICS AND TRACES
+            // ==============================================================
             services.AddOpenTelemetry()
-                .ConfigureResource(resource => resource
-                    .AddService(TelemetryConstants.ServiceName, serviceVersion: serviceVersion, serviceInstanceId: instanceId)
-                    .AddAttributes(new Dictionary<string, object>
-                    {
-                        ["deployment.environment"] = environment.ToLowerInvariant(),
-                        ["service.namespace"] = TelemetryConstants.ServiceNamespace.ToLowerInvariant(),
-                        ["service.instance.id"] = instanceId,
-                        ["container.name"] = Environment.GetEnvironmentVariable("HOSTNAME") ?? instanceId,
-                        ["cloud.provider"] = "azure",
-                        ["cloud.platform"] = "azure_container_apps",
-                        ["service.team"] = "engineering",
-                        ["service.owner"] = "devops"
-                    }))
-                .WithMetrics(metricsBuilder =>
-                    metricsBuilder
-                        // ASP.NET Core and system instrumentation
+                // Configure ResourceBuilder (metadata sent with metrics and traces)
+                .ConfigureResource(resource => resource.AddService(serviceName, serviceNamespace: serviceNamespace, serviceVersion: serviceVersion, serviceInstanceId: instanceId)
+                .AddAttributes(new Dictionary<string, object>
+                {
+                    ["deployment.environment"] = environment.ToLowerInvariant(),
+                    ["service.namespace"] = serviceNamespace.ToLowerInvariant(),
+                    ["service.instance.id"] = instanceId,
+                    ["container.name"] = Environment.GetEnvironmentVariable("HOSTNAME") ?? instanceId,
+                    ["cloud.provider"] = "azure",
+                    ["cloud.platform"] = "azure_kubernetes_service",
+                    ["service.team"] = "engineering",
+                    ["service.owner"] = "devops"
+                }))
+                .WithMetrics(metrics =>
+                {
+                    metrics
+                        // Standard .NET and ASP.NET Core instrumentation
                         .AddAspNetCoreInstrumentation()
                         .AddHttpClientInstrumentation()
-                        .AddRuntimeInstrumentation() // CPU, Memory, GC metrics
+                        .AddRuntimeInstrumentation()   // CPU, memory, GC
                         .AddFusionCacheInstrumentation()
                         .AddNpgsqlInstrumentation()
-                        // Built-in meters for system metrics
+                        // Internal platform meters
                         .AddMeter("Microsoft.AspNetCore.Hosting")
                         .AddMeter("Microsoft.AspNetCore.Server.Kestrel")
                         .AddMeter("System.Net.Http")
-                        .AddMeter("System.Runtime") // .NET runtime metrics
-                                                    // Custom application meters
+                        .AddMeter("System.Runtime")
+                        // Application-specific meters
                         .AddMeter("Wolverine")
                         .AddMeter("Marten")
-                        .AddMeter(TelemetryConstants.UsersMeterName) // Custom users metrics
-                                                                     // Export to both OTLP (Grafana Cloud) and Prometheus endpoint
-                        .AddOtlpExporter()
-                        .AddPrometheusExporter()) // Prometheus scraping endpoint
-                .WithTracing(tracingBuilder =>
-                    tracingBuilder
-                        .AddHttpClientInstrumentation(options =>
-                        {
-                            options.FilterHttpRequestMessage = request =>
-                            {
-                                // Filter out health check and metrics requests
-                                var path = request.RequestUri?.AbsolutePath ?? "";
-                                return !path.Contains("/health") && !path.Contains("/metrics") && !path.Contains("/prometheus");
-                            };
-                            options.EnrichWithHttpRequestMessage = (activity, request) =>
-                            {
-                                activity.SetTag("http.request.method", request.Method.ToString());
-                                activity.SetTag("http.request.body.size", request.Content?.Headers?.ContentLength);
-                                activity.SetTag("user_agent", request.Headers.UserAgent?.ToString());
-                            };
-                            options.EnrichWithHttpResponseMessage = (activity, response) =>
-                            {
-                                activity.SetTag("http.response.status_code", (int)response.StatusCode);
-                                activity.SetTag("http.response.body.size", response.Content?.Headers?.ContentLength);
-                            };
-                        })
+                        .AddMeter(TelemetryConstants.UsersMeterName)
+                        // Exporter Prometheus (para /metrics)
+                        .AddPrometheusExporter();
+                })
+                .WithTracing(tracing =>
+                {
+                    tracing
                         .AddAspNetCoreInstrumentation(options =>
                         {
-                            options.Filter = httpContext =>
+                            options.Filter = ctx =>
                             {
-                                // Filter out health check, metrics, and prometheus requests
-                                var path = httpContext.Request.Path.Value ?? "";
-                                return !path.Contains("/health") && !path.Contains("/metrics") && !path.Contains("/prometheus");
+                                var path = ctx.Request.Path.Value ?? "";
+                                return !path.Contains("/health") &&
+                                       !path.Contains("/metrics") &&
+                                       !path.Contains("/prometheus");
                             };
+
                             options.EnrichWithHttpRequest = (activity, request) =>
                             {
                                 activity.SetTag("http.method", request.Method);
@@ -139,49 +151,54 @@ namespace TC.CloudGames.Users.Api.Extensions
                                 activity.SetTag("http.host", request.Host.Value);
                                 activity.SetTag("http.target", request.Path);
                                 if (request.ContentLength.HasValue)
-                                    activity.SetTag("http.request_content_length", request.ContentLength.Value);
+                                    activity.SetTag("http.request.size", request.ContentLength.Value);
 
-                                activity.SetTag("http.request.size", request.ContentLength);
                                 activity.SetTag("user.id", request.HttpContext.User?.Identity?.Name);
                                 activity.SetTag("user.authenticated", request.HttpContext.User?.Identity?.IsAuthenticated);
                                 activity.SetTag("http.route", request.HttpContext.GetRouteValue("action")?.ToString());
                                 activity.SetTag("http.client_ip", request.HttpContext.Connection.RemoteIpAddress?.ToString());
-
-                                if (request.Headers.TryGetValue(TelemetryConstants.CorrelationIdHeader, out var correlationId))
-                                {
-                                    activity.SetTag("correlation.id", correlationId.FirstOrDefault());
-                                }
                             };
+
                             options.EnrichWithHttpResponse = (activity, response) =>
                             {
                                 activity.SetTag("http.status_code", response.StatusCode);
                                 if (response.ContentLength.HasValue)
-                                    activity.SetTag("http.response_content_length", response.ContentLength.Value);
-
-                                activity.SetTag("http.response.size", response.ContentLength);
+                                    activity.SetTag("http.response.size", response.ContentLength.Value);
                             };
 
-                            options.EnrichWithException = (activity, exception) =>
+                            options.EnrichWithException = (activity, ex) =>
                             {
-                                activity.SetTag("exception.type", exception.GetType().Name);
-                                activity.SetTag("exception.message", exception.Message);
-                                activity.SetTag("exception.stacktrace", exception.StackTrace);
+                                activity.SetTag("exception.type", ex.GetType().Name);
+                                activity.SetTag("exception.message", ex.Message);
+                                activity.SetTag("exception.stacktrace", ex.StackTrace);
+                            };
+                        })
+                        .AddHttpClientInstrumentation(options =>
+                        {
+                            options.FilterHttpRequestMessage = request =>
+                            {
+                                var path = request.RequestUri?.AbsolutePath ?? "";
+                                return !path.Contains("/health") &&
+                                       !path.Contains("/metrics") &&
+                                       !path.Contains("/prometheus");
                             };
                         })
                         .AddFusionCacheInstrumentation()
                         .AddNpgsql()
-                        //.AddRedisInstrumentation()
+                        // Custom sources (Wolverine, Marten, Users)
                         .AddSource(TelemetryConstants.UserActivitySource)
                         .AddSource(TelemetryConstants.DatabaseActivitySource)
-                        .AddSource(TelemetryConstants.CacheActivitySource)
-                        //.AddSource("Wolverine")
-                        //.AddSource("Marten")
-                        .AddOtlpExporter()
-                    );
+                        .AddSource(TelemetryConstants.CacheActivitySource);
+                });
 
-            // Register custom metrics classes
+            // ==============================================================
+            // CUSTOM METRICS REGISTRATION
+            // ==============================================================
             services.AddSingleton<UserMetrics>();
             services.AddSingleton<SystemMetrics>();
+            
+            // Add exporters (OTLP will be configured only if Grafana is enabled)
+            builder.AddOpenTelemetryExporters();
 
             return services;
         }
@@ -383,6 +400,13 @@ namespace TC.CloudGames.Users.Api.Extensions
                             azureOpts.SystemQueuesAreEnabled(true);
                         }
 
+                        azureOpts.UseTopicAndSubscriptionConventionalRouting(configure =>
+                        {
+                            configure.SubscriptionNameForListener(t => t.Name.ToLowerInvariant());
+                            configure.TopicNameForListener(t => t.Name.ToLowerInvariant());
+                            configure.TopicNameForSender(t => t.Name.ToLowerInvariant());
+                        });
+
                         // Durable outbox for all sending endpoints
                         opts.Policies.UseDurableOutboxOnAllSendingEndpoints();
                         var topicName = $"{sb.TopicName}-topic";
@@ -479,7 +503,7 @@ namespace TC.CloudGames.Users.Api.Extensions
                     cfg.Converters.Add(new PasswordJsonConverter());
                     cfg.Converters.Add(new RoleJsonConverter());
 
-                    // Configurações extras, se necessário
+                    // Extra configurations, if needed
                     ////cfg.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
                     ////cfg.WriteIndented = true;
                 });
@@ -493,7 +517,7 @@ namespace TC.CloudGames.Users.Api.Extensions
                 // Register inline projections - for queries with index
                 options.Projections.Add<UserProjectionHandler>(ProjectionLifecycle.Inline);
 
-                // Snapshot automático do aggregate (para acelerar LoadAsync)
+                // Automatic aggregate snapshot (to accelerate LoadAsync)
                 options.Projections.Snapshot<UserAggregate>(SnapshotLifecycle.Inline);
 
                 // Auto-create databases/schemas
@@ -556,6 +580,7 @@ namespace TC.CloudGames.Users.Api.Extensions
             services.Configure<PostgresOptions>(configuration.GetSection("Database"));
             services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
             services.Configure<CacheProviderSettings>(configuration.GetSection("Cache"));
+            services.Configure<GrafanaOptions>(configuration.GetSection("Grafana"));
 
             return services;
         }

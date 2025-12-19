@@ -41,7 +41,7 @@ internal static class TelemetryConstants
     /// <summary>
     /// Logs telemetry configuration details using Microsoft.Extensions.Logging.ILogger
     /// </summary>
-    public static void LogTelemetryConfiguration(Microsoft.Extensions.Logging.ILogger logger)
+    public static void LogTelemetryConfiguration(Microsoft.Extensions.Logging.ILogger logger, Microsoft.Extensions.Configuration.IConfiguration configuration)
     {
         logger.LogInformation("=== TELEMETRY DEBUG INFO ===");
         logger.LogInformation("Service Name: {ServiceName}", ServiceName);
@@ -56,18 +56,41 @@ internal static class TelemetryConstants
         logger.LogInformation("Machine Name: {MachineName}", Environment.MachineName);
         logger.LogInformation("Container Name: {ContainerName}", Environment.GetEnvironmentVariable("HOSTNAME") ?? "NOT SET");
 
-        // OTLP Configuration Debug (no sensitive values)
-        var otlpEndpoint = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT");
-        var otlpHeaders = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_HEADERS");
-        var otlpProtocol = Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_PROTOCOL");
-        var grafanaApiToken = Environment.GetEnvironmentVariable("GRAFANA_LOGS_API_TOKEN");
-        var grafanaPrometheusToken = Environment.GetEnvironmentVariable("GRAFANA_OTEL_PROMETHEUS_API_TOKEN");
-
-        logger.LogInformation("OTLP Endpoint: {OtlpEndpoint}", string.IsNullOrEmpty(otlpEndpoint) ? "NOT SET" : otlpEndpoint);
-        logger.LogInformation("OTLP Headers: {OtlpHeaders}", string.IsNullOrEmpty(otlpHeaders) ? "NOT SET" : "***CONFIGURED***");
-        logger.LogInformation("OTLP Protocol: {OtlpProtocol}", string.IsNullOrEmpty(otlpProtocol) ? "NOT SET" : otlpProtocol);
-        logger.LogInformation("Grafana API Token: {GrafanaApiToken}", string.IsNullOrEmpty(grafanaApiToken) ? "NOT SET" : "***CONFIGURED***");
-        logger.LogInformation("Grafana Prometheus Token: {GrafanaPrometheusToken}", string.IsNullOrEmpty(grafanaPrometheusToken) ? "NOT SET" : "***CONFIGURED***");
+        // Load Grafana configuration via Helper
+        var grafanaSettings = TC.CloudGames.SharedKernel.Infrastructure.Telemetry.GrafanaHelper.Build(configuration);
+        
+        logger.LogInformation("============================");
+        logger.LogInformation("=== GRAFANA AGENT CONFIG ===");
+        
+        // Agent Status (CRITICAL INFO)
+        if (grafanaSettings.Agent.Enabled)
+        {
+            logger.LogInformation("? Grafana Agent: ENABLED");
+            logger.LogInformation("   ? OTLP Export: ACTIVE");
+            logger.LogInformation("   ? Traces will be sent to Grafana Agent");
+            logger.LogInformation("   ? Logs: stdout ? Agent ? Grafana Cloud Loki");
+            logger.LogInformation("   ? Metrics: /metrics ? Agent scrape ? Grafana Cloud Prometheus");
+        }
+        else
+        {
+            logger.LogWarning("??  Grafana Agent: DISABLED");
+            logger.LogWarning("   ? OTLP Export: INACTIVE");
+            logger.LogWarning("   ? Traces will be generated but NOT exported");
+            logger.LogWarning("   ? Logs: stdout only (not sent to Grafana Cloud)");
+            logger.LogWarning("   ? Metrics: /metrics endpoint available (not scraped)");
+            logger.LogWarning("   ? To enable: Set Grafana:Agent:Enabled=true or GRAFANA_AGENT_ENABLED=true");
+        }
+        
+        logger.LogInformation("Agent Host: {AgentHost}", grafanaSettings.Agent.Host);
+        logger.LogInformation("Agent OTLP gRPC Port: {OtlpGrpcPort}", grafanaSettings.Agent.OtlpGrpcPort);
+        logger.LogInformation("Agent OTLP HTTP Port: {OtlpHttpPort}", grafanaSettings.Agent.OtlpHttpPort);
+        logger.LogInformation("Agent Metrics Port: {MetricsPort}", grafanaSettings.Agent.MetricsPort);
+        logger.LogInformation("OTLP Endpoint: {OtlpEndpoint}", grafanaSettings.Otlp.Endpoint);
+        logger.LogInformation("OTLP Protocol: {OtlpProtocol}", grafanaSettings.Otlp.Protocol);
+        logger.LogInformation("OTLP Headers: {OtlpHeaders}", 
+            string.IsNullOrWhiteSpace(grafanaSettings.Otlp.Headers) ? "NOT SET" : "***CONFIGURED***");
+        logger.LogInformation("OTLP Timeout: {OtlpTimeout}s", grafanaSettings.Otlp.TimeoutSeconds);
+        logger.LogInformation("OTLP Insecure: {OtlpInsecure}", grafanaSettings.Otlp.Insecure);
         logger.LogInformation("============================");
     }
 }
