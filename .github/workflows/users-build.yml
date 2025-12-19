@@ -124,6 +124,9 @@ jobs:
           path: ${{ env.WORKSPACE_PATH }}/test-results/*.trx
           reporter: dotnet-trx
           fail-on-error: true
+        env:
+          GIT_DIR: ${{ github.workspace }}/${{ env.WORKSPACE_PATH }}/.git
+          GIT_WORK_TREE: ${{ github.workspace }}/${{ env.WORKSPACE_PATH }}
 
       - name: 📊 Generate coverage report
         if: always()
