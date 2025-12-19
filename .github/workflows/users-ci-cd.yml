@@ -91,10 +91,10 @@ jobs:
         if: always()
         with:
           name: 🧪 Unit Tests Results
-          path: ./test-results/*.trx
+          path: ${{ github.workspace }}/${{ env.WORKSPACE_PATH }}/test-results/*.trx
           reporter: dotnet-trx
           fail-on-error: true
-          working-directory: ${{ env.WORKSPACE_PATH }}
+          working-directory: ${{ github.workspace }}/${{ env.WORKSPACE_PATH }}
 
       - name: 📊 Generate & Upload Coverage
         if: always()
