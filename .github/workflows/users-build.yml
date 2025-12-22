@@ -12,11 +12,8 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened, closed]
     paths:
-      - 'test/**'
       - 'services/users/**'
       - 'shared/common/**'
-      - 'src/**'
-      - 'test/**'
       - '.github/workflows/**'
       - 'services/users/.github/workflows/**'
   workflow_dispatch:
