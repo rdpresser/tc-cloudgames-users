@@ -12,11 +12,8 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened, closed]
     paths:
-      - 'test/**'
       - 'services/users/**'
       - 'shared/common/**'
-      - 'src/**'
-      - 'test/**'
       - '.github/workflows/**'
       - 'services/users/.github/workflows/**'
   workflow_dispatch:
@@ -320,6 +317,16 @@ jobs:
       # ─────────────────────────────────────────────────────────────────────────
       # Push to ACR
       # ─────────────────────────────────────────────────────────────────────────
+      - name: ✅ Validate ACR info
+        if: needs.validate.outputs.should-deploy == 'true'
+        run: |
+          if [ -z "${{ steps.acr-info.outputs.acr-name }}" ]; then
+            echo "❌ acr-name is empty; cannot push image"; exit 1; fi
+          echo "ACR Name: ${{ steps.acr-info.outputs.acr-name }}"
+          az acr list --query "[?name=='${{ steps.acr-info.outputs.acr-name }}'].name" -o tsv | grep -q "${{ steps.acr-info.outputs.acr-name }}" || {
+            echo "❌ ACR ${{ steps.acr-info.outputs.acr-name }} not found"; exit 1; }
+        shell: bash
+
       - name: 🚀 Push Docker Image to ACR
         if: needs.validate.outputs.should-deploy == 'true'
         uses: docker/build-push-action@v5
@@ -332,6 +339,18 @@ jobs:
             ${{ steps.build-vars.outputs.image-uri-latest }}
           cache-from: type=gha
           platforms: linux/amd64
+
+      - name: 🔍 Show pushed tags in ACR
+        if: needs.validate.outputs.should-deploy == 'true'
+        run: |
+          echo "Listing tags for repository '${{ env.SERVICE_NAME }}' in ${{ steps.acr-info.outputs.acr-name }}"
+          az acr repository show-tags \
+            --name ${{ steps.acr-info.outputs.acr-name }} \
+            --repository ${{ env.SERVICE_NAME }} \
+            --orderby time_desc \
+            --top 10 \
+            --output table || true
+        shell: bash
 
       # ─────────────────────────────────────────────────────────────────────────
       # Verify Push

@@ -1,5 +1,4 @@
 ﻿using Npgsql;
-using OpenTelemetry;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -39,7 +38,7 @@ namespace TC.CloudGames.Users.Api.Extensions
         private static IHostApplicationBuilder AddOpenTelemetryExporters(this IHostApplicationBuilder builder)
         {
             var useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
-            
+
             // Load Grafana configuration via Helper (to check if Agent is enabled)
             var grafanaSettings = GrafanaHelper.Build(builder.Configuration);
 
@@ -196,7 +195,7 @@ namespace TC.CloudGames.Users.Api.Extensions
             // ==============================================================
             services.AddSingleton<UserMetrics>();
             services.AddSingleton<SystemMetrics>();
-            
+
             // Add exporters (OTLP will be configured only if Grafana is enabled)
             builder.AddOpenTelemetryExporters();
 
