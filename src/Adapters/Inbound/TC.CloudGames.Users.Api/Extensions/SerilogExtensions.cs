@@ -40,7 +40,7 @@
                 loggerConfiguration.Enrich.WithProperty("service.version", serviceVersion);
                 loggerConfiguration.Enrich.WithProperty("deployment.environment", environment);
                 loggerConfiguration.Enrich.WithProperty("cloud.provider", "azure");
-                loggerConfiguration.Enrich.WithProperty("cloud.platform", "azure_container_apps");
+                loggerConfiguration.Enrich.WithProperty("cloud.platform", "azure_kubernetes_service");
                 loggerConfiguration.Enrich.WithProperty("service.instance.id", instanceId);
 
                 // NOTE: Console sink (JSON stdout) is already configured in appsettings.json via ReadFrom.Configuration()
