@@ -1,6 +1,4 @@
-﻿using Serilog.Formatting.Json;
-
-namespace TC.CloudGames.Users.Api.Extensions
+﻿namespace TC.CloudGames.Users.Api.Extensions
 {
     [ExcludeFromCodeCoverage]
     internal static class SerilogExtensions
