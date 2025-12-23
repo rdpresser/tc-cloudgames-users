@@ -94,58 +94,6 @@ namespace TC.CloudGames.Users.Api.Extensions
                 u.DocumentPath = "v1/swagger.json";
             });
 
-            // Middleware to dynamically rewrite swagger.json servers URL based on PathBase
-            app.Use(async (context, next) =>
-            {
-                if (context.Request.Path.Value?.EndsWith("/swagger/v1/swagger.json") == true)
-                {
-                    var originalBody = context.Response.Body;
-                    using (var memoryStream = new MemoryStream())
-                    {
-                        context.Response.Body = memoryStream;
-                        await next();
-
-                        if (context.Response.StatusCode == 200 && memoryStream.Length > 0)
-                        {
-                            memoryStream.Position = 0;
-                            using (var reader = new StreamReader(memoryStream))
-                            {
-                                var jsonContent = await reader.ReadToEndAsync();
-                                var pathBase = context.Request.PathBase.Value;
-
-                                if (!string.IsNullOrWhiteSpace(pathBase) && pathBase != "/")
-                                {
-                                    // Rewrite servers URL to include PathBase
-                                    // Change "url":"http:// to "url":"/pathBase + "http://
-                                    jsonContent = jsonContent.Replace(
-                                        "\"url\":\"http://",
-                                        $"\"url\":\"{pathBase}http://"
-                                    );
-                                    jsonContent = jsonContent.Replace(
-                                        "\"url\":\"https://",
-                                        $"\"url\":\"{pathBase}https://"
-                                    );
-                                }
-
-                                var responseBytes = System.Text.Encoding.UTF8.GetBytes(jsonContent);
-                                context.Response.ContentLength = responseBytes.Length;
-                                await originalBody.WriteAsync(responseBytes);
-                            }
-                        }
-                        else
-                        {
-                            memoryStream.Position = 0;
-                            await memoryStream.CopyToAsync(originalBody);
-                        }
-                    }
-                    context.Response.Body = originalBody;
-                }
-                else
-                {
-                    await next();
-                }
-            });
-
             return app;
         }
 
