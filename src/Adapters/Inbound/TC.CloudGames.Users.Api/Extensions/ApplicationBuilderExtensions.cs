@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.HttpOverrides;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.HttpOverrides;
 using TC.CloudGames.SharedKernel.Infrastructure.Database.Initializer;
 
 namespace TC.CloudGames.Users.Api.Extensions
@@ -9,6 +10,42 @@ namespace TC.CloudGames.Users.Api.Extensions
         public static IApplicationBuilder UseCustomExceptionHandler(this IApplicationBuilder app)
         {
             app.UseMiddleware<ExceptionHandlerMiddleware>();
+            return app;
+        }
+
+        // Normalizes PathBase when the service runs behind an ingress with a path prefix (e.g. /user)
+        public static IApplicationBuilder UseIngressPathBase(this IApplicationBuilder app, IConfiguration configuration)
+        {
+            var configuredBasePath = configuration["ASPNETCORE_APPL_PATH"] ?? configuration["PathBase"];
+
+            if (!string.IsNullOrWhiteSpace(configuredBasePath))
+            {
+                app.UsePathBase(configuredBasePath);
+            }
+
+            app.Use(async (context, next) =>
+            {
+                if (context.Request.Headers.TryGetValue("X-Forwarded-Prefix", out var prefixValues))
+                {
+                    var prefix = prefixValues.FirstOrDefault();
+
+                    if (!string.IsNullOrWhiteSpace(prefix))
+                    {
+                        var normalized = prefix.StartsWith('/') ? prefix : $"/{prefix}";
+                        normalized = normalized.TrimEnd('/');
+
+                        context.Request.PathBase = new PathString(normalized);
+
+                        if (context.Request.Path.StartsWithSegments(context.Request.PathBase, out var remaining))
+                        {
+                            context.Request.Path = remaining;
+                        }
+                    }
+                }
+
+                await next().ConfigureAwait(false);
+            });
+
             return app;
         }
 
