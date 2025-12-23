@@ -252,12 +252,6 @@ namespace TC.CloudGames.Users.Api.Extensions
         // FastEndpoints Configuration
         public static IServiceCollection AddCustomFastEndpoints(this IServiceCollection services, IConfiguration configuration)
         {
-            // Try multiple sources for PathBase - env var directly, then configuration
-            var pathBase = Environment.GetEnvironmentVariable("ASPNETCORE_APPL_PATH") 
-                ?? configuration["ASPNETCORE_APPL_PATH"] 
-                ?? configuration["PathBase"] 
-                ?? string.Empty;
-            
             services.AddFastEndpoints(dicoveryOptions =>
             {
                 dicoveryOptions.Assemblies = [typeof(Application.DependencyInjection).Assembly];
@@ -270,16 +264,6 @@ namespace TC.CloudGames.Users.Api.Extensions
                     s.Version = "v1";
                     s.Description = "User API for TC.CloudGames";
                     s.MarkNonNullablePropsAsRequired();
-                    
-                    // Add server with PathBase prefix for correct Swagger UI operation behind ingress
-                    if (!string.IsNullOrWhiteSpace(pathBase))
-                    {
-                        s.PostProcess += doc =>
-                        {
-                            doc.Servers.Clear();
-                            doc.Servers.Add(new NSwag.OpenApiServer { Url = pathBase });
-                        };
-                    }
                 };
 
                 o.RemoveEmptyRequestSchema = true;

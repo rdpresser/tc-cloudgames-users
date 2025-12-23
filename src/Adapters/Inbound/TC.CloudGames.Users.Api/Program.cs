@@ -28,7 +28,7 @@ app.UseMetricsAuthentication();
 
 app.UseAuthentication()
   .UseAuthorization()
-  .UseCustomFastEndpoints()
+  .UseCustomFastEndpoints(app.Configuration)
   .UseCustomMiddlewares();
 
 // Run the application
