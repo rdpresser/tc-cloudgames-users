@@ -88,19 +88,29 @@ namespace TC.CloudGames.Users.Api.Extensions
 
                     return problemDetails;
                 };
-            })
-            .UseSwaggerGen(uiConfig: ui =>
-            {
-                var pathBase = Environment.GetEnvironmentVariable("ASPNETCORE_APPL_PATH")
-                    ?? configuration["ASPNETCORE_APPL_PATH"]
-                    ?? configuration["PathBase"]
-                    ?? string.Empty;
+            });
 
+            // Get PathBase for server URL modification
+            var pathBase = Environment.GetEnvironmentVariable("ASPNETCORE_APPL_PATH")
+                ?? configuration["ASPNETCORE_APPL_PATH"]
+                ?? configuration["PathBase"]
+                ?? string.Empty;
+
+            // Enable OpenAPI with server modification
+            app.UseOpenApi(o =>
+            {
                 if (!string.IsNullOrWhiteSpace(pathBase))
                 {
-                    ui.ServerUrl = pathBase;
+                    o.PostProcess = (doc, req) =>
+                    {
+                        doc.Servers.Clear();
+                        doc.Servers.Add(new NSwag.OpenApiServer { Url = pathBase });
+                    };
                 }
             });
+
+            // Enable Swagger UI
+            app.UseSwaggerUi(c => c.ConfigureDefaults());
 
             return app;
         }
