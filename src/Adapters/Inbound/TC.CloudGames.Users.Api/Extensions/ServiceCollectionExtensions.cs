@@ -252,7 +252,11 @@ namespace TC.CloudGames.Users.Api.Extensions
         // FastEndpoints Configuration
         public static IServiceCollection AddCustomFastEndpoints(this IServiceCollection services, IConfiguration configuration)
         {
-            var pathBase = configuration["ASPNETCORE_APPL_PATH"] ?? configuration["PathBase"] ?? string.Empty;
+            // Try multiple sources for PathBase - env var directly, then configuration
+            var pathBase = Environment.GetEnvironmentVariable("ASPNETCORE_APPL_PATH") 
+                ?? configuration["ASPNETCORE_APPL_PATH"] 
+                ?? configuration["PathBase"] 
+                ?? string.Empty;
             
             services.AddFastEndpoints(dicoveryOptions =>
             {
