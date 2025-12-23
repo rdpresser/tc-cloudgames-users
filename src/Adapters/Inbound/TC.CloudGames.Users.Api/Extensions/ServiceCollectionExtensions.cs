@@ -274,7 +274,7 @@ namespace TC.CloudGames.Users.Api.Extensions
                     // Add server with PathBase prefix for correct Swagger UI operation behind ingress
                     if (!string.IsNullOrWhiteSpace(pathBase))
                     {
-                        s.PostProcess = doc =>
+                        s.PostProcess += doc =>
                         {
                             doc.Servers.Clear();
                             doc.Servers.Add(new NSwag.OpenApiServer { Url = pathBase });
