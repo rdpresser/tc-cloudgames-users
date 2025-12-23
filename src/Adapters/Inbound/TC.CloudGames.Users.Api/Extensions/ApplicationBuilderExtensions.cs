@@ -91,8 +91,7 @@ namespace TC.CloudGames.Users.Api.Extensions
             })
             .UseSwaggerGen(uiConfig: u =>
             {
-                // Make document path relative so UI resolves under PathBase
-                u.DocumentPath = "swagger/v1/swagger.json";
+                u.DocumentPath = "v1/swagger.json";
             });
 
             return app;
