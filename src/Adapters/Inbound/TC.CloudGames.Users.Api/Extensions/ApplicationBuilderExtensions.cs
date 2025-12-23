@@ -98,25 +98,37 @@ namespace TC.CloudGames.Users.Api.Extensions
                 ?? configuration["PathBase"]
                 ?? string.Empty;
 
-            // Build swagger.json absolute path so ingress path prefix is preserved
-            var swaggerJsonUrl = string.IsNullOrWhiteSpace(pathBase)
-                ? "/swagger/v1/swagger.json"
-                : $"{pathBase}/swagger/v1/swagger.json";
+            // Build swagger.json URL - use relative path for better compatibility with ingress paths
+            // Relative path ensures it works regardless of the ingress path prefix
+            var swaggerJsonUrl = "./swagger/v1/swagger.json";
 
-            // Enable OpenAPI with server modification
+            // Enable OpenAPI with dynamic server URL based on PathBase
             app.UseOpenApi(o =>
             {
-                if (!string.IsNullOrWhiteSpace(pathBase))
+                o.PostProcess = (doc, req) =>
                 {
-                    o.PostProcess = (doc, req) =>
+                    doc.Servers.Clear();
+                    
+                    // Get the request PathBase (set by UseIngressPathBase middleware)
+                    var requestPathBase = req.HttpContext.Request.PathBase.ToString();
+                    
+                    if (!string.IsNullOrWhiteSpace(requestPathBase))
                     {
-                        doc.Servers.Clear();
+                        doc.Servers.Add(new NSwag.OpenApiServer { Url = requestPathBase });
+                    }
+                    else if (!string.IsNullOrWhiteSpace(pathBase))
+                    {
                         doc.Servers.Add(new NSwag.OpenApiServer { Url = pathBase });
-                    };
-                }
+                    }
+                    else
+                    {
+                        doc.Servers.Add(new NSwag.OpenApiServer { Url = "/" });
+                    }
+                };
             });
 
-            // Enable Swagger UI with explicit swagger.json URL including path base
+            // Enable Swagger UI with relative URL for compatibility with ingress path prefixes
+            // Relative URLs are resolved by the browser based on current location
             app.UseSwaggerUi(c =>
             {
                 c.SwaggerRoutes.Clear();
