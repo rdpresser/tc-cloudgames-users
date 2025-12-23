@@ -23,6 +23,7 @@ var logger = app.Services.GetRequiredService<ILogger<TC.CloudGames.Users.Api.Pro
 TelemetryConstants.LogTelemetryConfiguration(logger, app.Configuration);
 
 // Use metrics authentication middleware extension
+app.UseIngressPathBase(app.Configuration);
 app.UseMetricsAuthentication();
 
 app.UseAuthentication()
