@@ -92,26 +92,20 @@ namespace TC.CloudGames.Users.Api.Extensions
                 };
             });
 
-            // Get PathBase for server URL modification
+            // Get default PathBase from environment for server URL
             var pathBase = Environment.GetEnvironmentVariable("ASPNETCORE_APPL_PATH")
                 ?? configuration["ASPNETCORE_APPL_PATH"]
                 ?? configuration["PathBase"]
                 ?? string.Empty;
 
-            // Build swagger.json URL - use absolute path with PathBase prefix
-            // This ensures the Swagger UI correctly loads the spec when behind ingress
-            var swaggerJsonUrl = string.IsNullOrWhiteSpace(pathBase) 
-                ? "/swagger/v1/swagger.json" 
-                : $"{pathBase}/swagger/v1/swagger.json";
-
-            // Enable OpenAPI with dynamic server URL based on PathBase
+            // Enable OpenAPI with dynamic server URL based on PathBase from request
             app.UseOpenApi(o =>
             {
                 o.PostProcess = (doc, req) =>
                 {
                     doc.Servers.Clear();
                     
-                    // Get the request PathBase (set by UseIngressPathBase middleware)
+                    // Get the request PathBase (set by UseIngressPathBase middleware from X-Forwarded-Prefix or configured pathBase)
                     var requestPathBase = req.HttpContext.Request.PathBase.ToString();
                     
                     if (!string.IsNullOrWhiteSpace(requestPathBase))
@@ -129,12 +123,15 @@ namespace TC.CloudGames.Users.Api.Extensions
                 };
             });
 
-            // Enable Swagger UI with absolute path including PathBase
-            // This ensures the browser correctly resolves the swagger.json URL
+            // Enable Swagger UI
+            // The swagger.json URL path is relative to root, and UseIngressPathBase middleware
+            // ensures that Request.PathBase is set correctly from X-Forwarded-Prefix header
             app.UseSwaggerUi(c =>
             {
                 c.SwaggerRoutes.Clear();
-                c.SwaggerRoutes.Add(new SwaggerUiRoute("v1", swaggerJsonUrl));
+                // Use the absolute path to swagger.json
+                // The middleware UseIngressPathBase will handle the PathBase correctly
+                c.SwaggerRoutes.Add(new SwaggerUiRoute("v1", "/swagger/v1/swagger.json"));
                 c.ConfigureDefaults();
             });
 
