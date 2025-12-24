@@ -98,16 +98,19 @@ namespace TC.CloudGames.Users.Api.Extensions
                 ?? configuration["PathBase"]
                 ?? string.Empty;
 
-            // Enable OpenAPI with dynamic server URL based on PathBase from request
+            // Enable OpenAPI/Swagger with proper PathBase handling
+            // Key: UseOpenApi MUST be called AFTER UsePathBase middleware (UseIngressPathBase)
+            // so that PathBase is already set in the request context
             app.UseOpenApi(o =>
             {
+                // This PostProcess runs for each request, using the current request's PathBase
                 o.PostProcess = (doc, req) =>
                 {
                     doc.Servers.Clear();
                     
-                    // Get the request PathBase (set by UseIngressPathBase middleware from X-Forwarded-Prefix or configured pathBase)
                     var requestPathBase = req.HttpContext.Request.PathBase.ToString();
                     
+                    // Use the request PathBase (dynamic, from X-Forwarded-Prefix or UsePathBase)
                     if (!string.IsNullOrWhiteSpace(requestPathBase))
                     {
                         doc.Servers.Add(new NSwag.OpenApiServer { Url = requestPathBase });
@@ -124,65 +127,17 @@ namespace TC.CloudGames.Users.Api.Extensions
             });
 
             // Enable Swagger UI
-            // The swagger.json URL path is relative to root, and UseIngressPathBase middleware
-            // ensures that Request.PathBase is set correctly from ASPNETCORE_APPL_PATH or X-Forwarded-Prefix header
+            // CRITICAL: Use relative URL pattern that NSwag expects
+            // The "/" prefix tells NSwag to resolve relative to the current request PathBase
             app.UseSwaggerUi(c =>
             {
                 c.SwaggerRoutes.Clear();
-                // Use the absolute path to swagger.json
-                // The middleware UseIngressPathBase will handle the PathBase correctly
-                c.SwaggerRoutes.Add(new SwaggerUiRoute("v1", "/swagger/v1/swagger.json"));
-                c.ConfigureDefaults();
-            });
-
-            // Add middleware to rewrite Swagger UI spec URL with correct PathBase
-            app.Use(async (context, next) =>
-            {
-                // Only apply to Swagger UI requests
-                if (context.Request.Path.StartsWithSegments("/swagger/index.html") || 
-                    context.Request.Path.StartsWithSegments("/swagger/ui"))
-                {
-                    var pathBase = context.Request.PathBase.ToString();
-                    
-                    // If pathBase is set, we need to rewrite the swagger.json URL in the response
-                    if (!string.IsNullOrWhiteSpace(pathBase))
-                    {
-                        // Capture the original response body
-                        var originalBody = context.Response.Body;
-                        using (var memoryStream = new MemoryStream())
-                        {
-                            context.Response.Body = memoryStream;
-                            
-                            await next().ConfigureAwait(false);
-                            
-                            // Read the response content
-                            memoryStream.Position = 0;
-                            using (var streamReader = new StreamReader(memoryStream))
-                            {
-                                var html = await streamReader.ReadToEndAsync().ConfigureAwait(false);
-                                
-                                // Rewrite the swagger.json URL to include PathBase
-                                html = html.Replace(
-                                    "\"/swagger/v1/swagger.json\"",
-                                    $"\"{pathBase}/swagger/v1/swagger.json\"" 
-                                );
-                                html = html.Replace(
-                                    "urls: [{\"url\":\"/./swagger/v1/swagger.json\"",
-                                    $"urls: [{{\"url\":\"{pathBase}/swagger/v1/swagger.json\""
-                                );
-                                
-                                // Write the modified content to the original response
-                                using (var streamWriter = new StreamWriter(originalBody))
-                                {
-                                    await streamWriter.WriteAsync(html).ConfigureAwait(false);
-                                }
-                            }
-                        }
-                        return;
-                    }
-                }
                 
-                await next().ConfigureAwait(false);
+                // Use root-relative path for swagger.json
+                // NSwag will automatically prepend the current PathBase
+                c.SwaggerRoutes.Add(new SwaggerUiRoute("v1", "/swagger/v1/swagger.json"));
+                
+                c.ConfigureDefaults();
             });
 
             return app;
