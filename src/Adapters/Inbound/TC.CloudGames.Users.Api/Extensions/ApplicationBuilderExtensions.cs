@@ -98,16 +98,19 @@ namespace TC.CloudGames.Users.Api.Extensions
                 ?? configuration["PathBase"]
                 ?? string.Empty;
 
-            // Enable OpenAPI with dynamic server URL based on PathBase from request
+            // Enable OpenAPI/Swagger with proper PathBase handling
+            // Key: UseOpenApi MUST be called AFTER UsePathBase middleware (UseIngressPathBase)
+            // so that PathBase is already set in the request context
             app.UseOpenApi(o =>
             {
+                // This PostProcess runs for each request, using the current request's PathBase
                 o.PostProcess = (doc, req) =>
                 {
                     doc.Servers.Clear();
                     
-                    // Get the request PathBase (set by UseIngressPathBase middleware from X-Forwarded-Prefix or configured pathBase)
                     var requestPathBase = req.HttpContext.Request.PathBase.ToString();
                     
+                    // Use the request PathBase (dynamic, from X-Forwarded-Prefix or UsePathBase)
                     if (!string.IsNullOrWhiteSpace(requestPathBase))
                     {
                         doc.Servers.Add(new NSwag.OpenApiServer { Url = requestPathBase });
@@ -124,14 +127,16 @@ namespace TC.CloudGames.Users.Api.Extensions
             });
 
             // Enable Swagger UI
-            // The swagger.json URL path is relative to root, and UseIngressPathBase middleware
-            // ensures that Request.PathBase is set correctly from X-Forwarded-Prefix header
+            // CRITICAL: Use relative URL pattern that NSwag expects
+            // The "/" prefix tells NSwag to resolve relative to the current request PathBase
             app.UseSwaggerUi(c =>
             {
                 c.SwaggerRoutes.Clear();
-                // Use the absolute path to swagger.json
-                // The middleware UseIngressPathBase will handle the PathBase correctly
+                
+                // Use root-relative path for swagger.json
+                // NSwag will automatically prepend the current PathBase
                 c.SwaggerRoutes.Add(new SwaggerUiRoute("v1", "/swagger/v1/swagger.json"));
+                
                 c.ConfigureDefaults();
             });
 
