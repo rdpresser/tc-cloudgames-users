@@ -116,6 +116,10 @@ namespace TC.CloudGames.Users.Api.Extensions
                 ?? configuration["PathBase"]
                 ?? string.Empty;
 
+            // Normalize pathBase once for reuse in OpenAPI and SwaggerUI
+            // Handles: "user", "/user", "/user/", "/", "  ", null, empty
+            var normalizedPathBase = NormalizePathBase(pathBase);
+
             // Enable OpenAPI/Swagger with proper PathBase handling
             // Key: UseOpenApi MUST be called AFTER UsePathBase middleware (UseIngressPathBase)
             // so that PathBase is already set in the request context
@@ -131,11 +135,11 @@ namespace TC.CloudGames.Users.Api.Extensions
                     // Use the request PathBase (dynamic, from X-Forwarded-Prefix or UsePathBase)
                     if (!string.IsNullOrWhiteSpace(requestPathBase))
                     {
-                        doc.Servers.Add(new NSwag.OpenApiServer { Url = requestPathBase });
+                        doc.Servers.Add(new NSwag.OpenApiServer { Url = NormalizePathBase(requestPathBase) });
                     }
-                    else if (!string.IsNullOrWhiteSpace(pathBase))
+                    else if (!string.IsNullOrEmpty(normalizedPathBase))
                     {
-                        doc.Servers.Add(new NSwag.OpenApiServer { Url = pathBase });
+                        doc.Servers.Add(new NSwag.OpenApiServer { Url = normalizedPathBase });
                     }
                     else
                     {
@@ -152,21 +156,10 @@ namespace TC.CloudGames.Users.Api.Extensions
             {
                 c.SwaggerRoutes.Clear();
                 
-                // Use absolute path WITH the PathBase prefix
-                // This ensures the URL is correct regardless of nginx rewriting
-                // Normalize pathBase to ensure it starts with '/' (handles "user" vs "/user")
-                string swaggerJsonPath;
-                if (string.IsNullOrEmpty(pathBase))
-                {
-                    swaggerJsonPath = "/swagger/v1/swagger.json";
-                }
-                else
-                {
-                    var normalizedPathBase = pathBase.StartsWith('/') 
-                        ? pathBase.TrimEnd('/') 
-                        : $"/{pathBase.TrimEnd('/')}";
-                    swaggerJsonPath = $"{normalizedPathBase}/swagger/v1/swagger.json";
-                }
+                // Build swagger.json path with normalized PathBase
+                var swaggerJsonPath = string.IsNullOrEmpty(normalizedPathBase)
+                    ? "/swagger/v1/swagger.json"
+                    : $"{normalizedPathBase}/swagger/v1/swagger.json";
                 
                 c.SwaggerRoutes.Add(new SwaggerUiRoute("v1", swaggerJsonPath));
                 
@@ -214,6 +207,32 @@ namespace TC.CloudGames.Users.Api.Extensions
             await PostgresDatabaseHelper.EnsureDatabaseExists(connProvider);
 
             return app;
+        }
+
+        /// <summary>
+        /// Normalizes a path base string to ensure it has a leading slash and no trailing slash.
+        /// Handles edge cases: "user", "/user", "/user/", "/", "  ", null, empty string.
+        /// </summary>
+        /// <param name="pathBase">The path base to normalize.</param>
+        /// <returns>Normalized path base (e.g., "/user") or empty string if invalid.</returns>
+        private static string NormalizePathBase(string? pathBase)
+        {
+            if (string.IsNullOrWhiteSpace(pathBase))
+            {
+                return string.Empty;
+            }
+
+            // Trim leading and trailing slashes, then whitespace
+            var trimmed = pathBase.Trim().Trim('/');
+            
+            // If nothing left after trimming (e.g., "/" or "  "), return empty
+            if (string.IsNullOrEmpty(trimmed))
+            {
+                return string.Empty;
+            }
+
+            // Rebuild with single leading slash, no trailing slash
+            return $"/{trimmed}";
         }
     }
 }
