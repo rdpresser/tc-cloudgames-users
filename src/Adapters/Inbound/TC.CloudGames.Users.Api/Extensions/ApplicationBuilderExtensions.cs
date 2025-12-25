@@ -145,14 +145,20 @@ namespace TC.CloudGames.Users.Api.Extensions
             });
 
             // Enable Swagger UI
-            // CRITICAL: Use relative URL (without leading /) so NSwag resolves correctly with PathBase
-            // When PathBase is /user, NSwag will resolve to /user/swagger/v1/swagger.json
+            // CRITICAL: Use ABSOLUTE URL with PathBase prefix because NSwag's relative URL
+            // resolution doesn't work correctly with nginx rewrite-target
+            // The PathBase is already known from ASPNETCORE_APPL_PATH environment variable
             app.UseSwaggerUi(c =>
             {
                 c.SwaggerRoutes.Clear();
                 
-                // Use relative path (no leading slash) - NSwag will prepend current PathBase
-                c.SwaggerRoutes.Add(new SwaggerUiRoute("v1", "swagger/v1/swagger.json"));
+                // Use absolute path WITH the PathBase prefix
+                // This ensures the URL is correct regardless of nginx rewriting
+                var swaggerJsonPath = string.IsNullOrEmpty(pathBase) 
+                    ? "/swagger/v1/swagger.json"
+                    : $"{pathBase.TrimEnd('/')}/swagger/v1/swagger.json";
+                
+                c.SwaggerRoutes.Add(new SwaggerUiRoute("v1", swaggerJsonPath));
                 
                 c.ConfigureDefaults();
             });
