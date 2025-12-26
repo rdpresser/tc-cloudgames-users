@@ -5,6 +5,7 @@ using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using System.Globalization;
 using TC.CloudGames.SharedKernel.Infrastructure.Telemetry;
 using Wolverine.ErrorHandling;
 
@@ -52,7 +53,7 @@ namespace TC.CloudGames.Users.Api.Extensions
                 
                 if (!string.IsNullOrWhiteSpace(samplingRatioConfig))
                 {
-                    if (float.TryParse(samplingRatioConfig, out var ratio))
+                    if (float.TryParse(samplingRatioConfig, System.Globalization.NumberStyles.Float, CultureInfo.InvariantCulture, out var ratio))
                     {
                         if (ratio >= 0.0f && ratio <= 1.0f)
                         {
