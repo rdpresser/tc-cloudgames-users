@@ -1,5 +1,4 @@
-﻿using Azure.Identity;
-using Azure.Monitor.OpenTelemetry.AspNetCore;
+﻿using Azure.Monitor.OpenTelemetry.AspNetCore;
 using Npgsql;
 using OpenTelemetry;
 using OpenTelemetry.Logs;
@@ -51,7 +50,7 @@ namespace TC.CloudGames.Users.Api.Extensions
                 // Get sampling ratio from configuration with validation (default: 1.0 = 100%)
                 var samplingRatioConfig = builder.Configuration["AzureMonitor:SamplingRatio"];
                 var samplingRatio = 1.0f;
-                
+
                 if (!string.IsNullOrWhiteSpace(samplingRatioConfig))
                 {
                     if (float.TryParse(samplingRatioConfig, System.Globalization.NumberStyles.Float, CultureInfo.InvariantCulture, out var ratio))
@@ -79,13 +78,11 @@ namespace TC.CloudGames.Users.Api.Extensions
                 });
 
                 // Configure Azure Monitor exporter
+                // Note: Using Connection String auth only (no AAD/DefaultAzureCredential)
+                // to ensure Live Metrics compatibility
                 otelBuilder.UseAzureMonitor(options =>
                 {
                     options.ConnectionString = appInsightsConnectionString;
-
-                    // Use DefaultAzureCredential for RBAC/Workload Identity authentication
-                    // This enables AAD-based auth when running in AKS with Workload Identity
-                    options.Credential = new DefaultAzureCredential();
 
                     // Sampling ratio from configuration (validated above)
                     options.SamplingRatio = samplingRatio;
