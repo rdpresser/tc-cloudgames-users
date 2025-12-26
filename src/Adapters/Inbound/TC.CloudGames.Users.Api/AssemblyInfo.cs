@@ -19,7 +19,6 @@ global using Serilog;
 global using Serilog.Core;
 global using Serilog.Enrichers.Span;
 global using Serilog.Events;
-global using Serilog.Sinks.Grafana.Loki;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Net;
 global using TC.CloudGames.Contracts.Events.Users;
