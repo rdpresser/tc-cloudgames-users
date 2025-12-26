@@ -46,10 +46,28 @@ namespace TC.CloudGames.Users.Api.Extensions
             // Priority 1: Azure Monitor (Production - buffered/async, no timeout issues)
             if (useAzureMonitor)
             {
-                // Get sampling ratio from configuration (default: 1.0 = 100%)
-                var samplingRatio = float.TryParse(
-                    builder.Configuration["AzureMonitor:SamplingRatio"],
-                    out var ratio) ? ratio : 1.0f;
+                // Get sampling ratio from configuration with validation (default: 1.0 = 100%)
+                var samplingRatioConfig = builder.Configuration["AzureMonitor:SamplingRatio"];
+                var samplingRatio = 1.0f;
+                
+                if (!string.IsNullOrWhiteSpace(samplingRatioConfig))
+                {
+                    if (float.TryParse(samplingRatioConfig, out var ratio))
+                    {
+                        if (ratio >= 0.0f && ratio <= 1.0f)
+                        {
+                            samplingRatio = ratio;
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[WARN] Invalid AzureMonitor:SamplingRatio '{samplingRatioConfig}'. Value must be between 0.0 and 1.0. Falling back to default 1.0 (100%).");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[WARN] Could not parse AzureMonitor:SamplingRatio value '{samplingRatioConfig}' as a floating-point number. Falling back to default 1.0 (100%).");
+                    }
+                }
 
                 // Configure Azure Monitor exporter using ConfigureOpenTelemetryTracerProvider
                 // This avoids calling AddOpenTelemetry() again which would cause duplication
@@ -62,7 +80,7 @@ namespace TC.CloudGames.Users.Api.Extensions
                         // This enables AAD-based auth when running in AKS with Workload Identity
                         options.Credential = new DefaultAzureCredential();
 
-                        // Sampling ratio from configuration
+                        // Sampling ratio from configuration (validated above)
                         options.SamplingRatio = samplingRatio;
 
                         // Enable Live Metrics for real-time monitoring
