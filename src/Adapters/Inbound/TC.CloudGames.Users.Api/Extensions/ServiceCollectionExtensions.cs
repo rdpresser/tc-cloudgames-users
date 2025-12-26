@@ -1,6 +1,7 @@
 ﻿using Azure.Identity;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using Npgsql;
+using OpenTelemetry;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -38,7 +39,7 @@ namespace TC.CloudGames.Users.Api.Extensions
             return services;
         }
 
-        private static IHostApplicationBuilder AddOpenTelemetryExporters(this IHostApplicationBuilder builder)
+        private static void AddOpenTelemetryExporters(OpenTelemetryBuilder otelBuilder, IHostApplicationBuilder builder)
         {
             var appInsightsConnectionString = builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
             var useAzureMonitor = !string.IsNullOrWhiteSpace(appInsightsConnectionString);
@@ -78,23 +79,22 @@ namespace TC.CloudGames.Users.Api.Extensions
                 });
 
                 // Configure Azure Monitor exporter
-                builder.Services.AddOpenTelemetry()
-                    .UseAzureMonitor(options =>
-                    {
-                        options.ConnectionString = appInsightsConnectionString;
+                otelBuilder.UseAzureMonitor(options =>
+                {
+                    options.ConnectionString = appInsightsConnectionString;
 
-                        // Use DefaultAzureCredential for RBAC/Workload Identity authentication
-                        // This enables AAD-based auth when running in AKS with Workload Identity
-                        options.Credential = new DefaultAzureCredential();
+                    // Use DefaultAzureCredential for RBAC/Workload Identity authentication
+                    // This enables AAD-based auth when running in AKS with Workload Identity
+                    options.Credential = new DefaultAzureCredential();
 
-                        // Sampling ratio from configuration (validated above)
-                        options.SamplingRatio = samplingRatio;
+                    // Sampling ratio from configuration (validated above)
+                    options.SamplingRatio = samplingRatio;
 
-                        // Enable Live Metrics for real-time monitoring
-                        options.EnableLiveMetrics = true;
-                    });
+                    // Enable Live Metrics for real-time monitoring
+                    options.EnableLiveMetrics = true;
+                });
 
-                return builder;
+                return;
             }
 
             // Priority 2: Grafana Agent OTLP (Local development)
@@ -102,7 +102,7 @@ namespace TC.CloudGames.Users.Api.Extensions
 
             if (grafanaSettings.Agent.Enabled && useOtlpExporter)
             {
-                builder.Services.ConfigureOpenTelemetryTracerProvider((sp, tracerBuilder) =>
+                otelBuilder.WithTracing(tracerBuilder =>
                 {
                     tracerBuilder.AddOtlpExporter(otlp =>
                     {
@@ -128,7 +128,7 @@ namespace TC.CloudGames.Users.Api.Extensions
                     Protocol = grafanaSettings.Otlp.Protocol
                 });
 
-                return builder;
+                return;
             }
 
             // Fallback: No external exporter configured
@@ -136,8 +136,6 @@ namespace TC.CloudGames.Users.Api.Extensions
             {
                 ExporterType = "None"
             });
-
-            return builder;
         }
 
         public static IServiceCollection AddCustomOpenTelemetry(this IServiceCollection services, IHostApplicationBuilder builder, IConfiguration configuration)
@@ -158,7 +156,7 @@ namespace TC.CloudGames.Users.Api.Extensions
             // ==============================================================
             // METRICS AND TRACES
             // ==============================================================
-            services.AddOpenTelemetry()
+            var otelBuilder = services.AddOpenTelemetry()
                 // Configure ResourceBuilder (metadata sent with metrics and traces)
                 .ConfigureResource(resource => resource.AddService(serviceName, serviceNamespace: serviceNamespace, serviceVersion: serviceVersion, serviceInstanceId: instanceId)
                 .AddAttributes(new Dictionary<string, object>
@@ -262,7 +260,7 @@ namespace TC.CloudGames.Users.Api.Extensions
             services.AddSingleton<SystemMetrics>();
 
             // Add exporters (OTLP will be configured only if Grafana is enabled)
-            builder.AddOpenTelemetryExporters();
+            AddOpenTelemetryExporters(otelBuilder, builder);
 
             return services;
         }
