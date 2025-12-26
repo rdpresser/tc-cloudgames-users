@@ -58,10 +58,10 @@ internal static class TelemetryConstants
 
         // Load Grafana configuration via Helper
         var grafanaSettings = TC.CloudGames.SharedKernel.Infrastructure.Telemetry.GrafanaHelper.Build(configuration);
-        
+
         logger.LogInformation("============================");
         logger.LogInformation("=== GRAFANA AGENT CONFIG ===");
-        
+
         // Agent Status (CRITICAL INFO)
         if (grafanaSettings.Agent.Enabled)
         {
@@ -80,17 +80,63 @@ internal static class TelemetryConstants
             logger.LogWarning("   ? Metrics: /metrics endpoint available (not scraped)");
             logger.LogWarning("   ? To enable: Set Grafana:Agent:Enabled=true or GRAFANA_AGENT_ENABLED=true");
         }
-        
+
         logger.LogInformation("Agent Host: {AgentHost}", grafanaSettings.Agent.Host);
         logger.LogInformation("Agent OTLP gRPC Port: {OtlpGrpcPort}", grafanaSettings.Agent.OtlpGrpcPort);
         logger.LogInformation("Agent OTLP HTTP Port: {OtlpHttpPort}", grafanaSettings.Agent.OtlpHttpPort);
         logger.LogInformation("Agent Metrics Port: {MetricsPort}", grafanaSettings.Agent.MetricsPort);
         logger.LogInformation("OTLP Endpoint: {OtlpEndpoint}", grafanaSettings.Otlp.Endpoint);
         logger.LogInformation("OTLP Protocol: {OtlpProtocol}", grafanaSettings.Otlp.Protocol);
-        logger.LogInformation("OTLP Headers: {OtlpHeaders}", 
+        logger.LogInformation("OTLP Headers: {OtlpHeaders}",
             string.IsNullOrWhiteSpace(grafanaSettings.Otlp.Headers) ? "NOT SET" : "***CONFIGURED***");
         logger.LogInformation("OTLP Timeout: {OtlpTimeout}s", grafanaSettings.Otlp.TimeoutSeconds);
         logger.LogInformation("OTLP Insecure: {OtlpInsecure}", grafanaSettings.Otlp.Insecure);
         logger.LogInformation("============================");
+    }
+
+    /// <summary>
+    /// Logs APM/Telemetry exporter configuration details.
+    /// This should be called from Program.cs after the logger is fully configured.
+    /// </summary>
+    public static void LogApmExporterConfiguration(Microsoft.Extensions.Logging.ILogger logger, TC.CloudGames.Users.Api.Extensions.TelemetryExporterInfo? exporterInfo)
+    {
+        if (exporterInfo == null)
+        {
+            logger.LogWarning("Telemetry exporter information not available");
+            return;
+        }
+
+        logger.LogInformation("====================================================================================");
+
+        switch (exporterInfo.ExporterType.ToUpperInvariant())
+        {
+            case "AZUREMONITOR":
+                logger.LogInformation("Azure Monitor configured - Telemetry will be exported to Application Insights");
+                logger.LogInformation("Using DefaultAzureCredential for RBAC/Workload Identity authentication");
+                if (exporterInfo.SamplingRatio.HasValue)
+                {
+                    logger.LogInformation("Sampling Ratio: {SamplingRatio:P0}", exporterInfo.SamplingRatio.Value);
+                }
+                logger.LogInformation("Live Metrics: Enabled");
+                break;
+
+            case "OTLP":
+                logger.LogInformation("OTLP Exporter configured - Endpoint: {Endpoint}, Protocol: {Protocol}",
+                    exporterInfo.Endpoint ?? "NOT SET",
+                    exporterInfo.Protocol ?? "NOT SET");
+                break;
+
+            case "NONE":
+                logger.LogWarning("No APM exporter configured - Telemetry will be generated but NOT exported.");
+                logger.LogWarning("To enable Azure Monitor: Set APPLICATIONINSIGHTS_CONNECTION_STRING");
+                logger.LogWarning("To enable Grafana: Set GRAFANA_AGENT_ENABLED=true and OTEL_EXPORTER_OTLP_ENDPOINT");
+                break;
+
+            default:
+                logger.LogWarning("Unknown telemetry exporter type: {ExporterType}", exporterInfo.ExporterType);
+                break;
+        }
+
+        logger.LogInformation("====================================================================================");
     }
 }

@@ -5,6 +5,7 @@ using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using System.Globalization;
 using TC.CloudGames.SharedKernel.Infrastructure.Telemetry;
 using Wolverine.ErrorHandling;
 
@@ -46,13 +47,37 @@ namespace TC.CloudGames.Users.Api.Extensions
             // Priority 1: Azure Monitor (Production - buffered/async, no timeout issues)
             if (useAzureMonitor)
             {
-                // Get sampling ratio from configuration (default: 1.0 = 100%)
-                var samplingRatio = float.TryParse(
-                    builder.Configuration["AzureMonitor:SamplingRatio"],
-                    out var ratio) ? ratio : 1.0f;
+                // Get sampling ratio from configuration with validation (default: 1.0 = 100%)
+                var samplingRatioConfig = builder.Configuration["AzureMonitor:SamplingRatio"];
+                var samplingRatio = 1.0f;
+                
+                if (!string.IsNullOrWhiteSpace(samplingRatioConfig))
+                {
+                    if (float.TryParse(samplingRatioConfig, System.Globalization.NumberStyles.Float, CultureInfo.InvariantCulture, out var ratio))
+                    {
+                        if (ratio >= 0.0f && ratio <= 1.0f)
+                        {
+                            samplingRatio = ratio;
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[WARN] Invalid AzureMonitor:SamplingRatio '{samplingRatioConfig}'. Value must be between 0.0 and 1.0. Falling back to default 1.0 (100%).");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[WARN] Could not parse AzureMonitor:SamplingRatio value '{samplingRatioConfig}' as a floating-point number. Falling back to default 1.0 (100%).");
+                    }
+                }
 
-                // Configure Azure Monitor exporter using ConfigureOpenTelemetryTracerProvider
-                // This avoids calling AddOpenTelemetry() again which would cause duplication
+                // Store sampling ratio in service collection for later logging in Program.cs
+                builder.Services.AddSingleton(new TelemetryExporterInfo
+                {
+                    ExporterType = "AzureMonitor",
+                    SamplingRatio = samplingRatio
+                });
+
+                // Configure Azure Monitor exporter
                 builder.Services.AddOpenTelemetry()
                     .UseAzureMonitor(options =>
                     {
@@ -62,17 +87,13 @@ namespace TC.CloudGames.Users.Api.Extensions
                         // This enables AAD-based auth when running in AKS with Workload Identity
                         options.Credential = new DefaultAzureCredential();
 
-                        // Sampling ratio from configuration
+                        // Sampling ratio from configuration (validated above)
                         options.SamplingRatio = samplingRatio;
 
                         // Enable Live Metrics for real-time monitoring
                         options.EnableLiveMetrics = true;
                     });
 
-                Console.WriteLine("[INFO] Azure Monitor configured - Telemetry will be exported to Application Insights");
-                Console.WriteLine("[INFO] Using DefaultAzureCredential for RBAC/Workload Identity authentication");
-                Console.WriteLine($"[INFO] Sampling Ratio: {samplingRatio:P0}");
-                Console.WriteLine("[INFO] Live Metrics: Enabled");
                 return builder;
             }
 
@@ -99,14 +120,22 @@ namespace TC.CloudGames.Users.Api.Extensions
                     });
                 });
 
-                Console.WriteLine($"[INFO] OTLP Exporter configured - Endpoint: {grafanaSettings.Otlp.Endpoint}, Protocol: {grafanaSettings.Otlp.Protocol}");
+                // Store OTLP info in service collection for later logging in Program.cs
+                builder.Services.AddSingleton(new TelemetryExporterInfo
+                {
+                    ExporterType = "OTLP",
+                    Endpoint = grafanaSettings.Otlp.Endpoint,
+                    Protocol = grafanaSettings.Otlp.Protocol
+                });
+
                 return builder;
             }
 
             // Fallback: No external exporter configured
-            Console.WriteLine("[WARN] No APM exporter configured - Telemetry will be generated but NOT exported.");
-            Console.WriteLine("[WARN] To enable Azure Monitor: Set APPLICATIONINSIGHTS_CONNECTION_STRING");
-            Console.WriteLine("[WARN] To enable Grafana: Set GRAFANA_AGENT_ENABLED=true and OTEL_EXPORTER_OTLP_ENDPOINT");
+            builder.Services.AddSingleton(new TelemetryExporterInfo
+            {
+                ExporterType = "None"
+            });
 
             return builder;
         }
