@@ -58,10 +58,10 @@ internal static class TelemetryConstants
 
         // Load Grafana configuration via Helper
         var grafanaSettings = TC.CloudGames.SharedKernel.Infrastructure.Telemetry.GrafanaHelper.Build(configuration);
-        
+
         logger.LogInformation("============================");
         logger.LogInformation("=== GRAFANA AGENT CONFIG ===");
-        
+
         // Agent Status (CRITICAL INFO)
         if (grafanaSettings.Agent.Enabled)
         {
@@ -80,14 +80,14 @@ internal static class TelemetryConstants
             logger.LogWarning("   ? Metrics: /metrics endpoint available (not scraped)");
             logger.LogWarning("   ? To enable: Set Grafana:Agent:Enabled=true or GRAFANA_AGENT_ENABLED=true");
         }
-        
+
         logger.LogInformation("Agent Host: {AgentHost}", grafanaSettings.Agent.Host);
         logger.LogInformation("Agent OTLP gRPC Port: {OtlpGrpcPort}", grafanaSettings.Agent.OtlpGrpcPort);
         logger.LogInformation("Agent OTLP HTTP Port: {OtlpHttpPort}", grafanaSettings.Agent.OtlpHttpPort);
         logger.LogInformation("Agent Metrics Port: {MetricsPort}", grafanaSettings.Agent.MetricsPort);
         logger.LogInformation("OTLP Endpoint: {OtlpEndpoint}", grafanaSettings.Otlp.Endpoint);
         logger.LogInformation("OTLP Protocol: {OtlpProtocol}", grafanaSettings.Otlp.Protocol);
-        logger.LogInformation("OTLP Headers: {OtlpHeaders}", 
+        logger.LogInformation("OTLP Headers: {OtlpHeaders}",
             string.IsNullOrWhiteSpace(grafanaSettings.Otlp.Headers) ? "NOT SET" : "***CONFIGURED***");
         logger.LogInformation("OTLP Timeout: {OtlpTimeout}s", grafanaSettings.Otlp.TimeoutSeconds);
         logger.LogInformation("OTLP Insecure: {OtlpInsecure}", grafanaSettings.Otlp.Insecure);
@@ -106,7 +106,7 @@ internal static class TelemetryConstants
             return;
         }
 
-        logger.LogInformation("???????????????????????????????????????????????????????????????");
+        logger.LogInformation("====================================================================================");
 
         switch (exporterInfo.ExporterType.ToUpperInvariant())
         {
@@ -137,6 +137,6 @@ internal static class TelemetryConstants
                 break;
         }
 
-        logger.LogInformation("???????????????????????????????????????????????????????????????");
+        logger.LogInformation("====================================================================================");
     }
 }
