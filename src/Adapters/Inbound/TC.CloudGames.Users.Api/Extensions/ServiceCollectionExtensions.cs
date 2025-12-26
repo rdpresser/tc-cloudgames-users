@@ -1,4 +1,6 @@
-﻿using Npgsql;
+﻿using Azure.Identity;
+using Azure.Monitor.OpenTelemetry.AspNetCore;
+using Npgsql;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -37,42 +39,74 @@ namespace TC.CloudGames.Users.Api.Extensions
 
         private static IHostApplicationBuilder AddOpenTelemetryExporters(this IHostApplicationBuilder builder)
         {
+            var appInsightsConnectionString = builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
+            var useAzureMonitor = !string.IsNullOrWhiteSpace(appInsightsConnectionString);
             var useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
 
-            // Load Grafana configuration via Helper (to check if Agent is enabled)
+            // Priority 1: Azure Monitor (Production - buffered/async, no timeout issues)
+            if (useAzureMonitor)
+            {
+                // Get sampling ratio from configuration (default: 1.0 = 100%)
+                var samplingRatio = float.TryParse(
+                    builder.Configuration["AzureMonitor:SamplingRatio"],
+                    out var ratio) ? ratio : 1.0f;
+
+                // Configure Azure Monitor exporter using ConfigureOpenTelemetryTracerProvider
+                // This avoids calling AddOpenTelemetry() again which would cause duplication
+                builder.Services.AddOpenTelemetry()
+                    .UseAzureMonitor(options =>
+                    {
+                        options.ConnectionString = appInsightsConnectionString;
+
+                        // Use DefaultAzureCredential for RBAC/Workload Identity authentication
+                        // This enables AAD-based auth when running in AKS with Workload Identity
+                        options.Credential = new DefaultAzureCredential();
+
+                        // Sampling ratio from configuration
+                        options.SamplingRatio = samplingRatio;
+
+                        // Enable Live Metrics for real-time monitoring
+                        options.EnableLiveMetrics = true;
+                    });
+
+                Console.WriteLine("[INFO] Azure Monitor configured - Telemetry will be exported to Application Insights");
+                Console.WriteLine("[INFO] Using DefaultAzureCredential for RBAC/Workload Identity authentication");
+                Console.WriteLine($"[INFO] Sampling Ratio: {samplingRatio:P0}");
+                Console.WriteLine("[INFO] Live Metrics: Enabled");
+                return builder;
+            }
+
+            // Priority 2: Grafana Agent OTLP (Local development)
             var grafanaSettings = GrafanaHelper.Build(builder.Configuration);
 
             if (grafanaSettings.Agent.Enabled && useOtlpExporter)
             {
-                // Manual OTLP Exporter configuration with Grafana settings
-                builder.Services.AddOpenTelemetry()
-                    .WithTracing(tracing =>
+                builder.Services.ConfigureOpenTelemetryTracerProvider((sp, tracerBuilder) =>
+                {
+                    tracerBuilder.AddOtlpExporter(otlp =>
                     {
-                        tracing.AddOtlpExporter(otlp =>
+                        otlp.Endpoint = new Uri(grafanaSettings.Otlp.Endpoint);
+                        otlp.Protocol = grafanaSettings.Otlp.Protocol.ToLowerInvariant() == "grpc"
+                            ? OpenTelemetry.Exporter.OtlpExportProtocol.Grpc
+                            : OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
+
+                        if (!string.IsNullOrWhiteSpace(grafanaSettings.Otlp.Headers))
                         {
-                            otlp.Endpoint = new Uri(grafanaSettings.Otlp.Endpoint);
-                            otlp.Protocol = grafanaSettings.Otlp.Protocol.ToLowerInvariant() == "grpc"
-                                ? OpenTelemetry.Exporter.OtlpExportProtocol.Grpc
-                                : OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
+                            otlp.Headers = grafanaSettings.Otlp.Headers;
+                        }
 
-                            // Headers (if any - normally not needed with local Grafana Agent)
-                            if (!string.IsNullOrWhiteSpace(grafanaSettings.Otlp.Headers))
-                            {
-                                otlp.Headers = grafanaSettings.Otlp.Headers;
-                            }
-
-                            // Timeout
-                            otlp.TimeoutMilliseconds = grafanaSettings.Otlp.TimeoutSeconds * 1000;
-                        });
+                        otlp.TimeoutMilliseconds = grafanaSettings.Otlp.TimeoutSeconds * 1000;
                     });
+                });
 
                 Console.WriteLine($"[INFO] OTLP Exporter configured - Endpoint: {grafanaSettings.Otlp.Endpoint}, Protocol: {grafanaSettings.Otlp.Protocol}");
+                return builder;
             }
-            else
-            {
-                Console.WriteLine("[WARN] Grafana Agent is DISABLED - Traces will be generated but NOT exported.");
-                Console.WriteLine("[WARN] To enable: Set Grafana:Agent:Enabled=true or GRAFANA_AGENT_ENABLED=true");
-            }
+
+            // Fallback: No external exporter configured
+            Console.WriteLine("[WARN] No APM exporter configured - Telemetry will be generated but NOT exported.");
+            Console.WriteLine("[WARN] To enable Azure Monitor: Set APPLICATIONINSIGHTS_CONNECTION_STRING");
+            Console.WriteLine("[WARN] To enable Grafana: Set GRAFANA_AGENT_ENABLED=true and OTEL_EXPORTER_OTLP_ENDPOINT");
 
             return builder;
         }
@@ -184,10 +218,12 @@ namespace TC.CloudGames.Users.Api.Extensions
                         })
                         .AddFusionCacheInstrumentation()
                         .AddNpgsql()
-                        // Custom sources (Wolverine, Marten, Users)
+                        // Custom sources (Application, Wolverine, Marten)
                         .AddSource(TelemetryConstants.UserActivitySource)
                         .AddSource(TelemetryConstants.DatabaseActivitySource)
-                        .AddSource(TelemetryConstants.CacheActivitySource);
+                        .AddSource(TelemetryConstants.CacheActivitySource)
+                        .AddSource("Wolverine")
+                        .AddSource("Marten");
                 });
 
             // ==============================================================
