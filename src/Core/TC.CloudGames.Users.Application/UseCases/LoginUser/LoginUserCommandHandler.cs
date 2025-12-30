@@ -30,8 +30,8 @@ internal sealed class LoginUserCommandHandler : BaseHandler<LoginUserCommand, Lo
                      UserDomainErrors.InvalidCredentials.ErrorMessage,
                      UserDomainErrors.InvalidCredentials.ErrorCode);
 
-            // Returns a NotFound result using the shared validation helper
-            return BuildNotFoundResult();
+            // Returns a NotAuthorized result using the shared validation helper
+            return BuildNotAuthorizedResult();
         }
 
         var response = new LoginUserResponse(
